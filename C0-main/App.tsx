@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   lowerContainer: {
-    flex: 1.9, // We'll learn about "flex" and other flexbox properties in class!
+    flex: 1.6, // We'll learn about "flex" and other flexbox properties in class!
     flexDirection: "column", // Try: 'row' or 'column'
     alignItems: "center", // Try: 'flex-start' or 'center' or 'flex-end'
     justifyContent: "flex-start", // Try: 'flex-start' or 'flex-end' or 'space-between' or 'space-around' or 'space evenly'
