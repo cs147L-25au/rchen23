@@ -24,7 +24,6 @@ export default function App() {
     require("./assets/interesting_foods/italian_chocolates.png"),
     require("./assets/interesting_foods/italian_pizza.png"),
     require("./assets/interesting_foods/jamaican_jerk_chicken.png"),
-    require("./assets/interesting_foods/jerk_chicken_chow_mein_burger.png"),
     require("./assets/interesting_foods/kaisen_don_rantei.png"),
     require("./assets/interesting_foods/lychee_pomelo_sago.png"),
     require("./assets/interesting_foods/macarena_paella.png"),
@@ -40,34 +39,61 @@ export default function App() {
     require("./assets/interesting_foods/absolute_shrinema.png"),
   ]; // url
   let foodText = [
-    "food description 1",
-    "food description 2",
-    "food description 3",
-    "food description 4",
-    "food description 5",
-    "food description 6",
-    "food description 7",
-    "food description 8",
-    "food description 9",
-    "food description 10",
-    "food description 11",
-    "food description 12",
-    "food description 13",
-    "food description 14",
-    "food description 15",
-    "food description 16",
-    "food description 17",
-    "food description 18",
-    "food description 19",
-    "food description 20",
-    "food description 21",
-    "food description 22",
-    "food description 23",
-    "food description 24",
-    "food description 25",
-    "food description 26",
-    "If you made it this far, enjoy a meme! Thanks for clicking!",
+    "Arctic Bird's Nest, Aquavit",
+    "Black Pepper Ice Cream, Chang An",
+    "Vegan Salmon (made of carrots)",
+    "Citrons from Sorrento",
+    "Ginger Bread House!",
+    "Disneyland Turkey Leg",
+    "Bougiefied French Fries",
+    "Gelato from Vivoli in Florence",
+    "'Huli-Huli' Chicken from Stern 😞",
+    "Interstellar Texas BBQ, Austin",
+    "Tuscan Chocolates in Florence",
+    "Margherita Pizza, Rome",
+    "Jamaican Jerk Chicken, Toronto",
+    "Kaisen Don at Rantei Sushi",
+    "'Lychee Pomelo & Sago' from my HS",
+    "Steak Paella from Macarena, Palo Alto",
+    "Tiramisu from Norma, NYC",
+    "Seafood Bowl from Raisu, Vancouver",
+    "A 'Screamer,' aka soft serve in a slushee",
+    "Smokey Cheesers from Philadelphia",
+    "Crab Ciopinno, Sotto Mare, SF",
+    "Ten Butchers Korean BBQ",
+    "Thai Fried Chicken at Karakade",
+    "Veal Platter..? (from Florence)",
+    "Yin-Yang Vegan Soup, Vancouver",
+    "If you made it this far, enjoy a meme! (screenshotted from Leafy_Illustrates)",
   ]; // description
+  let foodRate = [
+    "Score: 10/10. Looked great. Tasted even better",
+    "Score: 8/10. Interesting flavor",
+    "Score: 7/10. Pretty good but a bit sour.",
+    "Score: 2/10. Sour and Bitter 😖",
+    "Score: 4/10. Looked better than it tasted",
+    "Score: 7/10. Actually pretty good",
+    "Score: 3.5/10. The appearance reflected the taste",
+    "Score: 12/10. INCREDIBLY DELICIOUS",
+    "Score: 4/10. Tasted better than it looked...",
+    "Score: 10/10. First bite tasted like heaven. Second one almost sent me there",
+    "Score: 6/10. Very interesting taste...",
+    "Score: 9/10. 😍😍😍",
+    "Score: 8/10. Super Yummy",
+    "Score: 9/10. Absolutely Delicious",
+    "Score: 1/10. I got food poisoning from this",
+    "Score: 10/10. *Chef's kiss*",
+    "Score: 8/10. Very good!",
+    "Score: 9/10. Couldn't stop eating",
+    "Score: 5/10. Way too cold and way too sweet. Truly a once in a lifetime experience",
+    "Score: 5/10. A bit too salty for me",
+    "Score: 9.5/10. Lived up to the hype",
+    "Score: 10/10. This sent me to heaven",
+    "Score: 9/10. Best fried chicken I've ever had",
+    "Score: 3/10. Dry and bland... also unethical",
+    "Score: 8/10. GOATed Soup",
+    "Thanks for clicking!",
+  ];
   const [foodOrder, setFoodOrder] = useState(0);
 
   return (
@@ -82,14 +108,14 @@ export default function App() {
             width={200}
           />
         </View>
+        <Text style={styles.paragraph}>
+          Click the food to see some interesting foods I've tried!
+        </Text>
       </View>
       <View style={styles.lowerContainer}>
-        <Text style={styles.paragraph}>
-          Click the food to see some interesting dishes I've tried!
-        </Text>
         <Pressable
           onPress={() => {
-            if (foodOrder < 26) {
+            if (foodOrder < 25) {
               setFoodOrder(foodOrder + 1);
             }
           }}
@@ -99,12 +125,13 @@ export default function App() {
             <Image
               style={styles.logo}
               source={foodPic[foodOrder]}
-              height={410}
-              width={390}
+              height={390}
+              width={370}
             />
           </View>
         </Pressable>
         <Text style={styles.foodReview}>{foodText[foodOrder]}</Text>
+        <Text style={styles.foodRating}>{foodRate[foodOrder]}</Text>
         <Button
           title="Reset Foods"
           color="#3427c3ff"
@@ -128,41 +155,51 @@ const styles = StyleSheet.create({
     flexDirection: "column", // Try: 'row' or 'column'
     alignItems: "center", // Try: 'flex-start' or 'center' or 'flex-end'
     justifyContent: "flex-start", // Try: 'flex-start' or 'flex-end' or 'space-between' or 'space-around' or 'space evenly'
-    backgroundColor: "#9ecefbff", // Try different color hex codes!
-    padding: 10, // Try changing this value!
-    paddingVertical: 30,
+    backgroundColor: "#f7fab8ff", // Try different color hex codes!
+    padding: 5, // Try changing this value!
+    paddingVertical: 5,
   },
   imageContainer: {
     flexDirection: "row",
   },
   lowerContainer: {
-    flex: 2.5, // We'll learn about "flex" and other flexbox properties in class!
+    flex: 1.9, // We'll learn about "flex" and other flexbox properties in class!
     flexDirection: "column", // Try: 'row' or 'column'
     alignItems: "center", // Try: 'flex-start' or 'center' or 'flex-end'
     justifyContent: "flex-start", // Try: 'flex-start' or 'flex-end' or 'space-between' or 'space-around' or 'space evenly'
     paddingHorizontal: 0, // Try changing this value!
-    paddingVertical: 2,
+    paddingVertical: 0,
   },
   title: {
     fontSize: 36, // Try changing this value!
     fontWeight: "bold", // Try: 'light' or 'normal' or 'bold'
     textAlign: "center",
-    fontFamily: "Courier New",
+    fontFamily: "Cochin",
   },
   paragraph: {
     // Try changing these values!
-    margin: 12,
-    fontSize: 19,
+    margin: 8,
+    fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
-    fontFamily: "Courier",
+    fontFamily: "Cochin",
   },
   foodReview: {
     // Try changing these values!
-    margin: 12,
-    fontSize: 16,
+    margin: 6,
+    padding: 0,
+    fontSize: 20,
     textAlign: "center",
-    fontFamily: "Courier",
+    fontFamily: "Cochin-Bold",
+  },
+  foodRating: {
+    // Try changing these values!
+    margin: 4,
+    padding: 0,
+    fontSize: 20,
+    textAlign: "center",
+    fontWeight: "bold",
+    fontFamily: "Cochin",
   },
   logo: {
     // Try changing these values!
