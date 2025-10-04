@@ -152,14 +152,13 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f7fab8ff",
+    backgroundColor: "#f7fab8ff", // Try different color hex codes!
   },
   topContainer: {
     flex: 1, // We'll learn about "flex" and other flexbox properties in class!
     flexDirection: "column", // Try: 'row' or 'column'
     alignItems: "center", // Try: 'flex-start' or 'center' or 'flex-end'
     justifyContent: "flex-start", // Try: 'flex-start' or 'flex-end' or 'space-between' or 'space-around' or 'space evenly'
-    backgroundColor: "#f7fab8ff", // Try different color hex codes!
     padding: 5, // Try changing this value!
     paddingVertical: 5,
   },
