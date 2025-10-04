@@ -97,7 +97,7 @@ export default function App() {
   const [foodOrder, setFoodOrder] = useState(0);
 
   return (
-    <SafeAreaView style={styles.topContainer}>
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.topContainer}>
         <Text style={styles.title}>{welcomeMessage}</Text>
         <View style={styles.imageContainer}>
@@ -150,6 +150,10 @@ export default function App() {
 // The "styles" object contains style objects. We can access a style X with "styles.X".
 // We will learn more about styles and the "StyleSheet" component next Tuesday :-)
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#f7fab8ff",
+  },
   topContainer: {
     flex: 1, // We'll learn about "flex" and other flexbox properties in class!
     flexDirection: "column", // Try: 'row' or 'column'
@@ -173,6 +177,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36, // Try changing this value!
     fontWeight: "bold", // Try: 'light' or 'normal' or 'bold'
+    marginTop: 45,
     textAlign: "center",
     fontFamily: "Cochin",
   },
