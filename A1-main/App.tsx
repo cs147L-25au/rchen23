@@ -61,6 +61,7 @@ export default function App() {
   ];
 
   return (
+    /* Header */
     <View style={styles.container} onLayout={onLayoutRootView}>
       <View style={styles.Header}>
         <View style={styles.textContainer}>
@@ -79,8 +80,35 @@ export default function App() {
           <Image style={styles.modeButton} source={Modes[darkMode]} />
         </Pressable>
       </View>
+
       <Body />
-      <Footer />
+
+      {/* Footer: Navigation Bar at Bottom */}
+      <View style={styles.navigationBar}>
+        <View style={styles.iconBox}>
+          <View style={styles.navigationItem}>
+            <Image
+              style={styles.navigationIcons}
+              source={require("./assets/Icons/discover_light.png")}
+            />
+            <Text style={styles.iconTexts}>Discover</Text>
+          </View>
+          <View style={styles.navigationItem}>
+            <Image
+              style={styles.navigationIcons}
+              source={require("./assets/Icons/heart_light.png")}
+            />
+            <Text style={styles.iconTexts}>Matches</Text>
+          </View>
+          <View style={styles.navigationItem}>
+            <Image
+              style={styles.navigationIcons}
+              source={require("./assets/Icons/messages_light.png")}
+            />
+            <Text style={styles.iconTexts}>DMs</Text>
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -121,5 +149,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Sydney",
     textAlign: "left",
+  },
+  navigationBar: {
+    display: "flex",
+    width: "100%",
+    backgroundColor: Themes.light.navigation,
+  },
+  iconBox: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: "10%",
+  },
+  navigationItem: {
+    flexDirection: "column", // stack icon above the text
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "2%",
+    marginBottom: "2%",
+  },
+  navigationIcons: {
+    height: 35,
+    width: 35,
+    marginTop: 5,
+    marginBottom: 5,
+  },
+  navigationText: {
+    flexDirection: "row", // names are split a part horizontally
+    alignItems: "center", // text should be centered and spaced evenly
+  },
+  iconTexts: {
+    fontSize: 14,
+    fontFamily: "Sydney",
+    color: Themes.light.textSecondary,
   },
 });
