@@ -26,6 +26,7 @@ const Themes = {
     textSecondary: palette.black,
     statusBar: "light-content" as const,
     navigation: palette.white,
+    border: "transparent",
     shadows: {
       shadowColor: palette.black,
       shadowOpacity: 0.4,

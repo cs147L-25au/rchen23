@@ -50,9 +50,10 @@ export default function App() {
   /* END FONT LOADING CODE */
 
   // If you want to use dark mode, change this accordingly.
+  const themeMode = darkMode == 0 ? Themes.light : Themes.dark;
 
   // Header Items:
-  StatusBar.setBarStyle(Themes.light.statusBar);
+  StatusBar.setBarStyle(themeMode.statusBar);
   const userName: string = "James Landay";
   const userPronouns: string = "he/him/his";
   const audioTitle: string = "My hottest take";
@@ -70,11 +71,18 @@ export default function App() {
 
   return (
     /* Header */
-    <View style={styles.container} onLayout={onLayoutRootView}>
+    <View
+      style={[styles.container, { backgroundColor: themeMode.bg }]}
+      onLayout={onLayoutRootView}
+    >
       <View style={styles.Header}>
         <View style={styles.textContainer}>
-          <Text style={styles.Name}>{userName}</Text>
-          <Text style={styles.Pronouns}>{userPronouns}</Text>
+          <Text style={[styles.Name, { color: themeMode.text }]}>
+            {userName}
+          </Text>
+          <Text style={[styles.Pronouns, { color: themeMode.text }]}>
+            {userPronouns}
+          </Text>
         </View>
         <Pressable
           onPress={() => {
@@ -90,8 +98,18 @@ export default function App() {
       </View>
 
       {/* Profile Card */}
-      <View style={styles.profileCard}>
-        <Text style={styles.profileTitle}>Me and my best friend</Text>
+      <View
+        style={[
+          styles.profileCard,
+          {
+            backgroundColor: themeMode.bgSecondary,
+            borderColor: themeMode.border,
+          },
+        ]}
+      >
+        <Text style={[styles.profileTitle, { color: themeMode.text }]}>
+          Me and my best friend
+        </Text>
         <View style={styles.profileImageContainer}>
           <Image
             source={require("./assets/Profiles/landay.jpg")}
@@ -163,7 +181,6 @@ const styles = StyleSheet.create({
   // Feel free to change this if you want!
   container: {
     flex: 1,
-    backgroundColor: Themes.light.bg,
     alignItems: "center",
   },
   /*Header*/
@@ -197,26 +214,11 @@ const styles = StyleSheet.create({
     fontFamily: "Sydney",
     textAlign: "left",
   },
-  navigationBar: {
-    display: "flex",
-    flex: 0,
-    width: "100%",
-    backgroundColor: Themes.light.navigation,
-  },
-  iconBox: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: "10%",
-  },
   /*Profile*/
   profileCard: {
     width: "90%",
-    backgroundColor: Themes.light.bgSecondary,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: Themes.light.border,
-    marginBottom: "4%",
   },
   profileTitle: {
     fontSize: 20,
@@ -232,7 +234,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderBottomLeftRadius: 15,
     borderBottomRightRadius: 15,
-    overflow: "hidden", // so image also has rounded corners
+    overflow: "hidden",
     position: "relative",
   },
   profileImage: {
@@ -296,14 +298,28 @@ const styles = StyleSheet.create({
   },
 
   /*Navigation*/
+  navigationBar: {
+    display: "flex",
+    flex: 0,
+    width: "100%",
+    backgroundColor: Themes.light.navigation,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  iconBox: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: "10%",
+  },
   navigationItem: {
     flexDirection: "column", // stack icon above the text
     alignItems: "center",
     justifyContent: "center",
-    bottom: 0,
     marginTop: "2%",
     marginBottom: "2%",
-    // position: "absolute",
   },
   navigationIcons: {
     height: 35,
