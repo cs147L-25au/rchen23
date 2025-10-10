@@ -32,6 +32,7 @@ SplashScreen.preventAutoHideAsync();
 export default function App() {
   // move usedState to the top
   const [darkMode, setDarkMode] = useState(0);
+  const [Liked, setLiked] = useState(0);
 
   /* BEGIN FONT LOADING CODE -- You don't need to touch this section unless you want to. */
   const [fontsLoaded] = useFonts({
@@ -56,9 +57,15 @@ export default function App() {
   const userPronouns: string = "he/him/his";
   const audioTitle: string = "My hottest take";
 
+  // load the photos for pressables
   const Modes = [
     require("./assets/Icons/sun.png"),
     require("./assets/Icons/moon.png"),
+  ];
+
+  const Likes = [
+    require("./assets/Icons/like_regular_light.png"),
+    require("./assets/Icons/like_solid_light.png"),
   ];
 
   return (
@@ -83,9 +90,28 @@ export default function App() {
       </View>
 
       {/* Profile Card */}
-
-      {/* Profile Photo */}
-      <Body />
+      <View style={styles.profileCard}>
+        <Text style={styles.profileTitle}>Me and my best friend</Text>
+        <View style={styles.profileImageContainer}>
+          <Image
+            source={require("./assets/Profiles/landay.jpg")}
+            style={styles.profileImage}
+            resizeMode="cover"
+          />
+          <Pressable
+            style={styles.likeButton}
+            onPress={() => {
+              if (Liked === 0) {
+                setLiked(1);
+              } else {
+                setLiked(0);
+              }
+            }}
+          >
+            <Image style={styles.likeIcon} source={Likes[Liked]} />
+          </Pressable>
+        </View>
+      </View>
 
       {/* Audio Feature: between image and navigation bar */}
       <View style={styles.audioCard}>
@@ -103,7 +129,6 @@ export default function App() {
           />
         </View>
       </View>
-
       {/* Footer: Navigation Bar at Bottom */}
       <View style={styles.navigationBar}>
         <View style={styles.iconBox}>
@@ -140,13 +165,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Themes.light.bg,
     alignItems: "center",
-    paddingHorizontal: 16,
   },
+  /*Header*/
   Header: {
     display: "flex",
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    flex: 0,
+    paddingTop: "13%",
+    paddingHorizontal: "6%",
+    paddingBottom: "5%",
     width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
@@ -173,6 +199,7 @@ const styles = StyleSheet.create({
   },
   navigationBar: {
     display: "flex",
+    flex: 0,
     width: "100%",
     backgroundColor: Themes.light.navigation,
   },
@@ -182,24 +209,58 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: "10%",
   },
-  navigationItem: {
-    flexDirection: "column", // stack icon above the text
-    alignItems: "center",
+  /*Profile*/
+  profileCard: {
+    width: "90%",
+    backgroundColor: Themes.light.bgSecondary,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: Themes.light.border,
+    marginBottom: "4%",
+  },
+  profileTitle: {
+    fontSize: 20,
+    fontFamily: "Sydney-Bold",
+    color: Themes.light.text,
+    marginTop: "5%",
+    marginBottom: "5%",
+    paddingLeft: "4%",
+    paddingRight: "4%",
+  },
+  profileImageContainer: {
+    aspectRatio: 1, // make the image a square (1:1 ratio)
+    width: "100%",
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
+    overflow: "hidden", // so image also has rounded corners
+    position: "relative",
+  },
+  profileImage: {
+    width: "100%",
+    height: "100%",
+  },
+  likeButton: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    width: 50, // same as "13%"
+    height: 50,
+    borderRadius: 45,
+    backgroundColor: Themes.light.bgSecondary,
     justifyContent: "center",
-    marginTop: "2%",
-    marginBottom: "2%",
+    alignItems: "center",
+    shadowColor: Themes.light.shadows.shadowColor,
+    shadowOpacity: Themes.light.shadows.shadowOpacity,
+    shadowRadius: Themes.light.shadows.shadowRadius,
+    shadowOffset: Themes.light.shadows.shadowOffset,
+    elevation: 5,
   },
-  navigationIcons: {
-    height: 35,
-    width: 35,
-    marginTop: 5,
-    marginBottom: 5,
+  likeIcon: {
+    width: 30,
+    height: 30,
   },
-  iconTexts: {
-    fontSize: 14,
-    fontFamily: "Sydney",
-    color: Themes.light.textSecondary,
-  },
+
+  /*Audio*/
   audioCard: {
     display: "flex",
     width: "90%",
@@ -219,7 +280,6 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 20,
-    fontWeight: "600",
     fontFamily: "Sydney-Bold",
     color: Themes.light.text,
     marginBottom: "3%",
@@ -233,5 +293,27 @@ const styles = StyleSheet.create({
     flex: 1,
     height: "100%",
     width: "100%",
+  },
+
+  /*Navigation*/
+  navigationItem: {
+    flexDirection: "column", // stack icon above the text
+    alignItems: "center",
+    justifyContent: "center",
+    bottom: 0,
+    marginTop: "2%",
+    marginBottom: "2%",
+    // position: "absolute",
+  },
+  navigationIcons: {
+    height: 35,
+    width: 35,
+    marginTop: 5,
+    marginBottom: 5,
+  },
+  iconTexts: {
+    fontSize: 14,
+    fontFamily: "Sydney",
+    color: Themes.light.textSecondary,
   },
 });
