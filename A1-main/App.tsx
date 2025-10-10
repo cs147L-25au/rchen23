@@ -174,10 +174,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 5,
   },
-  navigationText: {
-    flexDirection: "row", // names are split a part horizontally
-    alignItems: "center", // text should be centered and spaced evenly
-  },
   iconTexts: {
     fontSize: 14,
     fontFamily: "Sydney",
