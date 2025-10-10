@@ -54,6 +54,7 @@ export default function App() {
   StatusBar.setBarStyle(Themes.light.statusBar);
   const userName: string = "James Landay";
   const userPronouns: string = "he/him/his";
+  const audioTitle: string = "My hottest take";
 
   const Modes = [
     require("./assets/Icons/sun.png"),
@@ -81,7 +82,27 @@ export default function App() {
         </Pressable>
       </View>
 
+      {/* Profile Card */}
+
+      {/* Profile Photo */}
       <Body />
+
+      {/* Audio Feature: between image and navigation bar */}
+      <View style={styles.audioCard}>
+        <Text style={styles.cardTitle}>{audioTitle}</Text>
+        <View style={styles.audioLayout}>
+          <Image
+            source={require("./assets/Icons/player_light.png")}
+            style={styles.audioImage}
+            resizeMode="contain"
+          />
+          <Image
+            source={require("./assets/Icons/audio_waveform_light.png")}
+            style={styles.audioWave}
+            resizeMode="contain"
+          />
+        </View>
+      </View>
 
       {/* Footer: Navigation Bar at Bottom */}
       <View style={styles.navigationBar}>
@@ -178,5 +199,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Sydney",
     color: Themes.light.textSecondary,
+  },
+  audioCard: {
+    display: "flex",
+    width: "90%",
+    backgroundColor: Themes.light.bgSecondary,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: Themes.light.border,
+    padding: "4%",
+    marginVertical: "10%",
+    marginHorizontal: "6%",
+  },
+  audioLayout: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    width: "100%",
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    fontFamily: "Sydney-Bold",
+    color: Themes.light.text,
+    marginBottom: "3%",
+  },
+  audioImage: {
+    width: 60,
+    height: 60,
+    marginRight: 15,
+  },
+  audioWave: {
+    flex: 1,
+    height: "100%",
+    width: "100%",
   },
 });
