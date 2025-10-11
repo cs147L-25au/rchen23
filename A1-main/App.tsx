@@ -64,9 +64,42 @@ export default function App() {
     require("./assets/Icons/moon.png"),
   ];
 
-  const Likes = [
+  const likesLightMode = [
     require("./assets/Icons/like_regular_light.png"),
     require("./assets/Icons/like_solid_light.png"),
+  ];
+
+  const likesDarkMode = [
+    require("./assets/Icons/like_regular_dark.png"),
+    require("./assets/Icons/like_solid_dark.png"),
+  ];
+
+  // ternary to adjust light and dark mode for likes
+  const likeModeColor = darkMode == 0 ? likesLightMode : likesDarkMode;
+
+  const audioPlayButton = [
+    require("./assets/Icons/player_light.png"),
+    require("./assets/Icons/player_dark.png"),
+  ];
+
+  const audioWaves = [
+    require("./assets/Icons/audio_waveform_light.png"),
+    require("./assets/Icons/audio_waveform_dark.png"),
+  ];
+
+  const heartIcon = [
+    require("./assets/Icons/heart_light.png"),
+    require("./assets/Icons/heart_dark.png"),
+  ];
+
+  const discoverIcon = [
+    require("./assets/Icons/discover_light.png"),
+    require("./assets/Icons/discover_dark.png"),
+  ];
+
+  const messagesIcon = [
+    require("./assets/Icons/messages_light.png"),
+    require("./assets/Icons/messages_dark.png"),
   ];
 
   return (
@@ -117,7 +150,16 @@ export default function App() {
             resizeMode="cover"
           />
           <Pressable
-            style={styles.likeButton}
+            style={[
+              styles.likeButton,
+              {
+                backgroundColor: themeMode.bgSecondary,
+                shadowColor: themeMode.shadows.shadowColor,
+                shadowOpacity: themeMode.shadows.shadowOpacity,
+                shadowRadius: themeMode.shadows.shadowRadius,
+                shadowOffset: themeMode.shadows.shadowOffset,
+              },
+            ]}
             onPress={() => {
               if (Liked === 0) {
                 setLiked(1);
@@ -126,50 +168,77 @@ export default function App() {
               }
             }}
           >
-            <Image style={styles.likeIcon} source={Likes[Liked]} />
+            <Image style={styles.likeIcon} source={likeModeColor[Liked]} />
           </Pressable>
         </View>
       </View>
 
       {/* Audio Feature: between image and navigation bar */}
-      <View style={styles.audioCard}>
-        <Text style={styles.cardTitle}>{audioTitle}</Text>
+      <View
+        style={[
+          styles.audioCard,
+          {
+            backgroundColor: themeMode.bgSecondary,
+            borderColor: themeMode.border,
+          },
+        ]}
+      >
+        <Text style={[styles.cardTitle, { color: themeMode.text }]}>
+          {audioTitle}
+        </Text>
         <View style={styles.audioLayout}>
           <Image
-            source={require("./assets/Icons/player_light.png")}
+            source={audioPlayButton[darkMode]}
             style={styles.audioImage}
             resizeMode="contain"
           />
           <Image
-            source={require("./assets/Icons/audio_waveform_light.png")}
+            source={audioWaves[darkMode]}
             style={styles.audioWave}
             resizeMode="contain"
           />
         </View>
       </View>
       {/* Footer: Navigation Bar at Bottom */}
-      <View style={styles.navigationBar}>
+      <View
+        style={[
+          styles.navigationBar,
+          { backgroundColor: themeMode.navigation },
+        ]}
+      >
         <View style={styles.iconBox}>
           <View style={styles.navigationItem}>
             <Image
               style={styles.navigationIcons}
-              source={require("./assets/Icons/discover_light.png")}
+              source={discoverIcon[darkMode]}
             />
-            <Text style={styles.iconTexts}>Discover</Text>
+            <Text
+              style={[styles.iconTexts, { color: themeMode.textSecondary }]}
+            >
+              Discover
+            </Text>
           </View>
           <View style={styles.navigationItem}>
             <Image
               style={styles.navigationIcons}
-              source={require("./assets/Icons/heart_light.png")}
+              source={heartIcon[darkMode]}
             />
-            <Text style={styles.iconTexts}>Matches</Text>
+            <Text
+              style={[styles.iconTexts, { color: themeMode.textSecondary }]}
+            >
+              Matches
+            </Text>
           </View>
           <View style={styles.navigationItem}>
             <Image
               style={styles.navigationIcons}
-              source={require("./assets/Icons/messages_light.png")}
+              source={messagesIcon[darkMode]}
             />
-            <Text style={styles.iconTexts}>DMs</Text>
+            <Text
+              style={[styles.iconTexts, { color: themeMode.textSecondary }]}
+            >
+              DMs
+            </Text>
           </View>
         </View>
       </View>
@@ -251,11 +320,7 @@ const styles = StyleSheet.create({
     backgroundColor: Themes.light.bgSecondary,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: Themes.light.shadows.shadowColor,
-    shadowOpacity: Themes.light.shadows.shadowOpacity,
-    shadowRadius: Themes.light.shadows.shadowRadius,
-    shadowOffset: Themes.light.shadows.shadowOffset,
-    elevation: 5,
+    elevation: 4,
   },
   likeIcon: {
     width: 30,
@@ -266,10 +331,8 @@ const styles = StyleSheet.create({
   audioCard: {
     display: "flex",
     width: "90%",
-    backgroundColor: Themes.light.bgSecondary,
     borderRadius: 15,
     borderWidth: 2,
-    borderColor: Themes.light.border,
     padding: "4%",
     marginVertical: "10%",
     marginHorizontal: "6%",
@@ -283,7 +346,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontFamily: "Sydney-Bold",
-    color: Themes.light.text,
     marginBottom: "3%",
   },
   audioImage: {
@@ -302,7 +364,6 @@ const styles = StyleSheet.create({
     display: "flex",
     flex: 0,
     width: "100%",
-    backgroundColor: Themes.light.navigation,
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -319,17 +380,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: "2%",
-    marginBottom: "2%",
+    marginBottom: "10%",
   },
   navigationIcons: {
     height: 35,
     width: 35,
     marginTop: 5,
     marginBottom: 5,
+    resizeMode: "contain",
   },
   iconTexts: {
     fontSize: 14,
     fontFamily: "Sydney",
-    color: Themes.light.textSecondary,
   },
 });
