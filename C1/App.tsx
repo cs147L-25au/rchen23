@@ -13,11 +13,7 @@ import Header from "./App/Components/Header";
 import NavBar from "./App/Components/NavBar";
 import SearchBar from "./App/Components/SearchBar";
 
-// import { useFonts } from "expo-font";
-// import { Themes } from "./assets/Themes";
-// import Header from "./app/components/Header";
-// import Body from "./app/components/Body";
-// import Footer from "./app/components/Footer";
+import Feed from "./App/Components/FeedBar";
 
 const searchLeft = "Recent Movies";
 const searchRight = "See All";
@@ -33,6 +29,7 @@ export default function App() {
       </View>
       {/* carousel */}
       {/* scrollable feed */}
+      <Feed />
       <NavBar />
     </View>
   );

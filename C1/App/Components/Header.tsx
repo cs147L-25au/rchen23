@@ -39,11 +39,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   appName: {
-    fontSize: 36,
+    fontSize: 42,
     color: "#ef0e4aff",
-    fontFamily: "Helvetica",
     fontWeight: "condensedBold",
     fontStyle: "italic",
+    fontFamily: "DM Sans",
   },
   profileCircle: {
     width: 50,
