@@ -55,7 +55,7 @@ const feedData = [
   },
   {
     id: "4",
-    userName: "Jamal",
+    userName: "Jam|al",
     action: "Bookmarked",
     title: "Tron",
     profileImage: jamal_pfp,

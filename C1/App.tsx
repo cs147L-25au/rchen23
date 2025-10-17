@@ -14,6 +14,7 @@ import NavBar from "./App/Components/NavBar";
 import SearchBar from "./App/Components/SearchBar";
 
 import Feed from "./App/Components/FeedBar";
+import MyCarousel from "./App/Components/Carousel";
 
 const searchLeft = "Recent Movies";
 const searchRight = "See All";
@@ -23,11 +24,14 @@ export default function App() {
     <View style={styles.container}>
       <Header />
       <SearchBar />
+
       <View style={styles.bufferBar}>
         <Text style={styles.bufferLeft}>{searchLeft}</Text>
         <Text style={styles.bufferRight}>{searchRight}</Text>
       </View>
       {/* carousel */}
+      <MyCarousel />
+
       {/* scrollable feed */}
       <Feed />
       <NavBar />
@@ -56,14 +60,13 @@ const styles = StyleSheet.create({
   bufferLeft: {
     fontSize: 20,
     color: "#000000",
-    fontFamily: "Helvetica",
+    fontFamily: "DM Sans",
     fontWeight: "condensedBold",
-    // fontStyle: "italic",
   },
   bufferRight: {
     fontSize: 14,
     color: "#666565ff",
-    fontFamily: "Helvetica",
+    fontFamily: "DM Sans",
     marginRight: "1%",
   },
 });

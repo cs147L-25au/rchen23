@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
     borderColor: "#e0e0e0",
     width: "100%",
     minWidth: "100%",
+    fontFamily: "DM Sans",
   },
 });
 
