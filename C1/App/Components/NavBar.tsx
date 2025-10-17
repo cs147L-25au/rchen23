@@ -12,23 +12,43 @@ const NavBar = () => {
     <View style={styles.navigationContainer}>
       <View style={styles.iconBox}>
         <View style={styles.navigationItem}>
-          <Image style={styles.navigationIcons} source={feedIcon} />
+          <Image
+            style={styles.navigationIcons}
+            resizeMode="contain"
+            source={feedIcon}
+          />
           <Text style={styles.iconTexts}>Feed</Text>
         </View>
         <View style={styles.navigationItem}>
-          <Image style={styles.navigationIcons} source={listIcon} />
+          <Image
+            style={styles.navigationIcons}
+            resizeMode="contain"
+            source={listIcon}
+          />
           <Text style={styles.iconTexts}>List</Text>
         </View>
         <View style={styles.navigationItem}>
-          <Image style={styles.navigationIcons} source={playIcon} />
+          <Image
+            style={styles.navigationIcons}
+            resizeMode="contain"
+            source={playIcon}
+          />
           <Text style={styles.iconTexts}>Play</Text>
         </View>
         <View style={styles.navigationItem}>
-          <Image style={styles.navigationIcons} source={trophyIcon} />
+          <Image
+            style={styles.navigationIcons}
+            resizeMode="contain"
+            source={trophyIcon}
+          />
           <Text style={styles.iconTexts}>Leaderboard</Text>
         </View>
         <View style={styles.navigationItem}>
-          <Image style={styles.navigationIcons} source={settingsIcon} />
+          <Image
+            style={styles.navigationIcons}
+            resizeMode="contain"
+            source={settingsIcon}
+          />
           <Text style={styles.iconTexts}>Settings</Text>
         </View>
       </View>
@@ -67,8 +87,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   navigationIcons: {
-    height: 37,
-    width: 37,
+    height: 40,
+    width: 40,
     marginTop: 5,
     marginBottom: 5,
     resizeMode: "contain",
