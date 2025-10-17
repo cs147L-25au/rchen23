@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     marginTop: "4%",
-    borderRadius: 20,
+    borderRadius: 32,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
