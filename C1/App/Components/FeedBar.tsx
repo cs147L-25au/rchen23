@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: "3%",
     paddingTop: "5%",
     width: "100%",
-    paddingBottom: "20%",
+    paddingBottom: "25%",
   },
   list: {
     gap: 10,
