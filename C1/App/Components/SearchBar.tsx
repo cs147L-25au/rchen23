@@ -21,20 +21,21 @@ const SearchBar = () => {
 
 const styles = StyleSheet.create({
   searchContainer: {
-    paddingHorizontal: "4%",
+    paddingHorizontal: "3%",
     paddingVertical: "3%",
     backgroundColor: "#ffffff",
   },
   searchInput: {
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: "2%",
+    paddingVertical: "0%",
     fontSize: 14,
     color: "#000000",
     borderWidth: 1,
     borderColor: "#e0e0e0",
     width: "100%",
+    height: 36,
     minWidth: "100%",
     fontFamily: "DM Sans",
   },

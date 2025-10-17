@@ -18,6 +18,7 @@ import MyCarousel from "./App/Components/Carousel";
 
 const searchLeft = "Recent Movies";
 const searchRight = "See All";
+const feedText = "Your Feed";
 
 export default function App() {
   return (
@@ -31,7 +32,9 @@ export default function App() {
       </View>
       {/* carousel */}
       <MyCarousel />
-
+      <View style={styles.feedBar}>
+        <Text style={styles.bufferFeedText}>{feedText}</Text>
+      </View>
       {/* scrollable feed */}
       <Feed />
       <NavBar />
@@ -55,18 +58,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between", // modify so they are spaced apart
     paddingHorizontal: "4%",
+    marginTop: "1%",
     width: "100%",
   },
   bufferLeft: {
-    fontSize: 20,
+    fontSize: 22,
     color: "#000000",
     fontFamily: "DM Sans",
-    fontWeight: "condensedBold",
+    fontWeight: "500",
   },
   bufferRight: {
     fontSize: 14,
     color: "#666565ff",
     fontFamily: "DM Sans",
     marginRight: "1%",
+  },
+  feedBar: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    justifyContent: "space-between", // modify so they are spaced apart
+    paddingHorizontal: "4%",
+    padding: 0,
+    margin: 0,
+    width: "95%",
+    borderBottomWidth: 1,
+    borderBottomColor: "#cbcbcbff",
+  },
+  bufferFeedText: {
+    fontSize: 22,
+    color: "#000000",
+    fontFamily: "DM Sans",
+    fontWeight: "500",
+    marginRight: "1%",
+    marginBottom: "1.5%",
   },
 });

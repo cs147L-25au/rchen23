@@ -5,7 +5,6 @@ import Carousel, { ICarouselInstance } from "react-native-reanimated-carousel";
 let recent_movies = [
   require("../../assets/Movies/f1_movie.png"),
   require("../../assets/Movies/him_poster.png"),
-  require("../../assets/Movies/weapons.png"),
   require("../../assets/Movies/superman.png"),
   require("../../assets/Movies/f4_poster.png"),
   require("../../assets/Movies/row_tw.png"),
@@ -14,8 +13,7 @@ let recent_movies = [
   require("../../assets/Movies/wicked2.png"),
 ];
 
-const { width } = Dimensions.get("window");
-const { height } = Dimensions.get("window");
+const { height, width } = Dimensions.get("window");
 
 function MyCarousel() {
   const carouselRef = useRef<ICarouselInstance>(null);
@@ -24,14 +22,24 @@ function MyCarousel() {
     <View style={styles.container}>
       <Carousel
         ref={carouselRef}
-        width={width * 0.5}
-        height={height * 0.25}
+        width={width * 0.45}
+        height={height * 0.3}
+        style={styles.carousel}
         data={recent_movies}
-        scrollAnimationDuration={500}
+        scrollAnimationDuration={1000}
         loop={true}
         autoPlay={true}
+        pagingEnabled={true}
+        snapEnabled={true}
+        mode="parallax"
+        modeConfig={{
+          parallaxScrollingScale: 0.9,
+          parallaxScrollingOffset: 50,
+        }}
         renderItem={({ item }) => (
-          <Image source={item} style={{ width: "100%", height: "100%" }} />
+          <View style={styles.imageContainer}>
+            <Image source={item} style={styles.image} resizeMode="contain" />
+          </View>
         )}
       />
     </View>
@@ -42,21 +50,23 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: "1.5%",
-    marginHorizontal: "2%",
+    marginHorizontal: "5%",
     width: "100%",
-  },
-  CarouselStyle: {
     alignSelf: "center",
   },
+  carousel: {
+    width: width * 0.9,
+    alignSelf: "center",
+    justifyContent: "center",
+  },
   imageContainer: {
+    marginTop: "4%",
     borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
+    width: "100%",
+    height: "100%",
   },
   image: {
     width: "100%",

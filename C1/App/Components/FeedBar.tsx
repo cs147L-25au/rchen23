@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     paddingBottom: "20%",
   },
   list: {
-    gap: 12,
+    gap: 10,
   },
 });
 
