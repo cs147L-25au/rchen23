@@ -90,6 +90,6 @@ const styles = StyleSheet.create({
     fontFamily: "DM Sans",
     fontWeight: "500",
     marginRight: "1%",
-    marginBottom: "1.5%",
+    marginBottom: "1%",
   },
 });
