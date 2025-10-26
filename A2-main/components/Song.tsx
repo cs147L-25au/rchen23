@@ -51,7 +51,7 @@ const Song = ({ track, index }: SongProps) => {
         </Text>
       </View>
 
-      {/* Duration Column */}
+      {/* Song Duration */}
       <View style={styles.songDurationDisplay}>
         <Text style={styles.duration}>{duration}</Text>
       </View>

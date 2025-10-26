@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -24,13 +24,17 @@ import {
 } from "./utils/apiOptions";
 
 import Song from "./components/Song";
+import SearchBar from "./components/SearchBar";
+
+const spotifyLogo = require("./assets/spotify-logo.png");
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function App() {
   const [token, setToken] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [searchText, setSearchText] = useState(""); // create a useState for the searchBar
-  const spotifyLogo = require("./assets/icon.png");
+  const isSearching = query.trim().length > 0;
 
   /****** PART 2: Authentication */
   const { authResponse, getSpotifyAuth } = useSpotifyAuth();
@@ -87,14 +91,61 @@ export default function App() {
         />
       </View>
     );
-  }
-  /***** END PART 4: Display Song List. See also Song.tsx */
+    /***** END PART 4: Display Song List. See also Song.tsx */
+  } /* Search Bar */
+  // Filter according to YOUR Track type (songTitle, songArtists[], albumName)
+  const displayedTracks = useMemo(() => {
+    if (!tracks) return [];
+    const lowerQuery = query.trim().toLowerCase();
+    if (!lowerQuery) return tracks;
 
+    return tracks.filter((t) => {
+      const artists = t.songArtists?.map((a) => a.name).join(" ") ?? "";
+      const haystack = `${t.songTitle} ${artists} ${
+        t.albumName ?? ""
+      }`.toLowerCase();
+      return haystack.includes(lowerQuery);
+    });
+  }, [tracks, query]);
+  if (!token) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.container, { justifyContent: "center" }]}>
+          <StatusBar barStyle="light-content" />
+          {content}
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
-        {content}
+
+        <View style={styles.headerSection}>
+          <View style={styles.headerRow}>
+            <Image source={spotifyLogo} style={styles.headerLogo} />
+            <Text style={styles.headerTitle}>My Top Tracks</Text>
+          </View>
+        </View>
+
+        <SearchBar onSearch={setQuery} />
+
+        <View style={{ flex: 1, width: "100%" }}>
+          <FlatList
+            data={displayedTracks}
+            keyExtractor={(_, index) => index.toString()}
+            renderItem={({ item, index }) => (
+              <Song track={item} index={index} />
+            )}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                {isSearching ? "No results found." : "No tracks to show."}
+              </Text>
+            }
+          />
+        </View>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -104,17 +155,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Themes.colors.background,
-    justifyContent: "center",
     alignItems: "center",
   },
+
+  /* Auth button */
   authButton: {
     flexDirection: "row",
-    gap: 5,
+    gap: 8,
     borderRadius: 40,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     backgroundColor: Themes.colors.spotify,
     alignItems: "center",
-    justifyContent: "center",
   },
   authButtonText: {
     fontSize: 12,
@@ -124,52 +176,48 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   authButtonIcon: {
-    height: 15,
-    width: 15,
+    height: 18,
+    width: 18,
   },
-  text: {
-    color: Themes.colors.white,
-  },
-  tracksContainer: {
-    flex: 1,
-    width: "100%",
-    marginHorizontal: "3%",
-  },
+
+  /* Header */
   headerSection: {
+    width: "100%",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Themes.colors.darkGray,
+    alignItems: "center",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    justifyContent: "center",
+  },
+  headerLogo: {
+    width: 22,
+    height: 22,
+    resizeMode: "contain",
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
     color: Themes.colors.white,
+    textAlign: "center",
   },
-  searchContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: Themes.colors.background,
-  },
-  searchInput: {
-    backgroundColor: Themes.colors.darkGray,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: Themes.colors.white,
-    borderWidth: 1,
-    borderColor: Themes.colors.gray,
-  },
+
+  /* List */
   listContent: {
     paddingHorizontal: 8,
     paddingTop: 8,
     paddingBottom: 16,
   },
+
   emptyText: {
     color: Themes.colors.white,
     textAlign: "center",
-    marginTop: 32,
+    marginTop: 24,
     fontSize: 16,
   },
 });
