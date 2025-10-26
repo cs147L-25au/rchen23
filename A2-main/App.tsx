@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,7 @@ import {
   StatusBar,
   FlatList,
   View,
-  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
@@ -33,7 +33,6 @@ WebBrowser.maybeCompleteAuthSession();
 export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [searchText, setSearchText] = useState(""); // create a useState for the searchBar
   const isSearching = query.trim().length > 0;
 
   /****** PART 2: Authentication */
@@ -48,20 +47,69 @@ export default function App() {
   /***** END PART 2: Authentication */
 
   /****** PART 3: Get Tracks */
-
+  // rest of the variables are used to impliment infinite scroll
   const [tracks, setTracks] = useState<Track[] | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const offsetRef = useRef(0);
 
+  const LIMIT = 20;
+
+  // Initial fetch of top tracks
   useEffect(() => {
     if (token) {
-      getAlbumTracks(getEnv().ALBUM_ID, token)
-        .then((data) => {
-          setTracks(data);
-        })
-        .catch((e) => console.error(e));
-    } else {
+      offsetRef.current = 0;
       setTracks(null);
+      fetchMoreTracks(0);
     }
   }, [token]);
+
+  const fetchMoreTracks = (offset: number) => {
+    setIsLoadingMore(true);
+
+    const url = `https://api.spotify.com/v1/me/top/tracks?limit=${LIMIT}&offset=${offset}`;
+
+    fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data: SpotifyApi.UsersTopTracksResponse) => {
+        const newTracks: Track[] = data.items.map((item) => {
+          const artists = item.artists?.map((artist) => ({
+            name: artist.name,
+          }));
+          return {
+            songTitle: item.name,
+            songArtists: artists,
+            albumName: item.album?.name,
+            imageUrl: item.album?.images[0]?.url,
+            duration: item.duration_ms,
+            externalUrl: item.external_urls?.spotify || "",
+            previewUrl: item.preview_url || "",
+          };
+        });
+
+        setTracks((prevTracks) => {
+          if (prevTracks === null) return newTracks;
+          return [...prevTracks, ...newTracks];
+        });
+
+        offsetRef.current = offset + LIMIT;
+      })
+      .catch((error: Error) => {
+        console.error("Error fetching tracks:", error);
+      })
+      .finally(() => {
+        setIsLoadingMore(false);
+      });
+  };
+
+  const handleEndReached = () => {
+    if (!isLoadingMore) {
+      fetchMoreTracks(offsetRef.current);
+    }
+  };
 
   /***** END PART 3: Get Tracks */
 
@@ -80,7 +128,7 @@ export default function App() {
       </Pressable>
     );
   } else {
-    // If we have the token, display the tracks
+    // display the tracks if we have the token
     content = (
       <View style={{ flex: 1, width: "100%" }}>
         <FlatList
@@ -88,12 +136,21 @@ export default function App() {
           keyExtractor={(_, index) => index.toString()}
           renderItem={({ item, index }) => <Song track={item} index={index} />}
           contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8 }}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Themes.colors.spotify} />
+              </View>
+            ) : null
+          }
         />
       </View>
     );
     /***** END PART 4: Display Song List. See also Song.tsx */
   } /* Search Bar */
-  // Filter according to YOUR Track type (songTitle, songArtists[], albumName)
+  // Filter according to your Track type (songTitle, songArtists, albumName)
   const displayedTracks = useMemo(() => {
     if (!tracks) return [];
     const lowerQuery = query.trim().toLowerCase();
@@ -128,9 +185,7 @@ export default function App() {
             <Text style={styles.headerTitle}>My Top Tracks</Text>
           </View>
         </View>
-
         <SearchBar onSearch={setQuery} />
-
         <View style={{ flex: 1, width: "100%" }}>
           <FlatList
             data={displayedTracks}
@@ -139,6 +194,8 @@ export default function App() {
               <Song track={item} index={index} />
             )}
             contentContainerStyle={styles.listContent}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
                 {isSearching ? "No results found." : "No tracks to show."}
@@ -157,8 +214,6 @@ const styles = StyleSheet.create({
     backgroundColor: Themes.colors.background,
     alignItems: "center",
   },
-
-  /* Auth button */
   authButton: {
     flexDirection: "row",
     gap: 8,
@@ -179,8 +234,6 @@ const styles = StyleSheet.create({
     height: 18,
     width: 18,
   },
-
-  /* Header */
   headerSection: {
     width: "100%",
     paddingHorizontal: 16,
@@ -188,7 +241,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Themes.colors.darkGray,
     alignItems: "center",
-  },
+  }, // header
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -205,9 +258,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Themes.colors.white,
     textAlign: "center",
-  },
-
-  /* List */
+  }, // list
   listContent: {
     paddingHorizontal: 8,
     paddingTop: 8,
@@ -219,5 +270,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 24,
     fontSize: 16,
+  },
+  loadingContainer: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

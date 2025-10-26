@@ -22,18 +22,19 @@ const Song = ({ track, index }: SongProps) => {
       <View style={styles.indexBox}>
         <Text style={styles.indexText}>{index + 1}</Text>
       </View>
-
       {/* Album Image */}
       <View style={styles.imageBox}>
         {track.imageUrl ? (
           <Image source={{ uri: track.imageUrl }} style={styles.albumImage} />
         ) : (
           <View
-            style={[styles.albumImage, { backgroundColor: Themes.colors.gray }]}
+            style={[
+              styles.albumImage,
+              { backgroundColor: Themes.colors.darkGray },
+            ]}
           />
         )}
       </View>
-
       {/* Song Title & Artist Container */}
       <View style={styles.songInfoColumn}>
         <Text style={styles.songTitle} numberOfLines={1}>
@@ -43,14 +44,12 @@ const Song = ({ track, index }: SongProps) => {
           {artists}
         </Text>
       </View>
-
       {/* Album Name */}
       <View style={styles.albumNameBox}>
         <Text style={styles.albumName} numberOfLines={1}>
           {track.albumName}
         </Text>
       </View>
-
       {/* Song Duration */}
       <View style={styles.songDurationDisplay}>
         <Text style={styles.duration}>{duration}</Text>
@@ -98,12 +97,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   indexText: {
-    color: Themes.colors.white,
+    color: Themes.colors.gray,
     fontSize: 14,
     fontWeight: "bold",
   },
   songTitle: {
-    color: Themes.colors.white,
+    color: Themes.colors.gray,
     fontSize: 13,
     fontWeight: "600",
     marginBottom: 4,
