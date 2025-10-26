@@ -48,56 +48,63 @@ export default function App() {
 
   /****** PART 3: Get Tracks */
   // rest of the variables are used to impliment infinite scroll
-  const [tracks, setTracks] = useState<Track[] | null>(null);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const offsetRef = useRef(0);
   const LIMIT = 20;
 
   // Initial fetch of top tracks
   useEffect(() => {
-    if (token) {
-      setIsLoading(true);
-      getMyTopTracks(token)
-        .then((data) => {
-          setTracks(data);
-        })
-        .catch((error: Error) => {
-          console.error("Error fetching tracks:", error);
-        });
-    }
-  }, [token]);
-
-  const fetchMoreTracks = (offset: number) => {
     if (!token) return;
-    setIsLoadingMore(true);
+    setIsLoading(true);
 
     getMyTopTracks(token)
       .then((data) => {
         if (data) {
-          setTracks((prevTracks) => {
-            if (prevTracks === null) return data;
-            return [...prevTracks, ...data];
-          });
-
-          offsetRef.current = offset + LIMIT;
+          setTracks(data);
+          offsetRef.current = data.length;
         }
       })
-      .catch((error: Error) => {
-        console.error("Error fetching tracks:", error);
+      .finally(() => setIsLoading(false));
+  }, [token]);
+
+  const loadMoreTracks = () => {
+    if (!token) return;
+    if (isFetchingMore) return; // Prevent duplicate requests
+
+    setIsFetchingMore(true);
+
+    getMyTopTracks(token)
+      .then((data) => {
+        if (data) {
+          setTracks((prev) => [...prev, ...data]); // ✅ append items!
+          offsetRef.current += data.length;
+        }
       })
       .finally(() => {
-        setIsLoadingMore(false);
+        setIsFetchingMore(false);
       });
   };
 
-  const handleEndReached = () => {
-    if (!isLoadingMore) {
-      fetchMoreTracks(offsetRef.current);
-    }
-  };
-
   /***** END PART 3: Get Tracks */
+
+  /*Putting in the search bar here*/
+  /* Search Bar */
+  // Filter according to your Track type (songTitle, songArtists, albumName)
+  const displayedTracks = useMemo(() => {
+    if (!tracks) return [];
+    const lowerQuery = query.trim().toLowerCase();
+    if (!lowerQuery) return tracks;
+
+    return tracks.filter((t) => {
+      const artists = t.songArtists?.map((a) => a.name).join(" ") ?? "";
+      const haystack = `${t.songTitle} ${artists} ${
+        t.albumName ?? ""
+      }`.toLowerCase();
+      return haystack.includes(lowerQuery);
+    });
+  }, [tracks, query]);
 
   /****** PART 4: Display Song List. See also Song.tsx */
 
@@ -118,36 +125,24 @@ export default function App() {
     content = (
       <View style={{ flex: 1, width: "100%" }}>
         <FlatList
-          data={tracks !== null ? tracks : []}
+          data={displayedTracks}
           keyExtractor={(_, index) => index.toString()}
           renderItem={({ item, index }) => <Song track={item} index={index} />}
-          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8 }}
+          contentContainerStyle={styles.listContent}
+          onEndReached={loadMoreTracks}
+          onEndReachedThreshold={0.3}
           ListFooterComponent={
-            isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Themes.colors.spotify} />
-              </View>
+            isFetchingMore ? (
+              <ActivityIndicator size="large" color={Themes.colors.spotify} />
             ) : null
           }
         />
       </View>
     );
     /***** END PART 4: Display Song List. See also Song.tsx */
-  } /* Search Bar */
-  // Filter according to your Track type (songTitle, songArtists, albumName)
-  const displayedTracks = useMemo(() => {
-    if (!tracks) return [];
-    const lowerQuery = query.trim().toLowerCase();
-    if (!lowerQuery) return tracks;
+  }
 
-    return tracks.filter((t) => {
-      const artists = t.songArtists?.map((a) => a.name).join(" ") ?? "";
-      const haystack = `${t.songTitle} ${artists} ${
-        t.albumName ?? ""
-      }`.toLowerCase();
-      return haystack.includes(lowerQuery);
-    });
-  }, [tracks, query]);
+  // App Screen
   if (!token) {
     return (
       <SafeAreaProvider>
@@ -182,6 +177,13 @@ export default function App() {
               <Text style={styles.emptyText}>
                 {isSearching ? "No results found." : "No tracks to show."}
               </Text>
+            }
+            onEndReached={loadMoreTracks}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              isFetchingMore ? (
+                <ActivityIndicator size="large" color={Themes.colors.spotify} />
+              ) : null
             }
           />
         </View>
