@@ -5,10 +5,17 @@ import getEnv from "./env";
 import { SpotifyAuthResponse } from "./types";
 import { exchangeCodeForToken } from "./apiOptions";
 
-const {REDIRECT_URI, SCOPES, CLIENT_ID, SPOTIFY_API: { DISCOVERY }} = getEnv();
+const {
+  REDIRECT_URI,
+  SCOPES,
+  CLIENT_ID,
+  SPOTIFY_API: { DISCOVERY },
+} = getEnv();
 
 export function useSpotifyAuth() {
-  const [authResponse, setAuthResponse] = useState<SpotifyAuthResponse | null>(null);
+  const [authResponse, setAuthResponse] = useState<SpotifyAuthResponse | null>(
+    null
+  );
 
   const [request, response, getSpotifyAuth] = useAuthRequest(
     {
@@ -21,10 +28,19 @@ export function useSpotifyAuth() {
   );
 
   useEffect(() => {
-    if (response?.type === "success" && request?.codeVerifier) {
+    if (
+      response?.type === "success" &&
+      request?.codeVerifier &&
+      !authResponse
+    ) {
       const { code } = response.params;
       if (code) {
-        exchangeCodeForToken(code, request.codeVerifier, REDIRECT_URI, CLIENT_ID)
+        exchangeCodeForToken(
+          code,
+          request.codeVerifier,
+          REDIRECT_URI,
+          CLIENT_ID
+        )
           .then((data) => {
             setAuthResponse(data);
           })
@@ -37,5 +53,3 @@ export function useSpotifyAuth() {
 
   return { authResponse, getSpotifyAuth };
 }
-
-

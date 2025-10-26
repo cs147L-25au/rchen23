@@ -6,9 +6,9 @@ import { Platform } from "react-native";
  */
 
 // ***** TODO (Part 1): Fill in your constants here ***** //
-const CLIENT_ID = ""; // TODO: Replace this with your own client ID
-const REDIRECT_URI = "exp://10.34.105.97:8081"; // TODO: Replace this with your own redirect URI
-const ALBUM_ID = "5u8SP8bbxcA7zJoAusBfgc"; // By default, this is Lizzie McAlpine's album "5 seconds flat"
+const CLIENT_ID = "0b6b136114c14c87b94e57dbe77d95ad";
+const REDIRECT_URI = "exp://10.28.39.41:8081";
+const ALBUM_ID = "3GU8BzFEAdFSRjc8jZkL3S"; // album for La La Land
 // ********************************************* //
 
 const redirectUri = (uri: string) => {
@@ -43,9 +43,10 @@ const ENV = {
       tokenEndpoint: "https://accounts.spotify.com/api/token",
     },
     // ***** TODO (Part 1): Fill this in ***** //
-    TOP_TRACKS_API: "TODO",
+    TOP_TRACKS_API: "https://api.spotify.com/v1/me/top/tracks",
     // ***** TODO (Part 1): Or fill this in ***** //
-    ALBUM_TRACK_API_GETTER: (albumId: string) => "TODO" + albumId,
+    ALBUM_TRACK_API_GETTER: (albumId: string) =>
+      "https://api.spotify.com/v1/albums/" + albumId,
   },
 };
 

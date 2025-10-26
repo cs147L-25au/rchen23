@@ -5,6 +5,9 @@ import {
   Pressable,
   Image,
   StatusBar,
+  FlatList,
+  View,
+  TextInput,
 } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
@@ -13,29 +16,51 @@ import getEnv from "./utils/env";
 import { Themes } from "./assets/Themes";
 import { useSpotifyAuth } from "./utils/useSpotifyAuth";
 
+import { Track } from "./utils/types";
+import {
+  getAlbumTracks,
+  exchangeCodeForToken,
+  getMyTopTracks,
+} from "./utils/apiOptions";
+
+import Song from "./components/Song";
+
 WebBrowser.maybeCompleteAuthSession();
 
 export default function App() {
   const [token, setToken] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState(""); // create a useState for the searchBar
+  const spotifyLogo = require("./assets/icon.png");
 
   /****** PART 2: Authentication */
-
-  // Custom hook handles the full auth flow for you.
   const { authResponse, getSpotifyAuth } = useSpotifyAuth();
 
-  // TODO: Figure out how to set `token` properly!
-  // Hint: Use the useEffect hook.
-  
-  /***** END PART 2: Authentication */
+  useEffect(() => {
+    if (authResponse?.access_token && !token) {
+      setToken(authResponse.access_token);
+    }
+  }, [authResponse, token]);
 
+  /***** END PART 2: Authentication */
 
   /****** PART 3: Get Tracks */
 
-  // TODO: Figure out how to fetch the tracks! You got this.
+  const [tracks, setTracks] = useState<Track[] | null>(null);
+
+  useEffect(() => {
+    if (token) {
+      getAlbumTracks(getEnv().ALBUM_ID, token)
+        .then((data) => {
+          setTracks(data);
+        })
+        .catch((e) => console.error(e));
+    } else {
+      setTracks(null);
+    }
+  }, [token]);
 
   /***** END PART 3: Get Tracks */
 
-  
   /****** PART 4: Display Song List. See also Song.tsx */
 
   // Conditionally render the UI based on whether we have a token or not.
@@ -53,7 +78,14 @@ export default function App() {
   } else {
     // If we have the token, display the tracks
     content = (
-      <Text style={styles.text}>TODO: Replace this and display tracks here</Text>
+      <View style={{ flex: 1, width: "100%" }}>
+        <FlatList
+          data={tracks !== null ? tracks : []}
+          keyExtractor={(_, index) => index.toString()}
+          renderItem={({ item, index }) => <Song track={item} index={index} />}
+          contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8 }}
+        />
+      </View>
     );
   }
   /***** END PART 4: Display Song List. See also Song.tsx */
@@ -97,5 +129,47 @@ const styles = StyleSheet.create({
   },
   text: {
     color: Themes.colors.white,
-  }
+  },
+  tracksContainer: {
+    flex: 1,
+    width: "100%",
+    marginHorizontal: "3%",
+  },
+  headerSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Themes.colors.darkGray,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: Themes.colors.white,
+  },
+  searchContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: Themes.colors.background,
+  },
+  searchInput: {
+    backgroundColor: Themes.colors.darkGray,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Themes.colors.white,
+    borderWidth: 1,
+    borderColor: Themes.colors.gray,
+  },
+  listContent: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  emptyText: {
+    color: Themes.colors.white,
+    textAlign: "center",
+    marginTop: 32,
+    fontSize: 16,
+  },
 });

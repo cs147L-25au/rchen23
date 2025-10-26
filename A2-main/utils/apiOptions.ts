@@ -18,11 +18,13 @@ interface SpotifyTrackObjectWithAlbum extends SpotifyApi.TrackObjectSimplified {
     images: {
       url: string;
     }[];
-  }
+  };
 }
 
 /* Pulls out the relevant data from the API response and puts it in a nicely structured object. */
-const formatter = (data: Array<SpotifyApi.TrackObjectFull | SpotifyTrackObjectWithAlbum>): Track[] =>
+const formatter = (
+  data: Array<SpotifyApi.TrackObjectFull | SpotifyTrackObjectWithAlbum>
+): Track[] =>
   data.map((val) => {
     const artists = val.artists?.map((artist) => ({ name: artist.name }));
     return {
@@ -37,56 +39,71 @@ const formatter = (data: Array<SpotifyApi.TrackObjectFull | SpotifyTrackObjectWi
   });
 
 /* Fetches data from the given endpoint URL with the access token provided. */
-const fetcher = <T>(url: string, token: string): Promise<AxiosResponse<T> | null> => {
-  return axios.get(url, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + token,
-    },
-  }).catch(e => {
-    console.error(e);
-    alert(ERROR_ALERT);
-    return null;
-  });
+const fetcher = <T>(
+  url: string,
+  token: string
+): Promise<AxiosResponse<T> | null> => {
+  return axios
+    .get(url, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+    })
+    .catch((e) => {
+      console.error(e);
+      alert(ERROR_ALERT);
+      return null;
+    });
 };
 
 /* Fetches your top tracks from the Spotify API.
  * Make sure that TOP_TRACKS_API is set correctly in env.js */
 export const getMyTopTracks = (token: string): Promise<Track[] | null> => {
-  return fetcher<SpotifyApi.UsersTopTracksResponse>(TOP_TRACKS_API, token).then((res) => {
-    if (!res) {
+  return fetcher<SpotifyApi.UsersTopTracksResponse>(TOP_TRACKS_API, token)
+    .then((res) => {
+      if (!res) {
+        return null;
+      } else {
+        return formatter(res.data?.items);
+      }
+    })
+    .catch((e) => {
+      console.error(e);
+      alert(ERROR_ALERT);
       return null;
-    } else {
-      return formatter(res.data?.items);
-    }
-  }).catch(e => {
-    console.error(e);
-    alert(ERROR_ALERT);
-    return null;
-  });
+    });
 };
 
 /* Fetches the given album from the Spotify API.
  * Make sure that ALBUM_TRACK_API_GETTER is set correctly in env.js */
-export const getAlbumTracks = (albumId: string, token: string): Promise<Track[] | null> => {
-  return fetcher<SpotifyApi.SingleAlbumResponse>(ALBUM_TRACK_API_GETTER(albumId), token).then((res) => {
-    if (!res) {
+export const getAlbumTracks = (
+  albumId: string,
+  token: string
+): Promise<Track[] | null> => {
+  return fetcher<SpotifyApi.SingleAlbumResponse>(
+    ALBUM_TRACK_API_GETTER(albumId),
+    token
+  )
+    .then((res) => {
+      if (!res) {
+        return null;
+      } else {
+        const transformedResponse = res.data?.tracks?.items?.map((item) => {
+          return {
+            ...item,
+            album: { images: res.data?.images, name: res.data?.name },
+          };
+        });
+        return formatter(transformedResponse);
+      }
+    })
+    .catch((e) => {
+      console.error(e);
+      alert(ERROR_ALERT);
       return null;
-    } else {
-      const transformedResponse = res.data?.tracks?.items?.map((item) => {
-        return {
-          ...item,
-          album: { images: res.data?.images, name: res.data?.name }
-        }
-      });
-      return formatter(transformedResponse);
-    }
-  }).catch(e => {
-    console.error(e);
-    alert(ERROR_ALERT);
-    return null;
-  });
+    });
 };
 
 export const exchangeCodeForToken = (
@@ -102,10 +119,11 @@ export const exchangeCodeForToken = (
     client_id: CLIENT_ID,
     code_verifier: codeVerifier,
   });
-  
-  return axios.post<SpotifyAuthResponse>(DISCOVERY.tokenEndpoint, params.toString(), {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  })
+
+  return axios
+    .post<SpotifyAuthResponse>(DISCOVERY.tokenEndpoint, params.toString(), {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    })
     .then((resp) => {
       if (!resp) {
         return null;
@@ -118,5 +136,4 @@ export const exchangeCodeForToken = (
       alert(ERROR_ALERT);
       return null;
     });
-}
-
+};
