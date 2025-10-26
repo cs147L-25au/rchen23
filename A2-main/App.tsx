@@ -54,7 +54,7 @@ export default function App() {
   const offsetRef = useRef(0);
   const LIMIT = 20;
 
-  // Initial fetch of top tracks
+  // initial fetch of top tracks
   useEffect(() => {
     if (!token) return;
     setIsLoading(true);
@@ -71,14 +71,14 @@ export default function App() {
 
   const loadMoreTracks = () => {
     if (!token) return;
-    if (isFetchingMore) return; // Prevent duplicate requests
+    if (isFetchingMore) return; // prevent duplicate requests
 
     setIsFetchingMore(true);
 
     getMyTopTracks(token)
       .then((data) => {
         if (data) {
-          setTracks((prev) => [...prev, ...data]); // ✅ append items!
+          setTracks((prev) => [...prev, ...data]); // append the items
           offsetRef.current += data.length;
         }
       })
@@ -89,8 +89,7 @@ export default function App() {
 
   /***** END PART 3: Get Tracks */
 
-  /*Putting in the search bar here*/
-  /* Search Bar */
+  /*Putting in the search bar here instead of below song list*/
   // Filter according to your Track type (songTitle, songArtists, albumName)
   const displayedTracks = useMemo(() => {
     if (!tracks) return [];
