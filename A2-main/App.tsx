@@ -49,53 +49,39 @@ export default function App() {
   /****** PART 3: Get Tracks */
   // rest of the variables are used to impliment infinite scroll
   const [tracks, setTracks] = useState<Track[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const offsetRef = useRef(0);
-
   const LIMIT = 20;
 
   // Initial fetch of top tracks
   useEffect(() => {
     if (token) {
-      offsetRef.current = 0;
-      setTracks(null);
-      fetchMoreTracks(0);
+      setIsLoading(true);
+      getMyTopTracks(token)
+        .then((data) => {
+          setTracks(data);
+        })
+        .catch((error: Error) => {
+          console.error("Error fetching tracks:", error);
+        });
     }
   }, [token]);
 
   const fetchMoreTracks = (offset: number) => {
+    if (!token) return;
     setIsLoadingMore(true);
 
-    const url = `https://api.spotify.com/v1/me/top/tracks?limit=${LIMIT}&offset=${offset}`;
+    getMyTopTracks(token)
+      .then((data) => {
+        if (data) {
+          setTracks((prevTracks) => {
+            if (prevTracks === null) return data;
+            return [...prevTracks, ...data];
+          });
 
-    fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => response.json())
-      .then((data: SpotifyApi.UsersTopTracksResponse) => {
-        const newTracks: Track[] = data.items.map((item) => {
-          const artists = item.artists?.map((artist) => ({
-            name: artist.name,
-          }));
-          return {
-            songTitle: item.name,
-            songArtists: artists,
-            albumName: item.album?.name,
-            imageUrl: item.album?.images[0]?.url,
-            duration: item.duration_ms,
-            externalUrl: item.external_urls?.spotify || "",
-            previewUrl: item.preview_url || "",
-          };
-        });
-
-        setTracks((prevTracks) => {
-          if (prevTracks === null) return newTracks;
-          return [...prevTracks, ...newTracks];
-        });
-
-        offsetRef.current = offset + LIMIT;
+          offsetRef.current = offset + LIMIT;
+        }
       })
       .catch((error: Error) => {
         console.error("Error fetching tracks:", error);
@@ -136,10 +122,8 @@ export default function App() {
           keyExtractor={(_, index) => index.toString()}
           renderItem={({ item, index }) => <Song track={item} index={index} />}
           contentContainerStyle={{ paddingHorizontal: 8, paddingTop: 8 }}
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={
-            isLoadingMore ? (
+            isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Themes.colors.spotify} />
               </View>
@@ -194,8 +178,6 @@ export default function App() {
               <Song track={item} index={index} />
             )}
             contentContainerStyle={styles.listContent}
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
                 {isSearching ? "No results found." : "No tracks to show."}
