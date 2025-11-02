@@ -8,7 +8,7 @@ import SearchBar from "./App/Components/SearchBar";
 import Feed from "./App/Components/FeedBar";
 import MyCarousel from "./App/Components/Carousel";
 import SearchResults from "./App/Components/SearchResults";
-import { TMDBMediaResult } from "./App/Components/TMDB";
+import { TMDBMediaResult } from "./App/TMDB";
 
 const searchLeft = "Recent Movies";
 const searchRight = "See All";

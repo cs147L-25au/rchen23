@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ListRenderItemInfo,
 } from "react-native";
-import { TMDBMediaResult, getPosterUrl } from "./TMDB";
+import { TMDBMediaResult, getPosterUrl } from "../TMDB";
 
 interface SearchResultsProps {
   results: TMDBMediaResult[];
@@ -56,7 +56,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    flex: 1, // 👈 take all vertical space offered by mainContent
+    flex: 1, // take all vertical space offered by mainContent
     width: "100%",
   },
   list: {

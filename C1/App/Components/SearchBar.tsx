@@ -1,6 +1,6 @@
 import { StyleSheet, TextInput, View } from "react-native";
 import React, { useState, useEffect } from "react";
-import { TMDBMediaResult, searchTMDB } from "./TMDB";
+import { TMDBMediaResult, searchTMDB } from "../TMDB";
 
 const searchBarText = "Search a movie, TV show, member, etc";
 
