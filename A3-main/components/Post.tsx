@@ -12,6 +12,7 @@ import { LikeInsert } from "@/types";
 
 type PostProps = {
   shouldNavigateOnPress?: boolean;
+  onPress?: () => void;
   id: string;
   username: string | null;
   timestamp: string;
@@ -47,7 +48,7 @@ export default function Post({
         throw new Error("Session not found. You must be signed in to vote");
       }
 
-      const newLike: LikeInsert = undefined;
+      // const newLike: LikeInsert = undefined;
 
       // Optimistic update
       setScore(score + (newVote - vote));
@@ -100,7 +101,23 @@ export default function Post({
     // Write your code in the <Link> component below
     // ================================
     post = (
-      <Link href={"/tabs/feed/details"} asChild={true} style={styles.content}>
+      <Link
+        href={{
+          pathname: "/tabs/feed/details",
+          params: {
+            id: id,
+            username: username ?? "Anonymous",
+            timestamp: timestamp,
+            text: text,
+            like_count: currentLikeCount.toString(),
+            current_user_vote: currentUserVote.toString(),
+            comment_count: commentCount.toString(),
+            user_id: id,
+          },
+        }}
+        asChild={true}
+        style={styles.content}
+      >
         {post}
       </Link>
     );

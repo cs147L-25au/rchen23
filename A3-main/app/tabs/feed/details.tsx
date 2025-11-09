@@ -62,7 +62,7 @@ export default function Details() {
         throw new Error("Session not found. You must be signed in to comment");
       }
 
-      const newComment: CommentInsert = undefined;
+      // const newComment: CommentInsert = undefined;
 
       // ================================
       // TODO: Write the code to submit a comment to the comments table

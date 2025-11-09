@@ -11,6 +11,7 @@ import useSession from "@/utils/useSession";
 import db from "@/database/db";
 
 import type { PostSelect } from "@/types";
+import { useRouter } from "expo-router";
 
 type FeedListProps = {
   shouldNavigateToComments?: boolean;
@@ -26,6 +27,7 @@ export default function FeedList({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const session = useSession();
+  const router = useRouter();
 
   useEffect(() => {
     if (session) {
@@ -44,10 +46,24 @@ export default function FeedList({
           "Session not found. You must be signed in to view posts"
         );
       }
-
       // ================================
-      // TODO: Write the code to fetch the posts from the posts table
-      // Write your code here
+      // Fetch posts from the posts table
+      let query = db
+        .from("posts")
+        .select("*")
+        .order("timestamp", { ascending: false });
+
+      // If fetching only user's posts, filter by current user_id
+      if (fetchUsersPostsOnly) {
+        query = query.eq("user_id", session.user.id);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setPosts(data as PostSelect[]);
       // ================================
     } catch (error) {
       console.error("Error fetching posts:", error);

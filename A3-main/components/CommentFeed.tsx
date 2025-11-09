@@ -33,8 +33,18 @@ export default function CommentFeed({ postId }: CommentFeedProps) {
       }
 
       // ================================
-      // TODO: Write the code to fetch the comments from the comments table
-      // Write your code here
+      // Fetch comments from the comments table filtered by post_id
+      const { data, error } = await db
+        .from("comments")
+        .select("*")
+        .eq("post_id", postId)
+        .order("timestamp", { ascending: false });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setComments(data as CommentSelect[]);
       // ================================
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -45,8 +55,12 @@ export default function CommentFeed({ postId }: CommentFeedProps) {
   };
 
   // ================================
-  // TODO: Write the code to trigger the comment fetching code when this component mounts
-  // Write your code here
+  // Fetch comments when component mounts or when postId changes
+  useEffect(() => {
+    if (session) {
+      fetchComments();
+    }
+  }, [session, postId]);
   // ================================
 
   if (isLoading && !isRefreshing) {

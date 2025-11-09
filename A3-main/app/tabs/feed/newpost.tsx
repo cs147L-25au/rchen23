@@ -34,7 +34,7 @@ export default function NewPost() {
         throw new Error("Session not found. You must be signed in to post");
       }
 
-      const newPost: PostInsert = undefined;
+      // const newPost: PostInsert = undefined;
 
       // ================================
       // TODO: Write the code to submit a post to the posts table
