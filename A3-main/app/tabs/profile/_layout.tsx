@@ -1,11 +1,36 @@
 import { Stack } from "expo-router";
 import { StyleSheet } from "react-native";
+import Theme from "../../../assets/theme";
 
 export default function ProfileLayout() {
   return (
-    <Stack>{/* TODO: Add Stack.Screen components for each screen */}</Stack>
+    <Stack
+      screenOptions={{
+        headerTintColor: Theme.colors.textPrimary,
+        headerStyle: styles.headerStyle,
+        headerTitleStyle: styles.headerTitleStyle,
+        headerTitleAlign: "center",
+      }}
+    >
+      <Stack.Screen
+        name="profile.index"
+        options={{
+          headerTitle: "My Profile",
+          headerShown: true,
+        }}
+      />
+    </Stack>
   );
 }
 
 // TODO: Create styles your layout here
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  headerStyle: {
+    backgroundColor: Theme.colors.backgroundSecondary,
+  },
+  headerTitleStyle: {
+    fontWeight: "bold",
+    fontSize: 18,
+    color: Theme.colors.textPrimary,
+  },
+});
