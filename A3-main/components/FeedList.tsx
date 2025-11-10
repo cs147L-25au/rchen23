@@ -16,11 +16,13 @@ import { useRouter } from "expo-router";
 type FeedListProps = {
   shouldNavigateToComments?: boolean;
   fetchUsersPostsOnly?: boolean;
+  sortBy?: "recent" | "likes";
 };
 
 export default function FeedList({
   shouldNavigateToComments = false,
   fetchUsersPostsOnly = false,
+  sortBy = "recent",
 }: FeedListProps) {
   const [posts, setPosts] = useState<PostSelect[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -48,17 +50,20 @@ export default function FeedList({
       }
       // ================================
       // Fetch posts from the posts table
-      let query = db
-        .from("posts")
-        .select("*")
-        .order("timestamp", { ascending: false });
+      let query = db.from("posts").select("*");
 
-      // If fetching only user's posts, filter by current user_id
+      if (sortBy === "recent") {
+        query = query.order("timestamp", { ascending: false });
+      } else if (sortBy === "likes") {
+        query = query.order("like_count", { ascending: false });
+      }
+
       if (fetchUsersPostsOnly) {
         query = query.eq("user_id", session.user.id);
       }
 
       const { data, error } = await query;
+
       if (error) {
         throw new Error(error.message);
       }

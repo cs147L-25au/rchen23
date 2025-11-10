@@ -20,10 +20,11 @@ export default function FeedLayout() {
         headerStyle: styles.headerStyle,
         headerTitleStyle: styles.headerTitleStyle,
         headerTitleAlign: "center",
+        headerShadowVisible: false,
       }}
     >
       <Stack.Screen
-        name="feed.index"
+        name="(top-tabs)"
         options={{
           headerTitle: () => (
             <View style={styles.headerTitleContainer}>
@@ -72,7 +73,7 @@ export default function FeedLayout() {
 // styles
 const styles = StyleSheet.create({
   headerStyle: {
-    backgroundColor: Theme.colors.backgroundSecondary,
+    backgroundColor: Theme.colors.backgroundPrimary,
   },
   headerTitleStyle: {
     fontWeight: "bold",
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
   },
   headerTitleText: {
     fontWeight: "bold",
-    fontSize: 20,
+    fontSize: 24,
     color: Theme.colors.textPrimary,
   },
   headerBackIcon: {

@@ -48,16 +48,24 @@ export default function Post({
         throw new Error("Session not found. You must be signed in to vote");
       }
 
-      // const newLike: LikeInsert = undefined;
-
       // Optimistic update
       setScore(score + (newVote - vote));
       setVote(newVote);
 
       // ================================
-      // TODO: Write the code to submit a vote to the likes table
-      // Hint: You will need to use an UPSERT to submit the vote to the likes table.
-      // Write your code here
+      const newLike: LikeInsert = {
+        post_id: id,
+        user_id: session.user.id,
+        vote: newVote,
+      };
+
+      const { error } = await db.from("likes").upsert([newLike], {
+        onConflict: "post_id,user_id",
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
       // ================================
     } catch (error) {
       console.error("Error submitting vote:", error);
@@ -96,10 +104,6 @@ export default function Post({
 
   if (shouldNavigateOnPress) {
     // ================================
-    // TODO: Change the props on the Link component to
-    // pass the necessary params from the relevant post
-    // Write your code in the <Link> component below
-    // ================================
     post = (
       <Link
         href={{
@@ -115,6 +119,7 @@ export default function Post({
             user_id: id,
           },
         }}
+        // ================================
         asChild={true}
         style={styles.content}
       >

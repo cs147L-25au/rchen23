@@ -7,12 +7,16 @@ import { Link } from "expo-router";
 import Theme from "@/assets/theme";
 import FeedList from "@/components/FeedList";
 
-export default function Feed() {
+export default function TopFeed() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <FeedList shouldNavigateToComments={true} fetchUsersPostsOnly={false} />
-      <Link href="/tabs/feed/newpost" style={styles.postButtonContainer}>
+      <FeedList
+        shouldNavigateToComments={true}
+        fetchUsersPostsOnly={false}
+        sortBy="likes"
+      />
+      <Link href="../newpost" style={styles.postButtonContainer}>
         <View style={styles.postButton}>
           <FontAwesome size={32} name="plus" color={Theme.colors.textPrimary} />
         </View>
@@ -39,8 +43,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    // FontAwesome 'plus' icon is a bit off-center, so we manually center it by
-    // tweaking the padding
     paddingTop: 2,
     paddingLeft: 1,
   },

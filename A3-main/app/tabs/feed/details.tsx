@@ -61,12 +61,21 @@ export default function Details() {
         setIsLoading(false);
         throw new Error("Session not found. You must be signed in to comment");
       }
-
-      // const newComment: CommentInsert = undefined;
-
       // ================================
-      // TODO: Write the code to submit a comment to the comments table
-      // Write your code here
+      const newComment: CommentInsert = {
+        text: inputText,
+        username: "Anonymous",
+        post_id: postDetails.id,
+        user_id: session.user.id,
+      };
+
+      const { error } = await db.from("comments").insert([newComment]);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      Alert.alert("Comment submitted");
+      setInputText("");
       // ================================
 
       Alert.alert("Comment submitted");

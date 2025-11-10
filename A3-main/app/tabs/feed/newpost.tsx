@@ -34,11 +34,23 @@ export default function NewPost() {
         throw new Error("Session not found. You must be signed in to post");
       }
 
-      // const newPost: PostInsert = undefined;
-
       // ================================
-      // TODO: Write the code to submit a post to the posts table
-      // Write your code here
+      const newPost: PostInsert = {
+        text: inputText,
+        username: username || "Anonymous",
+        user_id: session.user.id,
+      };
+
+      const { error } = await db.from("raw_posts").insert([newPost]);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      Alert.alert("Post submitted");
+      setInputText("");
+      setUsername(null);
+      router.back();
       // ================================
 
       Alert.alert("Post submitted");
