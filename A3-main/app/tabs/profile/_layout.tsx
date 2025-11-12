@@ -23,7 +23,6 @@ export default function ProfileLayout() {
   );
 }
 
-// TODO: Create styles your layout here
 const styles = StyleSheet.create({
   headerStyle: {
     backgroundColor: Theme.colors.backgroundSecondary,

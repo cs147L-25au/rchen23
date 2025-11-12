@@ -41,7 +41,6 @@ export default function TabsLayout() {
   );
 }
 
-// TODO: Create styles your layout here
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Theme.colors.backgroundSecondary,
