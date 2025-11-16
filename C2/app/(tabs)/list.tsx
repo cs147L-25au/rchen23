@@ -1,8 +1,8 @@
-// app/(tabs)/list.tsx
 import NavBar from "@/components/NavBar";
 import { Link } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   ListRenderItemInfo,
   StyleSheet,
@@ -10,22 +10,24 @@ import {
   View,
 } from "react-native";
 
+import db from "@/database/db";
+
 type RankedItem = {
   rank: number;
   title: string;
-  subtitle: string;
-  meta: string;
+  subtitle: string; // we will fill with “Genres unavailable” until you store genres
+  meta: string; // same item
   score: number;
 };
 
 const getColor = (score: number) => {
-  if (score >= 7.5) {
+  if (score >= 7.0) {
     return {
       borderColor: "#2a4",
-      bgColor: "#2a4" + "05", // light green with alpha
+      bgColor: "#2a4" + "05",
       textColor: "#2a4",
     };
-  } else if (score >= 5) {
+  } else if (score >= 4) {
     return {
       borderColor: "#d6a500",
       bgColor: "#d6a50005",
@@ -40,171 +42,76 @@ const getColor = (score: number) => {
   }
 };
 
-const DATA: RankedItem[] = [
-  {
-    rank: 1,
-    title: "The Godfather",
-    subtitle: "Crime • Drama • Mafia",
-    meta: "Francis Ford Coppola • USA • 1972",
-    score: 10.0,
-  },
-  {
-    rank: 2,
-    title: "One Piece",
-    subtitle: "Adventure • Fantasy • Shōnen",
-    meta: "Toei Animation • Japan • 1999–Present",
-    score: 10.0,
-  },
-  {
-    rank: 3,
-    title: "Breaking Bad",
-    subtitle: "Crime • Thriller • Drama",
-    meta: "AMC • USA • 2008–2013",
-    score: 9.9,
-  },
-  {
-    rank: 4,
-    title: "When Life Gives You Tangerines",
-    subtitle: "Romance • Drama • Slice of Life",
-    meta: "Korea • Netflix • 2024",
-    score: 9.9,
-  },
-  {
-    rank: 5,
-    title: "Naruto: Shippuden",
-    subtitle: "Action • Fantasy • Shōnen",
-    meta: "Studio Pierrot • Japan • 2007–2017",
-    score: 9.8,
-  },
-  {
-    rank: 6,
-    title: "Better Call Saul",
-    subtitle: "Drama • Crime • Legal Thriller",
-    meta: "AMC • USA • 2015–2022",
-    score: 9.8,
-  },
-  {
-    rank: 7,
-    title: "Arcane",
-    subtitle: "Action • Sci-Fi • Animation",
-    meta: "Netflix • Riot Games / Fortiche • 2021–Present",
-    score: 9.7,
-  },
-  {
-    rank: 8,
-    title: "La La Land",
-    subtitle: "Romance • Musical • Drama",
-    meta: "Damien Chazelle • USA • 2016",
-    score: 9.6,
-  },
-  {
-    rank: 9,
-    title: "How I Met Your Mother",
-    subtitle: "Comedy • Romance • Sitcom",
-    meta: "CBS • USA • 2005–2014",
-    score: 9.5,
-  },
-  {
-    rank: 10,
-    title: "Oppenheimer",
-    subtitle: "Biopic • Historical • Thriller",
-    meta: "Christopher Nolan • USA • 2023",
-    score: 9.5,
-  },
-  {
-    rank: 11,
-    title: "Hotel Del Luna",
-    subtitle: "Fantasy • Romance • Drama",
-    meta: "tvN • Korea • 2019",
-    score: 9.4,
-  },
-  {
-    rank: 12,
-    title: "Shōgun",
-    subtitle: "Drama • Historical • Political",
-    meta: "FX • Japan / USA • 2024",
-    score: 9.4,
-  },
-  {
-    rank: 13,
-    title: "Superman",
-    subtitle: "Action • Superhero • Sci-Fi",
-    meta: "DC Studios • USA • 2025",
-    score: 9.3,
-  },
-  {
-    rank: 14,
-    title: "Dune: Part Two",
-    subtitle: "Sci-Fi • Epic • Adventure",
-    meta: "Denis Villeneuve • USA • 2024",
-    score: 9.3,
-  },
-  {
-    rank: 15,
-    title: "Game of Thrones",
-    subtitle: "Fantasy • Drama • Epic",
-    meta: "HBO • USA / UK • 2011–2019",
-    score: 9.1,
-  },
-  {
-    rank: 16,
-    title: "It",
-    subtitle: "Horror • Mystery • Thriller",
-    meta: "Stephen King Adaptation • USA • 2017",
-    score: 9.0,
-  },
-  {
-    rank: 17,
-    title: "Chief of Staff",
-    subtitle: "Political • Drama • Thriller",
-    meta: "JTBC • Korea • 2019",
-    score: 8.8,
-  },
-  {
-    rank: 18,
-    title: "K-Pop Demon Hunters",
-    subtitle: "Action • Fantasy • Animation",
-    meta: "Sony Pictures Animation • 2025",
-    score: 8.8,
-  },
-  {
-    rank: 19,
-    title: "The Shadow’s Edge",
-    subtitle: "Action • Crime • Thriller",
-    meta: "Macau / Mandarin • 2025",
-    score: 8.7,
-  },
-  {
-    rank: 20,
-    title: "Chainsaw Man – The Movie: Reze Arc",
-    subtitle: "Action • Dark Fantasy • Supernatural",
-    meta: "MAPPA • Japan • 2025",
-    score: 8.5,
-  },
-  {
-    rank: 21,
-    title: "How I Met Your Father",
-    subtitle: "Comedy • Romance • Sitcom",
-    meta: "Hulu • USA • 2022–2023",
-    score: 7.3,
-  },
-  {
-    rank: 22,
-    title: "Him",
-    subtitle: "Psychological Horror • Indie",
-    meta: "Indie • USA • 2025",
-    score: 4.6,
-  },
-];
+export default function ListScreen() {
+  const [items, setItems] = useState<RankedItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const SORTED: RankedItem[] = [...DATA]
-  .sort((a, b) => b.score - a.score)
-  .map((item, idx) => ({
-    ...item,
-    rank: idx + 1,
-  }));
+  useEffect(() => {
+    loadRankedList();
+  }, []);
 
-const ListScreen: React.FC = () => {
+  const loadRankedList = async () => {
+    try {
+      setLoading(true);
+
+      // 1. Get all posts with ratings
+      const { data, error } = await db
+        .from("posts")
+        .select("movie_name, rating")
+        .not("rating", "is", null);
+
+      if (error) {
+        console.error("List fetch error:", error);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setItems([]);
+        return;
+      }
+
+      // 2. Group by movie
+      const grouped: Record<string, number[]> = {};
+
+      data.forEach((row) => {
+        if (!row.movie_name) return;
+        if (!grouped[row.movie_name]) grouped[row.movie_name] = [];
+        grouped[row.movie_name].push(row.rating);
+      });
+
+      // 3. Build ranked items
+      let ranked: RankedItem[] = Object.entries(grouped).map(
+        ([movie, ratings]) => {
+          const avg =
+            ratings.reduce((a, b) => a + b, 0) / Math.max(ratings.length, 1);
+
+          return {
+            rank: 0, // will fill after sorting
+            title: movie,
+            subtitle: "Genres unavailable", // until you store in DB
+            meta: "", // also optional
+            score: parseFloat(avg.toFixed(1)),
+          };
+        }
+      );
+
+      // 4. Sort by score (DESC)
+      ranked.sort((a, b) => b.score - a.score);
+
+      // 5. Apply ranking numbers
+      ranked = ranked.map((item, idx) => ({
+        ...item,
+        rank: idx + 1,
+      }));
+
+      setItems(ranked);
+    } catch (err) {
+      console.error("List error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderRow = ({ item }: ListRenderItemInfo<RankedItem>) => {
     const { borderColor, bgColor, textColor } = getColor(item.score);
 
@@ -239,26 +146,27 @@ const ListScreen: React.FC = () => {
       <View style={styles.headerWrapper}>
         <Text style={styles.headerTitle}>My Top Watchlist</Text>
 
-        {/* back to feed screen (now / (tabs)/feed) */}
         <Link href="/(tabs)/feed" style={styles.backLink}>
           ← Back to Feed
         </Link>
       </View>
 
-      <FlatList
-        data={SORTED}
-        renderItem={renderRow}
-        keyExtractor={(item) => item.title + item.meta}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        contentContainerStyle={styles.listContent}
-      />
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 30 }} size="large" />
+      ) : (
+        <FlatList
+          data={items}
+          renderItem={renderRow}
+          keyExtractor={(item) => item.title}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
 
       <NavBar />
     </View>
   );
-};
-
-export default ListScreen;
+}
 
 const styles = StyleSheet.create({
   screen: {
@@ -293,6 +201,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e5e5",
   },
   leftSide: {
     flexDirection: "row",

@@ -40,10 +40,10 @@ export default function SettingsScreen() {
   const userName = "Richard Chen";
   const userHandle = "@RRChen";
   const userRank = 1;
-  const followers = 20;
-  const following = 20;
-  const watched = 71;
-  const wantToWatch = 10;
+  const followers = 0;
+  const following = 0;
+  const watched = 3;
+  const wantToWatch = 0;
   const currentStreak = 15;
 
   useEffect(() => {

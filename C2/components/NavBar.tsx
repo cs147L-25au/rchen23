@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconTexts: {
-    fontSize: 13.5,
+    fontSize: 12.5,
     fontFamily: "Helvetica",
     color: "#00000070",
     marginTop: 4,
