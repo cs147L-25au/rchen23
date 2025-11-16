@@ -1,8 +1,10 @@
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   FlatList,
   Image,
   ListRenderItemInfo,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -14,31 +16,54 @@ interface SearchResultsProps {
 }
 
 const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
+  const router = useRouter();
+
+  const handlePress = (item: TMDBMediaResult) => {
+    const displayTitle = item.title ?? item.name ?? "(no title)";
+    const anyItem = item as any; // TMDB has these, but your type doesn’t declare them
+
+    router.push({
+      pathname: "/(tabs)/mediaDetails", // ✅ matches app/(tabs)/mediaDetails.tsx
+      params: {
+        id: String(item.id),
+        title: displayTitle,
+        mediaType: item.media_type ?? "",
+        overview: anyItem.overview ?? "",
+        posterPath: item.poster_path ?? "",
+        voteAverage:
+          anyItem.vote_average != null ? String(anyItem.vote_average) : "",
+        voteCount: anyItem.vote_count != null ? String(anyItem.vote_count) : "",
+      },
+    });
+  };
+
   const renderItem = ({ item }: ListRenderItemInfo<TMDBMediaResult>) => {
     const displayTitle = item.title ?? item.name ?? "(no title)";
     const posterUri = getPosterUrl(item.poster_path, item.profile_path);
 
     return (
-      <View style={styles.resultRow}>
-        {posterUri ? (
-          <Image source={{ uri: posterUri }} style={styles.poster} />
-        ) : (
-          <View style={styles.noPoster}>
-            <Text style={styles.noPosterText}>No Img</Text>
-          </View>
-        )}
+      <Pressable onPress={() => handlePress(item)}>
+        <View style={styles.resultRow}>
+          {posterUri ? (
+            <Image source={{ uri: posterUri }} style={styles.poster} />
+          ) : (
+            <View style={styles.noPoster}>
+              <Text style={styles.noPosterText}>No Img</Text>
+            </View>
+          )}
 
-        <View style={styles.metaCol}>
-          <Text style={styles.titleText}>{displayTitle}</Text>
-          <Text style={styles.typeText}>
-            {item.media_type === "movie"
-              ? "Movie"
-              : item.media_type === "tv"
-              ? "TV Show"
-              : "Person"}
-          </Text>
+          <View style={styles.metaCol}>
+            <Text style={styles.titleText}>{displayTitle}</Text>
+            <Text style={styles.typeText}>
+              {item.media_type === "movie"
+                ? "Movie"
+                : item.media_type === "tv"
+                ? "TV Show"
+                : "Person"}
+            </Text>
+          </View>
         </View>
-      </View>
+      </Pressable>
     );
   };
 

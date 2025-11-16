@@ -14,7 +14,7 @@ export default function TabsLayout() {
       <Stack.Screen name="list" />
 
       {/* non-interactive pages */}
-      <Stack.Screen name="play" />
+      <Stack.Screen name="search" />
       <Stack.Screen name="leaderboard" />
       <Stack.Screen name="settings" />
     </Stack>

@@ -61,11 +61,11 @@ const NavBar = () => {
           <Text style={styles.iconTexts}>List</Text>
         </Pressable>
 
-        {/* play */}
+        {/* search */}
         <Pressable
           style={styles.navigationItem}
           onPress={() => {
-            goTo("/(tabs)/play", ["/play"]);
+            goTo("/(tabs)/search", ["/search"]);
           }}
         >
           <Image
@@ -73,7 +73,7 @@ const NavBar = () => {
             resizeMode="contain"
             source={playIcon}
           />
-          <Text style={styles.iconTexts}>Play</Text>
+          <Text style={styles.iconTexts}>Search</Text>
         </Pressable>
 
         {/* leaderboard */}

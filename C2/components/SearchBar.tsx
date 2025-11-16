@@ -1,29 +1,27 @@
+import React, { useEffect, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
-import React, { useState, useEffect } from "react";
 import { TMDBMediaResult, searchTMDB } from "../TMDB";
 
 const searchBarText = "Search a movie, TV show, member, etc";
 
 interface SearchBarProps {
   onResults: (results: TMDBMediaResult[]) => void;
+  onFocus?: () => void;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onResults }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ onResults, onFocus }) => {
   const [searchText, setSearchText] = useState("");
-  const [lastQueried, setLastQueried] = useState(""); // prevents spamming same query
+  const [lastQueried, setLastQueried] = useState("");
 
   useEffect(() => {
-    // if empty, clear results
     if (searchText.trim().length === 0) {
       onResults([]);
       setLastQueried("");
       return;
     }
 
-    // lightweight "debounce": only fire if text actually changed
     if (searchText === lastQueried) return;
 
-    // async IIFE inside useEffect
     (async () => {
       try {
         const results = await searchTMDB(searchText);
@@ -31,7 +29,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onResults }) => {
         setLastQueried(searchText);
       } catch (err) {
         console.error("TMDB search error:", err);
-        onResults([]); // fail safe
+        onResults([]);
       }
     })();
   }, [searchText, lastQueried, onResults]);
@@ -44,6 +42,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onResults }) => {
         placeholderTextColor="#999999"
         value={searchText}
         onChangeText={setSearchText}
+        onFocus={onFocus}
       />
     </View>
   );
