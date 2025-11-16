@@ -45,7 +45,7 @@ export default function AppIndex() {
   }
 
   if (session) {
-    // ✅ point to the actual screen that exists now
+    // point to the actual screen that exists now
     return <Redirect href="/(tabs)/feed" />;
   }
 

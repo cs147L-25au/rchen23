@@ -1,9 +1,11 @@
+// app/(tabs)/feed.tsx
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+
 import MyCarousel from "../../components/Carousel";
-import Feed from "../../components/FeedBar";
+import FeedBar from "../../components/FeedBar";
 import Header from "../../components/Header";
 import NavBar from "../../components/NavBar";
 import SearchResults from "../../components/SearchResults";
@@ -29,7 +31,7 @@ const HomeScreen: React.FC = () => {
       </Pressable>
 
       {/* Make the whole bar pressable and push to /search */}
-      <Pressable onPress={() => router.push("/search")}>
+      <Pressable onPress={() => router.push("/(tabs)/search")}>
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
@@ -57,7 +59,8 @@ const HomeScreen: React.FC = () => {
               <Text style={styles.bufferFeedText}>{feedText}</Text>
             </View>
 
-            <Feed />
+            {/* This is the DB-backed list */}
+            <FeedBar />
           </>
         )}
       </View>

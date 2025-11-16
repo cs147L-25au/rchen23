@@ -10,10 +10,13 @@ import {
 import { getAllPosts, Post, updatePostLikes } from "../database/queries";
 import FeedItem from "./FeedItem";
 
+const DEFAULT_PROFILE_PIC =
+  "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
+
 const likeIcon = require("../assets/Icons/like_icon.png");
 const likedIcon = require("../assets/Icons/liked_heart.png");
 
-const Feed = () => {
+const Feed: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [liked, setLiked] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
@@ -27,6 +30,7 @@ const Feed = () => {
     try {
       setLoading(true);
       setError(null);
+
       const data = await getAllPosts();
       setPosts(data);
     } catch (err) {
@@ -37,32 +41,40 @@ const Feed = () => {
     }
   };
 
-  const renderFeedItem = ({ item }: { item: Post }) => (
-    <FeedItem
-      userName={item.user?.display_name || "Unknown"}
-      action={item.action_type === "rating" ? "Ranked" : "Commented"}
-      title={item.movie_name}
-      rating={item.action_type === "rating" ? "9.0" : ""}
-      profileImage={
-        item.user?.profile_pic
-          ? { uri: item.user.profile_pic }
-          : require("../assets/PFPs/Luke_pfp.png")
-      }
-      timestamp={formatDate(item.created_at)}
-      description=""
-      isLiked={liked[item.id] === 1}
-      likeCount={item.like_count + (liked[item.id] === 1 ? 1 : 0)}
-      onPress={async () => {
-        setLiked((prev) => ({
-          ...prev,
-          [item.id]: prev[item.id] === 1 ? 0 : 1,
-        }));
-        await updatePostLikes(item.id, 1);
-      }}
-      likeIcon={likeIcon}
-      likedIcon={likedIcon}
-    />
-  );
+  const renderFeedItem = ({ item }: { item: Post }) => {
+    const ratingText =
+      item.action_type === "rating" && typeof item.rating === "number"
+        ? item.rating.toFixed(1)
+        : "";
+
+    const profileImage =
+      item.user?.profile_pic && item.user.profile_pic.length > 0
+        ? { uri: item.user.profile_pic }
+        : { uri: DEFAULT_PROFILE_PIC };
+
+    return (
+      <FeedItem
+        userName={item.user?.display_name || "Unknown"}
+        action={item.action_type === "rating" ? "Ranked" : "Commented"}
+        title={item.movie_name}
+        rating={ratingText}
+        profileImage={profileImage}
+        timestamp={formatDate(item.created_at)}
+        description={item.movie_review || ""}
+        isLiked={liked[item.id] === 1}
+        likeCount={item.like_count + (liked[item.id] === 1 ? 1 : 0)}
+        onPress={async () => {
+          setLiked((prev) => ({
+            ...prev,
+            [item.id]: prev[item.id] === 1 ? 0 : 1,
+          }));
+          await updatePostLikes(item.id, 1);
+        }}
+        likeIcon={likeIcon}
+        likedIcon={likedIcon}
+      />
+    );
+  };
 
   if (loading) {
     return (
@@ -126,7 +138,7 @@ const styles = StyleSheet.create({
     paddingBottom: "25%",
   },
   list: {
-    gap: 10,
+    gap: 10, // match your original spacing
   },
   centerContainer: {
     flex: 1,

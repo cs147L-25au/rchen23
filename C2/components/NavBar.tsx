@@ -14,7 +14,7 @@ const NavBar = () => {
     router.replace(target);
   };
 
-  const feedTargets = ["/(tabs)", "/(tabs)/index", "/", "/index"];
+  const feedTargets = ["/(tabs)/feed", "/feed"];
   const listTargets = ["/(tabs)/list", "/list"];
   const searchTargets = ["/(tabs)/search", "/search"];
   const leaderboardTargets = ["/(tabs)/leaderboard", "/leaderboard"];
@@ -26,9 +26,7 @@ const NavBar = () => {
         {/* FEED */}
         <Pressable
           style={styles.navigationItem}
-          onPress={() =>
-            goTo("/(tabs)" as Href, ["/(tabs)/index", "/", "/index"])
-          }
+          onPress={() => goTo("/(tabs)/feed", ["/feed"])}
         >
           <Ionicons
             name="newspaper-outline"
@@ -136,7 +134,7 @@ const styles = StyleSheet.create({
     borderColor: "#cbcbcb",
     borderTopWidth: 1,
     width: "100%",
-    height: 88, // slightly taller for bigger icons
+    height: 88,
     position: "absolute",
     bottom: 0,
     left: 0,
