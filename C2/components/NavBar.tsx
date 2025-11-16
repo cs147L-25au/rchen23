@@ -1,109 +1,128 @@
+import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router, usePathname, type Href } from "expo-router";
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-
-const feedIcon = require("../assets/Icons/feed_icon.png");
-const listIcon = require("../assets/Icons/list_icon.png");
-const playIcon = require("../assets/Icons/play_button.png");
-const trophyIcon = require("../assets/Icons/leader_icon.png");
-const settingsIcon = require("../assets/Icons/setting_icon.png");
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const NavBar = () => {
   const pathname = usePathname();
 
-  // helper function to navigate to different tabs/screens
+  const isActive = (targets: string[]) => targets.includes(pathname);
+
   const goTo = (target: Href, alts: string[] = []) => {
-    // if current path matches the main target OR any alt versions, do nothing
-    if (pathname === target || alts.includes(pathname)) {
-      return;
-    }
+    const targets = [target as string, ...alts];
+    if (isActive(targets)) return;
     router.replace(target);
   };
+
+  const feedTargets = ["/(tabs)", "/(tabs)/index", "/", "/index"];
+  const listTargets = ["/(tabs)/list", "/list"];
+  const searchTargets = ["/(tabs)/search", "/search"];
+  const leaderboardTargets = ["/(tabs)/leaderboard", "/leaderboard"];
+  const profileTargets = ["/(tabs)/settings", "/settings"];
 
   return (
     <View style={styles.navigationContainer}>
       <View style={styles.iconBox}>
-        {/* feed/index screen */}
+        {/* FEED */}
         <Pressable
           style={styles.navigationItem}
-          onPress={() => {
-            if (
-              pathname === "/(tabs)" ||
-              pathname === "/(tabs)/index" ||
-              pathname === "/" ||
-              pathname === "/index"
-            ) {
-              return;
-            }
-            router.replace("/(tabs)" as Href);
-          }}
+          onPress={() =>
+            goTo("/(tabs)" as Href, ["/(tabs)/index", "/", "/index"])
+          }
         >
-          <Image
-            style={styles.navigationIcons}
-            resizeMode="contain"
-            source={feedIcon}
+          <Ionicons
+            name="newspaper-outline"
+            size={isActive(feedTargets) ? 34 : 30}
+            color={isActive(feedTargets) ? "#000000" : "#00000070"}
           />
-          <Text style={styles.iconTexts}>Feed</Text>
+          <Text
+            style={[
+              styles.iconTexts,
+              isActive(feedTargets) && styles.iconTextActive,
+            ]}
+          >
+            Feed
+          </Text>
         </Pressable>
 
-        {/* list */}
+        {/* LIST */}
         <Pressable
           style={styles.navigationItem}
-          onPress={() => {
-            goTo("/(tabs)/list", ["/list"]);
-          }}
+          onPress={() => goTo("/(tabs)/list", ["/list"])}
         >
-          <Image
-            style={styles.navigationIcons}
-            resizeMode="contain"
-            source={listIcon}
+          <Ionicons
+            name="list-outline"
+            size={isActive(listTargets) ? 34 : 30}
+            color={isActive(listTargets) ? "#000000" : "#00000070"}
           />
-          <Text style={styles.iconTexts}>List</Text>
+          <Text
+            style={[
+              styles.iconTexts,
+              isActive(listTargets) && styles.iconTextActive,
+            ]}
+          >
+            List
+          </Text>
         </Pressable>
 
-        {/* search */}
+        {/* SEARCH */}
         <Pressable
           style={styles.navigationItem}
-          onPress={() => {
-            goTo("/(tabs)/search", ["/search"]);
-          }}
+          onPress={() => goTo("/(tabs)/search", ["/search"])}
         >
-          <Image
-            style={styles.navigationIcons}
-            resizeMode="contain"
-            source={playIcon}
+          <FontAwesome5
+            name="search-plus"
+            size={isActive(searchTargets) ? 34 : 30}
+            color={isActive(searchTargets) ? "#000000" : "#00000070"}
           />
-          <Text style={styles.iconTexts}>Search</Text>
+          <Text
+            style={[
+              styles.iconTexts,
+              isActive(searchTargets) && styles.iconTextActive,
+            ]}
+          >
+            Search
+          </Text>
         </Pressable>
 
-        {/* leaderboard */}
+        {/* LEADERBOARD */}
         <Pressable
           style={styles.navigationItem}
-          onPress={() => {
-            goTo("/(tabs)/leaderboard", ["/leaderboard"]);
-          }}
+          onPress={() => goTo("/(tabs)/leaderboard", ["/leaderboard"])}
         >
-          <Image
-            style={styles.navigationIcons}
-            resizeMode="contain"
-            source={trophyIcon}
+          <FontAwesome5
+            name="trophy"
+            size={isActive(leaderboardTargets) ? 32 : 28}
+            color={isActive(leaderboardTargets) ? "#000000" : "#00000070"}
           />
-          <Text style={styles.iconTexts}>Leaderboard</Text>
+          <Text
+            style={[
+              styles.iconTexts,
+              isActive(leaderboardTargets) && styles.iconTextActive,
+            ]}
+          >
+            Leaderboard
+          </Text>
         </Pressable>
 
-        {/* settings */}
+        {/* PROFILE */}
         <Pressable
           style={styles.navigationItem}
-          onPress={() => {
-            goTo("/(tabs)/settings", ["/settings"]);
-          }}
+          onPress={() => goTo("/(tabs)/settings", ["/settings"])}
         >
-          <Image
-            style={styles.navigationIcons}
-            resizeMode="contain"
-            source={settingsIcon}
+          <MaterialIcons
+            name="account-circle"
+            size={isActive(profileTargets) ? 34 : 30}
+            color={isActive(profileTargets) ? "#000000" : "#00000070"}
           />
-          <Text style={styles.iconTexts}>Settings</Text>
+          <Text
+            style={[
+              styles.iconTexts,
+              isActive(profileTargets) && styles.iconTextActive,
+            ]}
+          >
+            Profile
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -113,12 +132,11 @@ const NavBar = () => {
 const styles = StyleSheet.create({
   navigationContainer: {
     flexDirection: "row",
-    backgroundColor: "#ffffffff",
-    borderColor: "#cbcbcbff",
+    backgroundColor: "#fff",
+    borderColor: "#cbcbcb",
     borderTopWidth: 1,
     width: "100%",
-    height: 80,
-
+    height: 88, // slightly taller for bigger icons
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -128,32 +146,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-evenly",
     alignItems: "center",
-    gap: "1%",
-    paddingLeft: "1%",
     width: "100%",
   },
   navigationItem: {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: "2%",
-    marginBottom: "5.5%",
     flex: 1,
   },
-  navigationIcons: {
-    height: 40,
-    width: 40,
-    marginTop: "10%",
-    resizeMode: "contain",
-    borderRadius: 17.5,
-    backgroundColor: "#ffffff20",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   iconTexts: {
-    fontSize: 11,
+    fontSize: 13.5,
     fontFamily: "Helvetica",
-    color: "#00000080",
+    color: "#00000070",
+    marginTop: 4,
+  },
+  iconTextActive: {
+    color: "#000",
+    fontWeight: "700",
   },
 });
 

@@ -1,3 +1,5 @@
+// app/(tabs)/list.tsx
+import NavBar from "@/components/NavBar";
 import { Link } from "expo-router";
 import React from "react";
 import {
@@ -7,7 +9,6 @@ import {
   Text,
   View,
 } from "react-native";
-import NavBar from "../../components/NavBar";
 
 type RankedItem = {
   rank: number;
@@ -21,7 +22,7 @@ const getColor = (score: number) => {
   if (score >= 7.5) {
     return {
       borderColor: "#2a4",
-      bgColor: "#2a405",
+      bgColor: "#2a4" + "05", // light green with alpha
       textColor: "#2a4",
     };
   } else if (score >= 5) {
@@ -196,14 +197,14 @@ const DATA: RankedItem[] = [
   },
 ];
 
-const SORTED = [...DATA]
+const SORTED: RankedItem[] = [...DATA]
   .sort((a, b) => b.score - a.score)
   .map((item, idx) => ({
     ...item,
     rank: idx + 1,
   }));
 
-export default function ListScreen() {
+const ListScreen: React.FC = () => {
   const renderRow = ({ item }: ListRenderItemInfo<RankedItem>) => {
     const { borderColor, bgColor, textColor } = getColor(item.score);
 
@@ -238,7 +239,8 @@ export default function ListScreen() {
       <View style={styles.headerWrapper}>
         <Text style={styles.headerTitle}>My Top Watchlist</Text>
 
-        <Link href="/(tabs)" style={styles.backLink}>
+        {/* back to feed screen (now / (tabs)/feed) */}
+        <Link href="/(tabs)/feed" style={styles.backLink}>
           ← Back to Feed
         </Link>
       </View>
@@ -254,7 +256,9 @@ export default function ListScreen() {
       <NavBar />
     </View>
   );
-}
+};
+
+export default ListScreen;
 
 const styles = StyleSheet.create({
   screen: {

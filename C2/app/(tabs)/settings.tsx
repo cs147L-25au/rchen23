@@ -1,10 +1,13 @@
+// app/(tabs)/settings.tsx
 import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -12,6 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import db from "@/database/db";
 import NavBar from "../../components/NavBar";
 import { getAllPosts, Post } from "../../database/queries";
 
@@ -19,11 +24,11 @@ import { getAllPosts, Post } from "../../database/queries";
 const placeholder_pfp = require("../../assets/profile_pic.png");
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Mock user data - replace with real auth later
-  const userId = "user-123"; // You'll get this from auth
   const userName = "Richard Chen";
   const userHandle = "@RRChen";
   const userRank = 1;
@@ -49,42 +54,77 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleLogoutPress = () => {
+    Alert.alert(
+      "Log out",
+      "Are you sure you want to log out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Yes",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await db.auth.signOut();
+            } catch (err) {
+              console.error("Failed to sign out", err);
+            }
+            // Send back to login gate (app/index.tsx)
+            router.replace("/");
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <View style={styles.page}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Top header: spacing + avatar + name/handle */}
-        <View style={styles.headerTop}>
-          <Image source={placeholder_pfp} style={styles.profilePic} />
-          <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.userHandle}>{userHandle}</Text>
-        </View>
+        {/* PROFILE HEADER + LOGOUT ICON */}
+        <View style={styles.headerContainer}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogoutPress}
+          >
+            <MaterialIcons name="logout" size={22} color="#000" />
+          </TouchableOpacity>
 
-        {/* Bottom header: stats + buttons, no huge padding */}
-        <View style={styles.headerBottom}>
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{followers}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{following}</Text>
-              <Text style={styles.statLabel}>Following</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>#{userRank}</Text>
-              <Text style={styles.statLabel}>Rank on MyFlix</Text>
-            </View>
+          <View style={styles.headerTop}>
+            <Image source={placeholder_pfp} style={styles.profilePic} />
+            <Text style={styles.userName}>{userName}</Text>
+            <Text style={styles.userHandle}>{userHandle}</Text>
           </View>
 
-          {/* Edit Profile & Share Profile Buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.editButton}>
-              <Text style={styles.editButtonText}>Edit profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton}>
-              <Text style={styles.shareButtonText}>Share profile</Text>
-            </TouchableOpacity>
+          <View style={styles.headerBottom}>
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{followers}</Text>
+                <Text style={styles.statLabel}>Followers</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{following}</Text>
+                <Text style={styles.statLabel}>Following</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>#{userRank}</Text>
+                <Text style={styles.statLabel}>Rank on MyFlix</Text>
+              </View>
+            </View>
+
+            {/* Edit Profile & Share Profile Buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.editButton}>
+                <Text style={styles.editButtonText}>Edit profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.shareButton}>
+                <Text style={styles.shareButtonText}>Share profile</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -179,21 +219,31 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
 
-  // NEW: top header with big spacing
-  headerTop: {
-    alignItems: "center",
-    paddingTop: "20%", // keeps profile photo away from the very top
-    paddingBottom: 16,
+  // Wrapper for top profile header + logout button
+  headerContainer: {
     backgroundColor: "#fff",
-  },
-
-  // NEW: bottom header with stats + buttons
-  headerBottom: {
-    alignItems: "center",
+    paddingTop: "12%",
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
-    backgroundColor: "#fff",
+    alignItems: "center",
+  },
+
+  logoutButton: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.04)",
+  },
+
+  headerTop: {
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  headerBottom: {
+    alignItems: "center",
   },
 
   profilePic: {

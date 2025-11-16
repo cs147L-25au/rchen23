@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -14,18 +15,56 @@ import {
 import { Feather, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import Header from "../../components/Header";
 import NavBar from "../../components/NavBar";
+import db from "../../database/db";
 import { getAllPosts } from "../../database/queries";
 import { getPosterUrl } from "../../TMDB";
 
+import RatingModal, {
+  RatingBucket,
+  RatingResult,
+} from "../../components/RatingModal/RatingModal";
+
+// ---------- Types ----------
 type CastMember = {
   id: number;
   name: string;
   character?: string;
   profile_path?: string | null;
+  order?: number;
 };
 
-const TMDB_API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY as string;
 const ACCENT_RED = "#B3261E";
+const TMDB_API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY as string;
+
+const DEFAULT_PROFILE_PIC =
+  "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
+
+// Make sure a profile row exists for the current user
+async function ensureProfile() {
+  const {
+    data: { user },
+    error,
+  } = await db.auth.getUser();
+
+  if (error || !user) return null;
+
+  await db.from("profiles").upsert(
+    {
+      id: user.id, // must be the PK in profiles
+      profile_pic: DEFAULT_PROFILE_PIC,
+    },
+    { onConflict: "id" }
+  );
+
+  return user;
+}
+
+// sentiment -> allowed rating range
+const SENTIMENT_RANGES: Record<RatingBucket, { min: number; max: number }> = {
+  liked: { min: 7.0, max: 10.0 },
+  alright: { min: 4.0, max: 6.9 },
+  disliked: { min: 1.0, max: 3.9 },
+};
 
 const MediaDetailScreen: React.FC = () => {
   const router = useRouter();
@@ -155,8 +194,9 @@ const MediaDetailScreen: React.FC = () => {
     metaLine = pieces.join(" • ");
   }
 
-  // ---- Top cast state ----
+  // ---- Top cast + director/creator state ----
   const [topCast, setTopCast] = useState<CastMember[]>([]);
+  const [primaryCredits, setPrimaryCredits] = useState<string | null>(null);
   const [castLoading, setCastLoading] = useState(false);
 
   useEffect(() => {
@@ -169,8 +209,50 @@ const MediaDetailScreen: React.FC = () => {
         const creditsUrl = `https://api.themoviedb.org/3/${mediaType}/${id}/credits?api_key=${TMDB_API_KEY}&language=en-US`;
         const res = await fetch(creditsUrl);
         const json = await res.json();
+
+        // CAST
         const cast = (json.cast ?? []) as CastMember[];
+        cast.sort((a, b) => {
+          const ao = a.order ?? 9999;
+          const bo = b.order ?? 9999;
+          return ao - bo;
+        });
         setTopCast(cast.slice(0, 6));
+
+        // CREW -> director(s) or creator(s)
+        const crew = json.crew ?? [];
+        let line: string | null = null;
+
+        if (mediaType === "movie") {
+          const directors = crew.filter((m: any) => m.job === "Director");
+          if (directors.length === 1) {
+            line = `Directed by ${directors[0].name}`;
+          } else if (directors.length > 1) {
+            const names = directors.map((d: any) => d.name);
+            line =
+              names.length <= 2
+                ? `Directed by ${names.join(" & ")}`
+                : `Directed by ${names.slice(0, 2).join(", ")} & others`;
+          }
+        } else if (mediaType === "tv") {
+          const creators = crew.filter(
+            (m: any) =>
+              m.job === "Creator" ||
+              m.job === "Developed by" ||
+              m.job === "Executive Producer"
+          );
+          if (creators.length === 1) {
+            line = `Created by ${creators[0].name}`;
+          } else if (creators.length > 1) {
+            const names = creators.map((c: any) => c.name);
+            line =
+              names.length <= 2
+                ? `Created by ${names.join(" & ")}`
+                : `Created by ${names.slice(0, 2).join(", ")} & others`;
+          }
+        }
+
+        setPrimaryCredits(line);
       } catch (err) {
         console.error("Failed to fetch credits", err);
       } finally {
@@ -216,6 +298,58 @@ const MediaDetailScreen: React.FC = () => {
     return <Image source={{ uri }} style={styles.castImg} />;
   };
 
+  // ---- Rating Modal ----
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+
+  const handleRatingSubmit = async (result: RatingResult) => {
+    if (!id) return;
+
+    const sentiment = result.bucket;
+    const userRating = result.userRating;
+    const { min, max } = SENTIMENT_RANGES[sentiment];
+
+    // Validate rating within sentiment range
+    if (userRating < min || userRating > max) {
+      Alert.alert(
+        "Invalid rating",
+        `For "${sentiment}", rating must be between ${min} and ${max}.`
+      );
+      return;
+    }
+
+    try {
+      // Ensure profile row exists & get current user
+      const user = await ensureProfile();
+      if (!user) {
+        Alert.alert("Error", "You must be logged in to rate.");
+        return;
+      }
+
+      const { error } = await db.from("posts").insert({
+        user_id: user.id,
+        movie_id: id,
+        movie_name: displayTitle,
+        action_type: "rating",
+        rating: userRating,
+        movie_review: result.review ?? null,
+        like_count: 0,
+        comment_count: 0,
+      });
+
+      if (error) {
+        console.error("Insert rating error:", error);
+        Alert.alert("Error", "Failed to save rating. Please try again.");
+      } else {
+        Alert.alert("Success", "Your rating was saved!");
+      }
+    } catch (err) {
+      console.error("Failed to submit rating", err);
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setRatingModalVisible(false);
+    }
+  };
+
   return (
     <View style={styles.page}>
       {/* Make header (incl. profile pic) pressable -> Settings */}
@@ -251,6 +385,11 @@ const MediaDetailScreen: React.FC = () => {
                 <Text style={styles.type}>{displayType}</Text>
               )}
 
+              {/* Director / Creator line from credits */}
+              {primaryCredits && (
+                <Text style={styles.creditLine}>{primaryCredits}</Text>
+              )}
+
               {showRating && (
                 <>
                   <View style={styles.ratingRow}>
@@ -271,7 +410,10 @@ const MediaDetailScreen: React.FC = () => {
 
               {/* Plus + Bookmark buttons */}
               <View style={styles.actionRow}>
-                <Pressable style={styles.actionChip}>
+                <Pressable
+                  style={styles.actionChip}
+                  onPress={() => setRatingModalVisible(true)}
+                >
                   <Feather name="plus" size={16} color="#fff" />
                   <Text style={styles.actionChipText}>Rate</Text>
                 </Pressable>
@@ -344,9 +486,9 @@ const MediaDetailScreen: React.FC = () => {
                   </Text>
                 </View>
                 <Text style={styles.friendCommentText}>
-                  {post.comment_text ??
+                  {post.movie_review ??
                     (post.rating
-                      ? `Rated this ${post.rating}/5`
+                      ? `Rated this ${post.rating}/10`
                       : "Watched this movie.")}
                 </Text>
               </View>
@@ -373,6 +515,14 @@ const MediaDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
 
+      {/* Rating popup */}
+      <RatingModal
+        visible={ratingModalVisible}
+        onClose={() => setRatingModalVisible(false)}
+        onSubmit={handleRatingSubmit}
+        title={displayTitle}
+      />
+
       <NavBar />
       <StatusBar style="auto" />
     </View>
@@ -381,6 +531,7 @@ const MediaDetailScreen: React.FC = () => {
 
 export default MediaDetailScreen;
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
   page: {
     flex: 1,
@@ -451,7 +602,13 @@ const styles = StyleSheet.create({
   type: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 8,
+    marginBottom: 2,
+    fontFamily: "DM Sans",
+  },
+  creditLine: {
+    fontSize: 13,
+    color: "#555",
+    marginBottom: 6,
     fontFamily: "DM Sans",
   },
   ratingRow: {
