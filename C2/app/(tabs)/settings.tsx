@@ -1,4 +1,3 @@
-// app/(tabs)/settings.tsx
 import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -8,6 +7,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   ScrollView,
   StyleSheet,
@@ -18,23 +18,31 @@ import {
 
 import db from "@/database/db";
 import NavBar from "../../components/NavBar";
+
+import FeedItem from "../../components/FeedItem";
 import { getAllPosts, Post } from "../../database/queries";
 
-// Placeholder profile image
-const placeholder_pfp = require("../../assets/profile_pic.png");
+// SAME icons used in FeedBar
+const likeIcon = require("../../assets/Icons/like_icon.png");
+const likedIcon = require("../../assets/Icons/liked_heart.png");
+
+const DEFAULT_PROFILE_PIC =
+  "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 
 export default function SettingsScreen() {
   const router = useRouter();
+
   const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [liked, setLiked] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
 
-  // Mock user data - replace with real auth later
+  // These profile numbers remain local for now
   const userName = "Richard Chen";
   const userHandle = "@RRChen";
   const userRank = 1;
   const followers = 20;
   const following = 20;
-  const watched = 71; // Number of movies ranked
+  const watched = 71;
   const wantToWatch = 10;
   const currentStreak = 15;
 
@@ -46,7 +54,11 @@ export default function SettingsScreen() {
     try {
       setLoading(true);
       const data = await getAllPosts();
-      setUserPosts(data.slice(0, 5)); // Show last 5 posts
+
+      // FILTER TO JUST YOUR POSTS
+      const mine = data.filter((p) => p.user?.display_name === "Richard");
+
+      setUserPosts(mine);
     } catch (err) {
       console.error("Failed to load posts:", err);
     } finally {
@@ -59,10 +71,7 @@ export default function SettingsScreen() {
       "Log out",
       "Are you sure you want to log out?",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Yes",
           style: "destructive",
@@ -72,7 +81,6 @@ export default function SettingsScreen() {
             } catch (err) {
               console.error("Failed to sign out", err);
             }
-            // Send back to login gate (app/index.tsx)
             router.replace("/");
           },
         },
@@ -81,10 +89,62 @@ export default function SettingsScreen() {
     );
   };
 
+  // SAME formatDate as FeedBar
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString();
+  };
+
+  const renderRecentItem = ({ item }: { item: Post }) => {
+    const profileImg =
+      item.user?.profile_pic && item.user.profile_pic.length > 0
+        ? { uri: item.user.profile_pic }
+        : { uri: DEFAULT_PROFILE_PIC };
+
+    const ratingText =
+      item.action_type === "rating" && typeof item.rating === "number"
+        ? item.rating.toFixed(1)
+        : "";
+
+    return (
+      <FeedItem
+        userName={item.user?.display_name || "Unknown"}
+        action={item.action_type === "rating" ? "Ranked" : "Commented"}
+        title={item.movie_name}
+        rating={ratingText}
+        profileImage={profileImg}
+        timestamp={formatDate(item.created_at)}
+        description={item.movie_review || ""}
+        isLiked={liked[item.id] === 1}
+        likeCount={(item.like_count ?? 0) + (liked[item.id] === 1 ? 1 : 0)}
+        onPress={() =>
+          setLiked((prev) => ({
+            ...prev,
+            [item.id]: prev[item.id] === 1 ? 0 : 1,
+          }))
+        }
+        likeIcon={likeIcon}
+        likedIcon={likedIcon}
+      />
+    );
+  };
+
   return (
     <View style={styles.page}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* PROFILE HEADER + LOGOUT ICON */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: "18.5%" }}
+      >
         <View style={styles.headerContainer}>
           <TouchableOpacity
             style={styles.logoutButton}
@@ -94,13 +154,15 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerTop}>
-            <Image source={placeholder_pfp} style={styles.profilePic} />
+            <Image
+              source={require("../../assets/profile_pic.png")}
+              style={styles.profilePic}
+            />
             <Text style={styles.userName}>{userName}</Text>
             <Text style={styles.userHandle}>{userHandle}</Text>
           </View>
 
           <View style={styles.headerBottom}>
-            {/* Stats Row */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{followers}</Text>
@@ -116,7 +178,6 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            {/* Edit Profile & Share Profile Buttons */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity style={styles.editButton}>
                 <Text style={styles.editButtonText}>Edit profile</Text>
@@ -128,7 +189,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Stats Lines */}
+        {/* ---------------- STATS LIST (UNCHANGED) ---------------- */}
         <View style={styles.statsLinesContainer}>
           <TouchableOpacity style={styles.statLine}>
             <View style={styles.statLineLeft}>
@@ -153,7 +214,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Rank & Streak Boxes */}
+        {/* ---------------- RANK & STREAK BOXES (UNCHANGED) ---------------- */}
         <View style={styles.rankStreakContainer}>
           <View style={styles.rankBox}>
             <FontAwesome5 name="trophy" size={32} color="#FFB800" />
@@ -168,40 +229,22 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
+        {/* ---------------- NEW FEED-STYLE RECENT ACTIVITY ---------------- */}
         <View style={styles.recentActivityContainer}>
           <Text style={styles.recentActivityTitle}>Recent Activity</Text>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#0000ff" />
-          ) : userPosts.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.activityScroll}
-            >
-              {userPosts.map((post) => (
-                <View key={post.id} style={styles.activityItem}>
-                  <Text style={styles.activityText}>
-                    You {post.action_type === "rating" ? "ranked" : "commented"}
-                  </Text>
-                  <Text style={styles.activityMovie}>{post.movie_name}</Text>
-                  <View style={styles.activityActions}>
-                    <TouchableOpacity>
-                      <Text style={styles.actionIcon}>🤍</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity>
-                      <Text style={styles.actionIcon}>💬</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity>
-                      <Text style={styles.actionIcon}>➤</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          ) : (
+            <ActivityIndicator size="large" />
+          ) : userPosts.length === 0 ? (
             <Text style={styles.noActivityText}>No recent activity</Text>
+          ) : (
+            <FlatList
+              data={userPosts}
+              renderItem={renderRecentItem}
+              keyExtractor={(p) => p.id}
+              contentContainerStyle={{ gap: 12 }}
+              scrollEnabled={false} // let outer scroll handle it
+            />
           )}
         </View>
 
@@ -214,21 +257,16 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-
-  // Wrapper for top profile header + logout button
+  // ✂️ unchanged from your existing file
+  page: { flex: 1, backgroundColor: "#fff" },
   headerContainer: {
     backgroundColor: "#fff",
-    paddingTop: "12%",
+    paddingTop: "20%",
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
     alignItems: "center",
   },
-
   logoutButton: {
     position: "absolute",
     top: 50,
@@ -237,15 +275,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "rgba(0,0,0,0.04)",
   },
-
-  headerTop: {
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  headerBottom: {
-    alignItems: "center",
-  },
-
+  headerTop: { alignItems: "center", marginBottom: 8 },
+  headerBottom: { alignItems: "center" },
   profilePic: {
     width: 120,
     height: 120,
@@ -264,7 +295,6 @@ const styles = StyleSheet.create({
     fontFamily: "DM Sans",
     marginBottom: 8,
   },
-
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -272,9 +302,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 12,
   },
-  statItem: {
-    alignItems: "center",
-  },
+  statItem: { alignItems: "center" },
   statNumber: {
     fontSize: 16,
     fontWeight: "600",
@@ -287,11 +315,7 @@ const styles = StyleSheet.create({
     fontFamily: "DM Sans",
     marginTop: 4,
   },
-
-  buttonContainer: {
-    flexDirection: "row",
-    gap: 12,
-  },
+  buttonContainer: { flexDirection: "row", gap: 12 },
   editButton: {
     paddingHorizontal: 20,
     paddingVertical: 8,
@@ -319,9 +343,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  statsLinesContainer: {
-    paddingHorizontal: 16,
-  },
+  statsLinesContainer: { paddingHorizontal: 16 },
   statLine: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -331,32 +353,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
-  statLineLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  statLineLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
   statLineLabel: {
     fontSize: 16,
     fontWeight: "500",
     color: "#000",
     fontFamily: "DM Sans",
   },
-  statLineRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  statLineRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   statLineNumber: {
     fontSize: 16,
     fontWeight: "600",
     color: "#000",
     fontFamily: "DM Sans",
   },
-  arrow: {
-    fontSize: 20,
-    color: "#999",
-  },
+  arrow: { fontSize: 20, color: "#999" },
 
   rankStreakContainer: {
     flexDirection: "row",
@@ -422,39 +433,6 @@ const styles = StyleSheet.create({
     fontFamily: "DM Sans",
     marginBottom: 12,
   },
-  activityScroll: {
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
-  },
-  activityItem: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 12,
-    width: 200,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  activityText: {
-    fontSize: 12,
-    color: "#999",
-    fontFamily: "DM Sans",
-  },
-  activityMovie: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-    marginVertical: "2.5%",
-  },
-  activityActions: {
-    flexDirection: "row",
-    gap: "4%",
-    marginTop: "3.5%",
-  },
-  actionIcon: {
-    fontSize: 16,
-  },
   noActivityText: {
     fontSize: 14,
     color: "#999",
@@ -462,7 +440,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: "5%",
   },
-  bottomPadding: {
-    height: "10%",
-  },
+  bottomPadding: { height: "30%" },
 });
