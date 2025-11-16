@@ -1,110 +1,97 @@
+import React, { useEffect, useState } from "react";
 import {
-  StyleSheet,
+  ActivityIndicator,
   FlatList,
-  View,
-  Image,
+  StyleSheet,
   Text,
-  TouchableOpacity,
-  ScrollView,
+  View,
 } from "react-native";
-import React, { useState } from "react";
 
+import { getAllPosts, Post, updatePostLikes } from "../database/queries";
 import FeedItem from "./FeedItem";
-
-const luke_pfp = require("../assets/PFPs/Luke_pfp.png");
-const suzy_pfp = require("../assets/PFPs/Suzy_pfp.png");
-const ray_pfp = require("../assets/PFPs/Ray_pfp.png");
-const jamal_pfp = require("../assets/PFPs/Rylan_pfp.png");
 
 const likeIcon = require("../assets/Icons/like_icon.png");
 const likedIcon = require("../assets/Icons/liked_heart.png");
 
-const feedData = [
-  {
-    id: "1",
-    userName: "Luke",
-    action: "Ranked",
-    title: "K-Pop Demon Hunters",
-    rating: "9.4",
-    profileImage: luke_pfp,
-    timestamp: "3 hours ago",
-    description: "",
-    likes: 2,
-  },
-  {
-    id: "2",
-    userName: "Suzy",
-    action: "Ranked",
-    title: "Superman",
-    rating: "9.7",
-    profileImage: suzy_pfp,
-    timestamp: "2 hours ago",
-    description: "Inspirational movie",
-    likes: 11,
-  },
-  {
-    id: "3",
-    userName: "Ray",
-    action: "Ranked",
-    title: "Him",
-    rating: "4.6",
-    profileImage: ray_pfp,
-    timestamp: "yesterday",
-    description: "Genuinely a disappointing watch...",
-    likes: 3,
-  },
-  //   {
-  //   id: "4",
-  //   userName: "Nora",
-  //   action: "Ranked",
-  //   title: "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
-  //   rating: "10/10",
-  //   profileImage: nora_pfp,
-  //   timestamp: "yesterday",
-  //   description: "10/10 Animation, 10/10 Music, 10/10 Flashbacks",
-  //   likes: 1,
-  // },
-  {
-    id: "4",
-    userName: "Jamal",
-    action: "Bookmarked",
-    title: "Tron",
-    profileImage: jamal_pfp,
-    timestamp: "Monday",
-    description: "",
-    likes: 0,
-  },
-];
-
 const Feed = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
   const [liked, setLiked] = useState<{ [key: string]: number }>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const renderFeedItem = ({ item }: { item: any }) => (
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAllPosts();
+      setPosts(data);
+    } catch (err) {
+      console.error("Failed to load posts:", err);
+      setError("Failed to load feed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderFeedItem = ({ item }: { item: Post }) => (
     <FeedItem
-      userName={item.userName}
-      action={item.action}
-      title={item.title}
-      rating={item.rating}
-      profileImage={item.profileImage}
-      timestamp={item.timestamp}
-      description={item.description}
+      userName={item.user?.display_name || "Unknown"}
+      action={item.action_type === "rating" ? "Ranked" : "Commented"}
+      title={item.movie_name}
+      rating={item.action_type === "rating" ? "9.0" : ""}
+      profileImage={
+        item.user?.profile_pic
+          ? { uri: item.user.profile_pic }
+          : require("../assets/PFPs/Luke_pfp.png")
+      }
+      timestamp={formatDate(item.created_at)}
+      description=""
       isLiked={liked[item.id] === 1}
-      likeCount={item.likes + (liked[item.id] === 1 ? 1 : 0)}
-      onPress={() => {
+      likeCount={item.like_count + (liked[item.id] === 1 ? 1 : 0)}
+      onPress={async () => {
         setLiked((prev) => ({
           ...prev,
           [item.id]: prev[item.id] === 1 ? 0 : 1,
         }));
+        await updatePostLikes(item.id, 1);
       }}
       likeIcon={likeIcon}
       likedIcon={likedIcon}
     />
   );
 
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyText}>No posts yet</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={feedData}
+        data={posts}
         renderItem={renderFeedItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
@@ -113,6 +100,21 @@ const Feed = () => {
       />
     </View>
   );
+};
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString();
 };
 
 const styles = StyleSheet.create({
@@ -125,6 +127,19 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 10,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ff0000",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#999",
   },
 });
 
