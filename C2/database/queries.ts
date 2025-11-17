@@ -6,17 +6,22 @@ export interface Profile {
   profile_pic: string | null;
 }
 
-export interface Post {
+export type Post = {
   id: string;
   created_at: string;
   user_id: string;
-  movie_id: string;
-  movie_name: string;
-  action_type: "rating" | "text";
+  movie_id: string | null;
+  movie_name: string | null;
+  action_type: string;
   like_count: number;
   comment_count: number;
-  user?: Profile;
-}
+  rating: number | null;
+  movie_review: string | null; 
+  user: {
+    display_name: string | null;
+    profile_pic: string | null;
+  } | null;
+};
 
 // Fetch all posts with user profiles
 export const getAllPosts = async (): Promise<Post[]> => {

@@ -14,8 +14,8 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
-        {/* Login / auth gate at app/index.tsx */}
-        <Stack.Screen name="index" options={{ headerShown: false }} />
+        {/* Login / auth gate at app/feed.tsx */}
+        <Stack.Screen name="feed" options={{ headerShown: false }} />
 
         {/* Main tab navigator */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

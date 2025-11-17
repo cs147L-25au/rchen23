@@ -3,12 +3,12 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 interface FeedItemProps {
   userName: string;
-  action: string; // e.g. "Ranked"
+  action: string; 
   title: string | null;
   rating: string;
   profileImage: { uri: string };
   timestamp: string;
-  description: string; // optional extra text (can be empty)
+  description: string; 
   likeCount: number;
   isLiked: boolean;
   onPress: () => void;
