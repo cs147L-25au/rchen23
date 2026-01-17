@@ -11,11 +11,12 @@ import {
 } from "react-native";
 
 import db from "@/database/db";
+import { getGenresForTitle } from "@/TMDB";
 
 type RankedItem = {
   rank: number;
   title: string;
-  subtitle: string; // we will fill with “Genres unavailable” until you store genres
+  subtitle: string; // genres from TMDB
   meta: string; // same item
   score: number;
 };
@@ -79,21 +80,27 @@ export default function ListScreen() {
         grouped[row.movie_name].push(row.rating);
       });
 
-      // 3. Build ranked items
-      let ranked: RankedItem[] = Object.entries(grouped).map(
-        ([movie, ratings]) => {
-          const avg =
-            ratings.reduce((a, b) => a + b, 0) / Math.max(ratings.length, 1);
+      // 3. Build ranked items with genres from TMDB
+      const movieEntries = Object.entries(grouped);
 
-          return {
-            rank: 0, // will fill after sorting
-            title: movie,
-            subtitle: "Genres unavailable", // until you store in DB
-            meta: "", // also optional
-            score: parseFloat(avg.toFixed(1)),
-          };
-        }
+      // Fetch genres for all movies in parallel
+      const genrePromises = movieEntries.map(([movie]) =>
+        getGenresForTitle(movie)
       );
+      const genres = await Promise.all(genrePromises);
+
+      let ranked: RankedItem[] = movieEntries.map(([movie, ratings], idx) => {
+        const avg =
+          ratings.reduce((a, b) => a + b, 0) / Math.max(ratings.length, 1);
+
+        return {
+          rank: 0, // will fill after sorting
+          title: movie,
+          subtitle: genres[idx], // genres from TMDB
+          meta: "", // also optional
+          score: parseFloat(avg.toFixed(1)),
+        };
+      });
 
       // 4. Sort by score (DESC)
       ranked.sort((a, b) => b.score - a.score);

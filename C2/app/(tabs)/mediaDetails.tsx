@@ -34,7 +34,7 @@ type CastMember = {
 };
 
 const ACCENT_RED = "#B3261E";
-const TMDB_API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY as string;
+const TMDB_API_KEY = "b6a79cf2e43d2d321e6bba3ca5b02c63";
 
 const DEFAULT_PROFILE_PIC =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
@@ -160,6 +160,7 @@ const MediaDetailScreen: React.FC = () => {
 
   // Build the meta line dynamically
   let metaLine = "";
+  let genresLine = "";
   if (details) {
     const pieces: string[] = [];
     const dateStr =
@@ -192,6 +193,14 @@ const MediaDetailScreen: React.FC = () => {
     }
 
     metaLine = pieces.join(" • ");
+
+    // Extract genres from TMDB details
+    const genres = (details as any).genres as
+      | { id: number; name: string }[]
+      | undefined;
+    if (genres && genres.length > 0) {
+      genresLine = genres.map((g) => g.name).join(", ");
+    }
   }
 
   // ---- Top cast + director/creator state ----
@@ -405,8 +414,11 @@ const MediaDetailScreen: React.FC = () => {
               )}
 
               <Text style={styles.metaSmall}>
-                {metaLine.length > 0 ? metaLine : "Info not available"}
+                {genresLine.length > 0 ? genresLine : "Genres unavailable"}
               </Text>
+              {metaLine.length > 0 && (
+                <Text style={styles.metaSmall}>{metaLine}</Text>
+              )}
 
               {/* Plus + Bookmark buttons */}
               <View style={styles.actionRow}>

@@ -9,7 +9,13 @@ export interface TMDBMediaResult {
   title?: string; // Movie
   poster_path?: string | null;
   profile_path?: string | null;
+  genre_ids?: number[];
 }
+
+// Genre mapping cache
+let movieGenreMap: Record<number, string> = {};
+let tvGenreMap: Record<number, string> = {};
+let genresLoaded = false;
 
 // Types for details view
 interface TMDBCastMember {
@@ -47,6 +53,84 @@ export function getPosterUrl(
   if (!path) return null;
   // w342 is good for detail, not too huge
   return `https://image.tmdb.org/t/p/w342${path}`;
+}
+
+// Load genre mappings from TMDB
+async function loadGenres(): Promise<void> {
+  if (genresLoaded) return;
+
+  try {
+    const [movieRes, tvRes] = await Promise.all([
+      fetch(
+        `https://api.themoviedb.org/3/genre/movie/list?api_key=${TMDB_API_KEY}&language=en-US`
+      ),
+      fetch(
+        `https://api.themoviedb.org/3/genre/tv/list?api_key=${TMDB_API_KEY}&language=en-US`
+      ),
+    ]);
+
+    if (movieRes.ok) {
+      const movieData = await movieRes.json();
+      movieData.genres?.forEach((g: { id: number; name: string }) => {
+        movieGenreMap[g.id] = g.name;
+      });
+    }
+
+    if (tvRes.ok) {
+      const tvData = await tvRes.json();
+      tvData.genres?.forEach((g: { id: number; name: string }) => {
+        tvGenreMap[g.id] = g.name;
+      });
+    }
+
+    genresLoaded = true;
+  } catch (err) {
+    console.error("Failed to load TMDB genres:", err);
+  }
+}
+
+// Convert genre IDs to names
+export function getGenreNames(
+  genreIds: number[],
+  mediaType: "movie" | "tv"
+): string[] {
+  const map = mediaType === "movie" ? movieGenreMap : tvGenreMap;
+  return genreIds
+    .map((id) => map[id] || movieGenreMap[id] || tvGenreMap[id])
+    .filter(Boolean);
+}
+
+// Search for a movie/TV show by name and return genres
+export async function getGenresForTitle(title: string): Promise<string> {
+  if (!title || title.trim().length === 0) {
+    return "Genres unavailable";
+  }
+
+  try {
+    // Ensure genres are loaded
+    await loadGenres();
+
+    // Search for the title
+    const results = await searchTMDB(title);
+
+    // Find the first movie or TV result
+    const match = results.find(
+      (r) => r.media_type === "movie" || r.media_type === "tv"
+    );
+
+    if (!match || !match.genre_ids || match.genre_ids.length === 0) {
+      return "Genres unavailable";
+    }
+
+    const genreNames = getGenreNames(
+      match.genre_ids,
+      match.media_type as "movie" | "tv"
+    );
+    return genreNames.length > 0 ? genreNames.join(", ") : "Genres unavailable";
+  } catch (err) {
+    console.error("Failed to get genres for:", title, err);
+    return "Genres unavailable";
+  }
 }
 
 // 1. search API: /search/multi
