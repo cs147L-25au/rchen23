@@ -9,7 +9,7 @@ export default function TabsLayout() {
       }}
     >
       {/* home/feed */}
-      <Stack.Screen name="index" />
+      <Stack.Screen name="feed" />
 
       {/* list page */}
       <Stack.Screen name="list" />
@@ -19,6 +19,7 @@ export default function TabsLayout() {
       <Stack.Screen name="leaderboard" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="allMovies" />
+      <Stack.Screen name="mediaDetails" />
     </Stack>
   );
 }

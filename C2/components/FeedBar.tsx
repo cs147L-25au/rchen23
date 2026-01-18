@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 
-import { getAllPosts, Post, updatePostLikes } from "../database/queries";
+import { getAllRatings, RatingPost } from "../database/queries";
 import FeedItem from "./FeedItem";
 
 const DEFAULT_PROFILE_PIC =
@@ -17,58 +17,60 @@ const likeIcon = require("../assets/Icons/like_icon.png");
 const likedIcon = require("../assets/Icons/liked_heart.png");
 
 const Feed: React.FC = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [ratings, setRatings] = useState<RatingPost[]>([]);
   const [liked, setLiked] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadPosts();
+    loadRatings();
   }, []);
 
-  const loadPosts = async () => {
+  const loadRatings = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const data = await getAllPosts();
-      setPosts(data);
+      const data = await getAllRatings();
+      setRatings(data);
     } catch (err) {
-      console.error("Failed to load posts:", err);
+      console.error("Failed to load ratings:", err);
       setError("Failed to load feed");
     } finally {
       setLoading(false);
     }
   };
 
-  const renderFeedItem = ({ item }: { item: Post }) => {
-    const ratingText =
-      item.action_type === "rating" && typeof item.rating === "number"
-        ? item.rating.toFixed(1)
-        : "";
+  const renderFeedItem = ({ item }: { item: RatingPost }) => {
+    // Format score display
+    const ratingText = item.score != null ? item.score.toFixed(1) : "";
 
-    const profileImage =
-      item.user?.profile_pic && item.user.profile_pic.length > 0
-        ? { uri: item.user.profile_pic }
-        : { uri: DEFAULT_PROFILE_PIC };
+    // Get category label
+    const categoryLabel =
+      item.category === "good"
+        ? "Liked"
+        : item.category === "alright"
+          ? "It was fine"
+          : item.category === "bad"
+            ? "Disliked"
+            : "Rated";
 
     return (
       <FeedItem
-        userName={item.user?.display_name || "Unknown"}
-        action={item.action_type === "rating" ? "Ranked" : "Commented"}
-        title={item.movie_name}
+        userName="User" // Would need to join with profiles for actual name
+        action={`${categoryLabel}`}
+        title={item.title}
         rating={ratingText}
-        profileImage={profileImage}
+        profileImage={{ uri: DEFAULT_PROFILE_PIC }}
         timestamp={formatDate(item.created_at)}
-        description={item.movie_review || ""}
-        isLiked={liked[item.id] === 1}
-        likeCount={item.like_count + (liked[item.id] === 1 ? 1 : 0)}
-        onPress={async () => {
+        description={item.review_body || ""}
+        isLiked={liked[item.rating_id] === 1}
+        likeCount={0} // No like tracking in current schema
+        onPress={() => {
           setLiked((prev) => ({
             ...prev,
-            [item.id]: prev[item.id] === 1 ? 0 : 1,
+            [item.rating_id]: prev[item.rating_id] === 1 ? 0 : 1,
           }));
-          await updatePostLikes(item.id, 1);
         }}
         likeIcon={likeIcon}
         likedIcon={likedIcon}
@@ -92,10 +94,10 @@ const Feed: React.FC = () => {
     );
   }
 
-  if (posts.length === 0) {
+  if (ratings.length === 0) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>No posts yet</Text>
+        <Text style={styles.emptyText}>No ratings yet</Text>
       </View>
     );
   }
@@ -103,9 +105,9 @@ const Feed: React.FC = () => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={posts}
+        data={ratings}
         renderItem={renderFeedItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.rating_id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={true}
         scrollEnabled={true}
@@ -115,6 +117,7 @@ const Feed: React.FC = () => {
 };
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return "";
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -138,7 +141,7 @@ const styles = StyleSheet.create({
     paddingBottom: "25%",
   },
   list: {
-    gap: 10, // match your original spacing
+    gap: 10,
   },
   centerContainer: {
     flex: 1,

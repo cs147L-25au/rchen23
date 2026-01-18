@@ -14,7 +14,6 @@ import {
 } from "react-native";
 
 import db from "@/database/db";
-import { getGenresForTitle } from "@/TMDB";
 
 type RankedItem = {
   rank: number;
@@ -74,11 +73,29 @@ export default function ListScreen() {
     try {
       setLoading(true);
 
-      // 1. Get all posts with ratings
-      const { data, error } = await db
-        .from("posts")
-        .select("movie_name, rating")
-        .not("rating", "is", null);
+      // Map category to title_type filter
+      const titleTypeMap: Record<MediaCategory, string | null> = {
+        Movies: "movie",
+        "TV Shows": "tv",
+        Animated: "animated",
+        Documentaries: "documentary",
+      };
+      const titleTypeFilter = titleTypeMap[selectedCategory];
+
+      // Query v_user_ratings view
+      let query = db
+        .from("v_user_ratings")
+        .select(
+          "title, genres, score, category, category_rank, global_rank, title_type"
+        )
+        .order("global_rank", { ascending: true });
+
+      // Filter by title_type if not showing all
+      if (titleTypeFilter) {
+        query = query.eq("title_type", titleTypeFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("List fetch error:", error);
@@ -90,44 +107,17 @@ export default function ListScreen() {
         return;
       }
 
-      // 2. Group by movie
-      const grouped: Record<string, number[]> = {};
-
-      data.forEach((row) => {
-        if (!row.movie_name) return;
-        if (!grouped[row.movie_name]) grouped[row.movie_name] = [];
-        grouped[row.movie_name].push(row.rating);
-      });
-
-      // 3. Build ranked items with genres from TMDB
-      const movieEntries = Object.entries(grouped);
-
-      // Fetch genres for all movies in parallel
-      const genrePromises = movieEntries.map(([movie]) =>
-        getGenresForTitle(movie)
-      );
-      const genres = await Promise.all(genrePromises);
-
-      let ranked: RankedItem[] = movieEntries.map(([movie, ratings], idx) => {
-        const avg =
-          ratings.reduce((a, b) => a + b, 0) / Math.max(ratings.length, 1);
-
-        return {
-          rank: 0, // will fill after sorting
-          title: movie,
-          subtitle: genres[idx], // genres from TMDB
-          meta: "", // also optional
-          score: parseFloat(avg.toFixed(1)),
-        };
-      });
-
-      // 4. Sort by score (DESC)
-      ranked.sort((a, b) => b.score - a.score);
-
-      // 5. Apply ranking numbers
-      ranked = ranked.map((item, idx) => ({
-        ...item,
+      // Build ranked items from v_user_ratings
+      const ranked: RankedItem[] = data.map((row: any, idx: number) => ({
         rank: idx + 1,
+        title: row.title || "Unknown",
+        subtitle: Array.isArray(row.genres)
+          ? row.genres.join(", ")
+          : row.genres || "Unknown genre",
+        meta: row.category
+          ? `${row.category.charAt(0).toUpperCase()}${row.category.slice(1)}`
+          : "",
+        score: row.score ?? 0,
       }));
 
       setItems(ranked);

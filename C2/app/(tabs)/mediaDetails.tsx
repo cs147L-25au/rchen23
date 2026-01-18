@@ -16,13 +16,10 @@ import { Feather, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import Header from "../../components/Header";
 import NavBar from "../../components/NavBar";
 import db from "../../database/db";
-import { getAllPosts } from "../../database/queries";
+import { getAllRatings, RatingPost } from "../../database/queries";
 import { getPosterUrl } from "../../TMDB";
 
-import RatingModal, {
-  RatingBucket,
-  RatingResult,
-} from "../../components/RatingModal/RatingModal";
+import { RatingModal, TMDBTitleData } from "../../components/RatingModal";
 
 // ---------- Types ----------
 type CastMember = {
@@ -59,12 +56,6 @@ async function ensureProfile() {
   return user;
 }
 
-// sentiment -> allowed rating range
-const SENTIMENT_RANGES: Record<RatingBucket, { min: number; max: number }> = {
-  liked: { min: 7.0, max: 10.0 },
-  alright: { min: 4.0, max: 6.9 },
-  disliked: { min: 1.0, max: 3.9 },
-};
 
 const MediaDetailScreen: React.FC = () => {
   const router = useRouter();
@@ -273,17 +264,15 @@ const MediaDetailScreen: React.FC = () => {
   }, [id, mediaType]);
 
   // ---- Friends' comments state ----
-  const [friendComments, setFriendComments] = useState<any[]>([]);
+  const [friendComments, setFriendComments] = useState<RatingPost[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
 
   useEffect(() => {
     const loadComments = async () => {
       try {
         setFriendsLoading(true);
-        const data = await getAllPosts();
-        const filtered = (data as any[]).filter(
-          (p) => p.movie_name === displayTitle
-        );
+        const data = await getAllRatings();
+        const filtered = data.filter((r) => r.title === displayTitle);
         setFriendComments(filtered);
       } catch (err) {
         console.error("Failed to load friend comments", err);
@@ -310,53 +299,38 @@ const MediaDetailScreen: React.FC = () => {
   // ---- Rating Modal ----
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
 
-  const handleRatingSubmit = async (result: RatingResult) => {
-    if (!id) return;
+  // Extract genres array for rating modal
+  const genresArray: string[] = details
+    ? ((details as any).genres as { id: number; name: string }[] | undefined)?.map(
+        (g) => g.name
+      ) || []
+    : [];
 
-    const sentiment = result.bucket;
-    const userRating = result.userRating;
-    const { min, max } = SENTIMENT_RANGES[sentiment];
+  // Build TMDB data for the rating modal
+  const tmdbData: TMDBTitleData | null =
+    id && displayTitle
+      ? {
+          tmdb_id: parseInt(id, 10),
+          tmdb_media_type: (mediaType as "movie" | "tv") || "movie",
+          title: displayTitle,
+          genres: genresArray,
+          poster_path: posterPath || null,
+        }
+      : null;
 
-    // Validate rating within sentiment range
-    if (userRating < min || userRating > max) {
-      Alert.alert(
-        "Invalid rating",
-        `For "${sentiment}", rating must be between ${min} and ${max}.`
-      );
-      return;
-    }
-
-    try {
-      // Ensure profile row exists & get current user
-      const user = await ensureProfile();
-      if (!user) {
-        Alert.alert("Error", "You must be logged in to rate.");
-        return;
+  const handleRatingSuccess = () => {
+    Alert.alert("Success", "Your rating was saved!");
+    // Optionally refresh comments
+    const loadComments = async () => {
+      try {
+        const data = await getAllRatings();
+        const filtered = data.filter((r) => r.title === displayTitle);
+        setFriendComments(filtered);
+      } catch (err) {
+        console.error("Failed to refresh comments", err);
       }
-
-      const { error } = await db.from("posts").insert({
-        user_id: user.id,
-        movie_id: id,
-        movie_name: displayTitle,
-        action_type: "rating",
-        rating: userRating,
-        movie_review: result.review ?? null,
-        like_count: 0,
-        comment_count: 0,
-      });
-
-      if (error) {
-        console.error("Insert rating error:", error);
-        Alert.alert("Error", "Failed to save rating. Please try again.");
-      } else {
-        Alert.alert("Success", "Your rating was saved!");
-      }
-    } catch (err) {
-      console.error("Failed to submit rating", err);
-      Alert.alert("Error", "Something went wrong. Please try again.");
-    } finally {
-      setRatingModalVisible(false);
-    }
+    };
+    loadComments();
   };
 
   return (
@@ -489,19 +463,17 @@ const MediaDetailScreen: React.FC = () => {
           {friendsLoading ? (
             <ActivityIndicator />
           ) : friendComments.length > 0 ? (
-            friendComments.map((post: any) => (
-              <View key={post.id} style={styles.friendCommentCard}>
+            friendComments.map((post: RatingPost) => (
+              <View key={post.rating_id} style={styles.friendCommentCard}>
                 <View style={styles.friendHeaderRow}>
                   <FontAwesome5 name="user-circle" size={20} color="#4b4b4b" />
-                  <Text style={styles.friendName}>
-                    {post.username ?? "Friend"}
-                  </Text>
+                  <Text style={styles.friendName}>Friend</Text>
                 </View>
                 <Text style={styles.friendCommentText}>
-                  {post.movie_review ??
-                    (post.rating
-                      ? `Rated this ${post.rating}/10`
-                      : "Watched this movie.")}
+                  {post.review_body ??
+                    (post.score
+                      ? `Rated this ${post.score.toFixed(1)}/10`
+                      : `${post.category === "good" ? "Liked" : post.category === "alright" ? "It was fine" : "Disliked"} this.`)}
                 </Text>
               </View>
             ))
@@ -530,9 +502,9 @@ const MediaDetailScreen: React.FC = () => {
       {/* Rating popup */}
       <RatingModal
         visible={ratingModalVisible}
+        tmdbData={tmdbData}
         onClose={() => setRatingModalVisible(false)}
-        onSubmit={handleRatingSubmit}
-        title={displayTitle}
+        onSuccess={handleRatingSuccess}
       />
 
       <NavBar />

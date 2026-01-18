@@ -20,7 +20,7 @@ import db from "@/database/db";
 import NavBar from "../../components/NavBar";
 
 import FeedItem from "../../components/FeedItem";
-import { getAllPosts, Post } from "../../database/queries";
+import { getAllRatings, RatingPost } from "../../database/queries";
 
 // SAME icons used in FeedBar
 const likeIcon = require("../../assets/Icons/like_icon.png");
@@ -32,7 +32,7 @@ const DEFAULT_PROFILE_PIC =
 export default function SettingsScreen() {
   const router = useRouter();
 
-  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [userRatings, setUserRatings] = useState<RatingPost[]>([]);
   const [liked, setLiked] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
 
@@ -47,20 +47,16 @@ export default function SettingsScreen() {
   const currentStreak = 15;
 
   useEffect(() => {
-    loadUserPosts();
+    loadUserRatings();
   }, []);
 
-  const loadUserPosts = async () => {
+  const loadUserRatings = async () => {
     try {
       setLoading(true);
-      const data = await getAllPosts();
-
-      // FILTER TO JUST YOUR POSTS
-      const mine = data.filter((p) => p.user?.display_name === "Richard");
-
-      setUserPosts(mine);
+      const data = await getAllRatings();
+      setUserRatings(data);
     } catch (err) {
-      console.error("Failed to load posts:", err);
+      console.error("Failed to load ratings:", err);
     } finally {
       setLoading(false);
     }
@@ -105,32 +101,33 @@ export default function SettingsScreen() {
     return date.toLocaleDateString();
   };
 
-  const renderRecentItem = ({ item }: { item: Post }) => {
-    const profileImg =
-      item.user?.profile_pic && item.user.profile_pic.length > 0
-        ? { uri: item.user.profile_pic }
-        : { uri: DEFAULT_PROFILE_PIC };
+  const renderRecentItem = ({ item }: { item: RatingPost }) => {
+    const ratingText = item.score != null ? item.score.toFixed(1) : "";
 
-    const ratingText =
-      item.action_type === "rating" && typeof item.rating === "number"
-        ? item.rating.toFixed(1)
-        : "";
+    const categoryLabel =
+      item.category === "good"
+        ? "Liked"
+        : item.category === "alright"
+          ? "It was fine"
+          : item.category === "bad"
+            ? "Disliked"
+            : "Rated";
 
     return (
       <FeedItem
-        userName={item.user?.display_name || "Unknown"}
-        action={item.action_type === "rating" ? "Ranked" : "Commented"}
-        title={item.movie_name}
+        userName={userName}
+        action={categoryLabel}
+        title={item.title}
         rating={ratingText}
-        profileImage={profileImg}
-        timestamp={formatDate(item.created_at)}
-        description={item.movie_review || ""}
-        isLiked={liked[item.id] === 1}
-        likeCount={(item.like_count ?? 0) + (liked[item.id] === 1 ? 1 : 0)}
+        profileImage={{ uri: DEFAULT_PROFILE_PIC }}
+        timestamp={formatDate(item.created_at || "")}
+        description={item.review_body || ""}
+        isLiked={liked[item.rating_id] === 1}
+        likeCount={liked[item.rating_id] === 1 ? 1 : 0}
         onPress={() =>
           setLiked((prev) => ({
             ...prev,
-            [item.id]: prev[item.id] === 1 ? 0 : 1,
+            [item.rating_id]: prev[item.rating_id] === 1 ? 0 : 1,
           }))
         }
         likeIcon={likeIcon}
@@ -235,13 +232,13 @@ export default function SettingsScreen() {
 
           {loading ? (
             <ActivityIndicator size="large" />
-          ) : userPosts.length === 0 ? (
+          ) : userRatings.length === 0 ? (
             <Text style={styles.noActivityText}>No recent activity</Text>
           ) : (
             <FlatList
-              data={userPosts}
+              data={userRatings}
               renderItem={renderRecentItem}
-              keyExtractor={(p) => p.id}
+              keyExtractor={(p) => p.rating_id}
               contentContainerStyle={{ gap: 12 }}
               scrollEnabled={false} // let outer scroll handle it
             />
