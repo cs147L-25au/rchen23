@@ -9,10 +9,36 @@ import {
   Text,
   View,
 } from "react-native";
-import { TMDBMediaResult, getPosterUrl } from "../TMDB";
+import { TMDBMediaResult, getGenreNames, getPosterUrl } from "../TMDB";
 
 interface SearchResultsProps {
   results: TMDBMediaResult[];
+}
+
+// Get the display type for a person based on their department and gender
+function getPersonRole(item: TMDBMediaResult): string {
+  const department = item.known_for_department?.toLowerCase();
+  const gender = item.gender;
+
+  if (department === "directing") {
+    return "Director";
+  } else if (department === "acting") {
+    // gender: 1 = female, 2 = male
+    return gender === 1 ? "Actress" : "Actor";
+  } else if (department === "writing") {
+    return "Writer";
+  } else if (department === "production") {
+    return "Producer";
+  }
+  return "Person";
+}
+
+// Format release date as "Month Year"
+function formatReleaseDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
 const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
@@ -20,19 +46,17 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
 
   const handlePress = (item: TMDBMediaResult) => {
     const displayTitle = item.title ?? item.name ?? "(no title)";
-    const anyItem = item as any; // TMDB has these, but your type doesn’t declare them
 
     router.push({
-      pathname: "/(tabs)/mediaDetails", // ✅ matches app/(tabs)/mediaDetails.tsx
+      pathname: "/(tabs)/mediaDetails",
       params: {
         id: String(item.id),
         title: displayTitle,
         mediaType: item.media_type ?? "",
-        overview: anyItem.overview ?? "",
+        overview: item.overview ?? "",
         posterPath: item.poster_path ?? "",
-        voteAverage:
-          anyItem.vote_average != null ? String(anyItem.vote_average) : "",
-        voteCount: anyItem.vote_count != null ? String(anyItem.vote_count) : "",
+        voteAverage: item.vote_average != null ? String(item.vote_average) : "",
+        voteCount: item.vote_count != null ? String(item.vote_count) : "",
       },
     });
   };
@@ -40,6 +64,32 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
   const renderItem = ({ item }: ListRenderItemInfo<TMDBMediaResult>) => {
     const displayTitle = item.title ?? item.name ?? "(no title)";
     const posterUri = getPosterUrl(item.poster_path, item.profile_path);
+
+    // Get media type label
+    let typeLabel: string;
+    if (item.media_type === "movie") {
+      typeLabel = "Movie";
+    } else if (item.media_type === "tv") {
+      typeLabel = "TV Show";
+    } else {
+      typeLabel = getPersonRole(item);
+    }
+
+    // Get genres for movies/TV
+    let genresText = "";
+    if (
+      item.genre_ids &&
+      item.genre_ids.length > 0 &&
+      item.media_type !== "person"
+    ) {
+      const genreNames = getGenreNames(item.genre_ids, item.media_type);
+      genresText = genreNames.slice(0, 3).join(", ");
+    }
+
+    // Get release date
+    const releaseDate = formatReleaseDate(
+      item.release_date ?? item.first_air_date
+    );
 
     return (
       <Pressable onPress={() => handlePress(item)}>
@@ -54,13 +104,13 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
 
           <View style={styles.metaCol}>
             <Text style={styles.titleText}>{displayTitle}</Text>
-            <Text style={styles.typeText}>
-              {item.media_type === "movie"
-                ? "Movie"
-                : item.media_type === "tv"
-                ? "TV Show"
-                : "Person"}
-            </Text>
+            <Text style={styles.typeText}>{typeLabel}</Text>
+            {genresText.length > 0 && (
+              <Text style={styles.genreText}>{genresText}</Text>
+            )}
+            {releaseDate.length > 0 && (
+              <Text style={styles.dateText}>{releaseDate}</Text>
+            )}
           </View>
         </View>
       </Pressable>
@@ -84,7 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     paddingHorizontal: "3%",
-    paddingTop: "5%",
+    paddingTop: "0%",
     paddingBottom: "18.5%",
   },
   list: {
@@ -131,6 +181,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#666565ff",
     marginTop: 4,
+    fontFamily: "DM Sans",
+  },
+  genreText: {
+    fontSize: 12,
+    color: "#444",
+    marginTop: 2,
+    fontFamily: "DM Sans",
+  },
+  dateText: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 2,
     fontFamily: "DM Sans",
   },
 });

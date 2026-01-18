@@ -10,6 +10,15 @@ export interface TMDBMediaResult {
   poster_path?: string | null;
   profile_path?: string | null;
   genre_ids?: number[];
+  // Additional fields from search API
+  overview?: string;
+  vote_average?: number;
+  vote_count?: number;
+  release_date?: string; // Movie release date
+  first_air_date?: string; // TV first air date
+  // Person fields
+  known_for_department?: string; // "Acting", "Directing", etc.
+  gender?: number; // 1 = female, 2 = male, 0 = not specified
 }
 
 // Genre mapping cache
@@ -42,6 +51,25 @@ export interface TMDBDetailsData {
 
 export interface TMDBSearchResponse {
   results: TMDBMediaResult[];
+}
+
+// Trending movie item
+export interface TrendingMovie {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  media_type: "movie" | "tv";
+  overview: string;
+  vote_average: number;
+  vote_count: number;
+}
+
+// Detailed trending movie for the "See All" page
+export interface TrendingMovieDetailed extends TrendingMovie {
+  genres: string;
+  runtime: string;
+  release_date: string;
+  release_timestamp: number; // For accurate sorting
 }
 
 // helper to build image URL
@@ -139,6 +167,9 @@ export async function searchTMDB(query: string): Promise<TMDBMediaResult[]> {
     return [];
   }
 
+  // Ensure genre mappings are loaded for displaying genres in search results
+  await loadGenres();
+
   const url = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=en-US&include_adult=false&query=${encodeURIComponent(
     query.trim()
   )}`;
@@ -226,4 +257,210 @@ export async function fetchDetails(
     director,
     topCast,
   };
+}
+
+// 3. Fetch trending movies from TMDB
+export async function fetchTrendingMovies(
+  timeWindow: "day" | "week" = "week"
+): Promise<TrendingMovie[]> {
+  const url = `https://api.themoviedb.org/3/trending/movie/${timeWindow}?api_key=${TMDB_API_KEY}&language=en-US`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`TMDB trending failed with status ${res.status}`);
+    }
+
+    const data = await res.json();
+    const results = data.results ?? [];
+
+    const now = new Date();
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+
+    // Filter, sort by release date, and return only recent movies with poster images
+    const filtered = results
+      .filter((movie: any) => {
+        if (!movie.poster_path) return false;
+        if (!movie.release_date) return false;
+        const releaseDate = new Date(movie.release_date);
+        if (isNaN(releaseDate.getTime())) return false;
+        // Must be released (not in future) and within last 2 years
+        return releaseDate <= now && releaseDate >= twoYearsAgo;
+      })
+      .sort((a: any, b: any) => {
+        const dateA = new Date(a.release_date).getTime();
+        const dateB = new Date(b.release_date).getTime();
+        return dateB - dateA; // Newest first
+      })
+      .slice(0, 10)
+      .map((movie: any) => ({
+        id: movie.id,
+        title: movie.title ?? movie.name ?? "Unknown",
+        poster_path: movie.poster_path,
+        media_type: "movie" as const,
+        overview: movie.overview ?? "",
+        vote_average: movie.vote_average ?? 0,
+        vote_count: movie.vote_count ?? 0,
+      }));
+
+    return filtered;
+  } catch (err) {
+    console.error("Failed to fetch trending movies:", err);
+    return [];
+  }
+}
+
+// 4. Fetch trending movies/TV with detailed info (genres, runtime)
+// Supports pagination for infinite scroll
+export async function fetchTrendingDetailed(
+  page: number = 1,
+  count: number = 20
+): Promise<{ items: TrendingMovieDetailed[]; hasMore: boolean }> {
+  // Ensure genre mappings are loaded
+  await loadGenres();
+
+  try {
+    // Fetch both trending movies and TV shows with pagination
+    const [moviesRes, tvRes] = await Promise.all([
+      fetch(
+        `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
+      ),
+      fetch(
+        `https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
+      ),
+    ]);
+
+    const moviesData = moviesRes.ok
+      ? await moviesRes.json()
+      : { results: [], total_pages: 0 };
+    const tvData = tvRes.ok
+      ? await tvRes.json()
+      : { results: [], total_pages: 0 };
+
+    // Check if there are more pages
+    const hasMore =
+      page < Math.min(moviesData.total_pages ?? 1, tvData.total_pages ?? 1, 10); // Cap at 10 pages
+
+    // Combine and mark media types
+    const allItems = [
+      ...(moviesData.results ?? []).map((m: any) => ({
+        ...m,
+        media_type: "movie",
+      })),
+      ...(tvData.results ?? []).map((t: any) => ({ ...t, media_type: "tv" })),
+    ]
+      .filter((item: any) => item.poster_path)
+      .slice(0, count);
+
+    // Fetch details for each item to get runtime
+    const detailedItems = await Promise.all(
+      allItems.map(async (item: any) => {
+        try {
+          const detailUrl = `https://api.themoviedb.org/3/${item.media_type}/${item.id}?api_key=${TMDB_API_KEY}&language=en-US`;
+          const detailRes = await fetch(detailUrl);
+          const details = detailRes.ok ? await detailRes.json() : null;
+
+          // Get genres from detail response
+          let genresStr = "";
+          if (details?.genres && details.genres.length > 0) {
+            genresStr = details.genres
+              .slice(0, 3)
+              .map((g: { name: string }) => g.name)
+              .join(", ");
+          }
+
+          // Get runtime
+          let runtimeStr = "";
+          if (item.media_type === "movie" && details?.runtime) {
+            runtimeStr = `${details.runtime} min`;
+          } else if (item.media_type === "tv") {
+            const episodeRuntime = details?.episode_run_time?.[0];
+            if (episodeRuntime) {
+              runtimeStr = `${episodeRuntime} min/ep`;
+            } else if (details?.number_of_episodes) {
+              runtimeStr = `${details.number_of_episodes} episodes`;
+            }
+          }
+
+          // Get release date (format as Month Year)
+          let releaseDateStr = "";
+          let releaseTimestamp = 0;
+          const rawDate =
+            details?.release_date ?? details?.first_air_date ?? "";
+          if (rawDate) {
+            const date = new Date(rawDate);
+            if (!isNaN(date.getTime())) {
+              releaseDateStr = date.toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              });
+              releaseTimestamp = date.getTime();
+            }
+          }
+
+          return {
+            id: item.id,
+            title: item.title ?? item.name ?? "Unknown",
+            poster_path: item.poster_path,
+            media_type: item.media_type as "movie" | "tv",
+            overview: item.overview ?? "",
+            vote_average: item.vote_average ?? 0,
+            vote_count: item.vote_count ?? 0,
+            genres: genresStr || "Genre unavailable",
+            runtime: runtimeStr || "Runtime unavailable",
+            release_date: releaseDateStr || "Date unavailable",
+            release_timestamp: releaseTimestamp,
+            _rawDate: rawDate, // For internal sorting
+          };
+        } catch {
+          return {
+            id: item.id,
+            title: item.title ?? item.name ?? "Unknown",
+            poster_path: item.poster_path,
+            media_type: item.media_type as "movie" | "tv",
+            overview: item.overview ?? "",
+            vote_average: item.vote_average ?? 0,
+            vote_count: item.vote_count ?? 0,
+            genres: "Genre unavailable",
+            runtime: "Runtime unavailable",
+            release_date: "Date unavailable",
+            release_timestamp: 0,
+            _rawDate: "", // For internal sorting
+          };
+        }
+      })
+    );
+
+    // Filter and sort by release date
+    const now = new Date();
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+
+    // Filter: only movies that are already released and within the last 2 years
+    const filteredItems = detailedItems.filter((item) => {
+      if (!item._rawDate) return false;
+      const releaseDate = new Date(item._rawDate);
+      if (isNaN(releaseDate.getTime())) return false;
+      // Must be released (not in the future) and within last 2 years
+      return releaseDate <= now && releaseDate >= twoYearsAgo;
+    });
+
+    // Sort by release date (newest first)
+    filteredItems.sort((a, b) => {
+      const dateA = a._rawDate ? new Date(a._rawDate).getTime() : 0;
+      const dateB = b._rawDate ? new Date(b._rawDate).getTime() : 0;
+      return dateB - dateA; // Descending order (newest first)
+    });
+
+    // Remove the _rawDate helper property before returning (keep release_timestamp for client sorting)
+    const cleanedItems = filteredItems.map(
+      ({ _rawDate, ...rest }) => rest
+    ) as TrendingMovieDetailed[];
+
+    return { items: cleanedItems, hasMore: hasMore && cleanedItems.length > 0 };
+  } catch (err) {
+    console.error("Failed to fetch detailed trending:", err);
+    return { items: [], hasMore: false };
+  }
 }

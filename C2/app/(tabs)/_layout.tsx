@@ -5,6 +5,7 @@ export default function TabsLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        animation: "none",
       }}
     >
       {/* home/feed */}
@@ -17,6 +18,7 @@ export default function TabsLayout() {
       <Stack.Screen name="search" />
       <Stack.Screen name="leaderboard" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="allMovies" />
     </Stack>
   );
 }

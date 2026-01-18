@@ -12,7 +12,7 @@ import SearchResults from "../../components/SearchResults";
 
 import { TMDBMediaResult } from "../../TMDB";
 
-const searchLeft = "Recommended Movies";
+const searchLeft = "Recent Movies";
 const searchRight = "See All";
 const feedText = "Your Feed";
 const searchBarText = "Search a movie, TV show, member, etc";
@@ -50,7 +50,9 @@ const HomeScreen: React.FC = () => {
           <>
             <View style={styles.bufferBar}>
               <Text style={styles.bufferLeft}>{searchLeft}</Text>
-              <Text style={styles.bufferRight}>{searchRight}</Text>
+              <Pressable onPress={() => router.push("/(tabs)/allMovies")}>
+                <Text style={styles.bufferRight}>{searchRight}</Text>
+              </Pressable>
             </View>
 
             <MyCarousel />
