@@ -56,7 +56,6 @@ async function ensureProfile() {
   return user;
 }
 
-
 const MediaDetailScreen: React.FC = () => {
   const router = useRouter();
 
@@ -301,10 +300,23 @@ const MediaDetailScreen: React.FC = () => {
 
   // Extract genres array for rating modal
   const genresArray: string[] = details
-    ? ((details as any).genres as { id: number; name: string }[] | undefined)?.map(
-        (g) => g.name
-      ) || []
+    ? (
+        (details as any).genres as { id: number; name: string }[] | undefined
+      )?.map((g) => g.name) || []
     : [];
+
+  // Extract release year for rating modal
+  const releaseYear: number | null = details
+    ? (() => {
+        const dateStr =
+          (details as any).release_date ?? (details as any).first_air_date;
+        if (dateStr) {
+          const year = new Date(dateStr).getFullYear();
+          return isNaN(year) ? null : year;
+        }
+        return null;
+      })()
+    : null;
 
   // Build TMDB data for the rating modal
   const tmdbData: TMDBTitleData | null =
@@ -315,6 +327,7 @@ const MediaDetailScreen: React.FC = () => {
           title: displayTitle,
           genres: genresArray,
           poster_path: posterPath || null,
+          release_year: releaseYear,
         }
       : null;
 
@@ -473,7 +486,13 @@ const MediaDetailScreen: React.FC = () => {
                   {post.review_body ??
                     (post.score
                       ? `Rated this ${post.score.toFixed(1)}/10`
-                      : `${post.category === "good" ? "Liked" : post.category === "alright" ? "It was fine" : "Disliked"} this.`)}
+                      : `${
+                          post.category === "good"
+                            ? "Liked"
+                            : post.category === "alright"
+                            ? "It was fine"
+                            : "Disliked"
+                        } this.`)}
                 </Text>
               </View>
             ))

@@ -15,6 +15,7 @@ export interface TitleInput {
   genres: string[];
   title_type: TitleType;
   poster_path?: string | null;
+  release_year?: number | null;
 }
 
 export interface RatingRow {
@@ -51,6 +52,31 @@ export interface Friend {
   user_id: string;
 }
 
+// ============ Utility Functions ============
+
+/**
+ * Format a score for display.
+ * Shows 1 decimal place normally, but 2 decimals if the second digit is non-zero.
+ * Examples: 9.67 → "9.67", 9.70 → "9.7", 10.00 → "10.0"
+ */
+export function formatScore(score: number | null): string {
+  if (score === null) return "—";
+
+  // Round to 2 decimal places first
+  const rounded = Math.round(score * 100) / 100;
+
+  // Check if second decimal is non-zero
+  const secondDecimal = Math.round((rounded * 100) % 10);
+
+  if (secondDecimal === 0) {
+    // Show 1 decimal place (e.g., 9.7, 10.0)
+    return rounded.toFixed(1);
+  } else {
+    // Show 2 decimal places (e.g., 9.67, 9.33)
+    return rounded.toFixed(2);
+  }
+}
+
 // ============ Title Functions ============
 
 /**
@@ -58,8 +84,15 @@ export interface Friend {
  * Returns the title_id.
  */
 export async function ensureTitleExists(input: TitleInput): Promise<string> {
-  const { tmdb_id, tmdb_media_type, title, genres, title_type, poster_path } =
-    input;
+  const {
+    tmdb_id,
+    tmdb_media_type,
+    title,
+    genres,
+    title_type,
+    poster_path,
+    release_year,
+  } = input;
 
   // Check if title already exists
   const { data: existing, error: selectError } = await db
@@ -89,6 +122,7 @@ export async function ensureTitleExists(input: TitleInput): Promise<string> {
       genres,
       title_type,
       poster_path,
+      release_year,
     })
     .select("id")
     .single();
@@ -183,7 +217,7 @@ export async function fetchTotalRatingCount(userId: string): Promise<number> {
 
 /**
  * Upsert a rating at a specific rank.
- * Uses direct table operations instead of RPC for reliability.
+ * Properly shifts existing ratings and recalculates all ranks.
  * Returns the rating_id.
  */
 export async function upsertRatingAtRank(
@@ -213,41 +247,57 @@ export async function upsertRatingAtRank(
     .eq("title_id", title_id)
     .single();
 
-  // Calculate global_rank based on category and category_rank
-  // Good ratings are ranked first, then alright, then bad
-  const { data: categoryCounts } = await db
-    .from("ratings")
-    .select("category")
-    .eq("user_id", userId);
+  let ratingId: string;
 
-  let goodCount = 0;
-  let alrightCount = 0;
+  if (existingRating) {
+    // If moving within same category, need to handle differently
+    if (existingRating.category === category) {
+      // Remove from old position by setting rank very high temporarily
+      await db
+        .from("ratings")
+        .update({ category_rank: 999999 })
+        .eq("id", existingRating.id);
+    } else {
+      // Moving to different category - shift old category ranks down
+      await db
+        .from("ratings")
+        .update({ category_rank: 999999 })
+        .eq("id", existingRating.id);
 
-  if (categoryCounts) {
-    for (const r of categoryCounts) {
-      if (r.category === "good") goodCount++;
-      else if (r.category === "alright") alrightCount++;
+      // Reorder old category
+      await reorderCategoryRanks(userId, existingRating.category);
     }
   }
 
-  let global_rank: number;
-  if (category === "good") {
-    global_rank = category_rank;
-  } else if (category === "alright") {
-    global_rank = goodCount + category_rank;
-  } else {
-    // bad
-    global_rank = goodCount + alrightCount + category_rank;
+  // Shift existing ratings in target category to make room
+  // All items at position >= category_rank need to move down by 1
+  const { data: ratingsToShift } = await db
+    .from("ratings")
+    .select("id, category_rank")
+    .eq("user_id", userId)
+    .eq("category", category)
+    .gte("category_rank", category_rank)
+    .neq("category_rank", 999999)
+    .order("category_rank", { ascending: false });
+
+  if (ratingsToShift && ratingsToShift.length > 0) {
+    // Shift each rating down by 1, starting from highest rank to avoid conflicts
+    for (const rating of ratingsToShift) {
+      await db
+        .from("ratings")
+        .update({ category_rank: rating.category_rank + 1 })
+        .eq("id", rating.id);
+    }
   }
 
   if (existingRating) {
-    // Update existing rating
+    // Update existing rating with new position
     const { data, error } = await db
       .from("ratings")
       .update({
         category,
         category_rank,
-        global_rank,
+        global_rank: 1, // Will be recalculated
         review_title: review_title || null,
         review_body: review_body || null,
         user_comments: user_comments || null,
@@ -262,8 +312,7 @@ export async function upsertRatingAtRank(
       console.error("Error updating rating:", error);
       throw error;
     }
-
-    return data.id;
+    ratingId = data.id;
   } else {
     // Insert new rating
     const { data, error } = await db
@@ -273,7 +322,7 @@ export async function upsertRatingAtRank(
         title_id,
         category,
         category_rank,
-        global_rank,
+        global_rank: 1, // Will be recalculated
         review_title: review_title || null,
         review_body: review_body || null,
         user_comments: user_comments || null,
@@ -286,8 +335,175 @@ export async function upsertRatingAtRank(
       console.error("Error inserting rating:", error);
       throw error;
     }
+    ratingId = data.id;
+  }
 
-    return data.id;
+  // Recalculate all global ranks for this user
+  await recalculateGlobalRanks(userId);
+
+  return ratingId;
+}
+
+/**
+ * Reorder category ranks to be sequential (1, 2, 3, ...)
+ */
+async function reorderCategoryRanks(
+  userId: string,
+  category: RatingCategory
+): Promise<void> {
+  const { data: ratings } = await db
+    .from("ratings")
+    .select("id, category_rank")
+    .eq("user_id", userId)
+    .eq("category", category)
+    .neq("category_rank", 999999)
+    .order("category_rank", { ascending: true });
+
+  if (!ratings) return;
+
+  for (let i = 0; i < ratings.length; i++) {
+    const newRank = i + 1;
+    if (ratings[i].category_rank !== newRank) {
+      await db
+        .from("ratings")
+        .update({ category_rank: newRank })
+        .eq("id", ratings[i].id);
+    }
+  }
+}
+
+/**
+ * Calculate evenly distributed score within a category range.
+ * @param index - 0-based index within the category (0 = best in category)
+ * @param count - total items in the category
+ * @param maxScore - top score for category (e.g., 10.0 for good)
+ * @param minScore - bottom score for category (e.g., 7.0 for good)
+ * @returns score rounded to 2 decimal places
+ */
+function calculateCategoryScore(
+  index: number,
+  count: number,
+  maxScore: number,
+  minScore: number
+): number {
+  if (count === 1) {
+    return maxScore; // Single item gets top score
+  }
+  const range = maxScore - minScore;
+  const score = maxScore - (index * range) / (count - 1);
+  // Round to 2 decimal places for storage
+  return Math.round(score * 100) / 100;
+}
+
+/**
+ * Recalculate global ranks and scores for all ratings.
+ * Order: all "good" by category_rank, then all "alright", then all "bad"
+ *
+ * Score ranges per category:
+ * - Good: 10.0 to 7.0
+ * - Alright: 6.9 to 4.0
+ * - Bad: 3.9 to 1.0
+ *
+ * Scores are evenly distributed within each category.
+ * Scores are only set when user has >= 10 total ratings.
+ */
+async function recalculateGlobalRanks(userId: string): Promise<void> {
+  // Get all ratings ordered by category priority and category_rank
+  const { data: goodRatings } = await db
+    .from("ratings")
+    .select("id, category_rank")
+    .eq("user_id", userId)
+    .eq("category", "good")
+    .neq("category_rank", 999999)
+    .order("category_rank", { ascending: true });
+
+  const { data: alrightRatings } = await db
+    .from("ratings")
+    .select("id, category_rank")
+    .eq("user_id", userId)
+    .eq("category", "alright")
+    .neq("category_rank", 999999)
+    .order("category_rank", { ascending: true });
+
+  const { data: badRatings } = await db
+    .from("ratings")
+    .select("id, category_rank")
+    .eq("user_id", userId)
+    .eq("category", "bad")
+    .neq("category_rank", 999999)
+    .order("category_rank", { ascending: true });
+
+  const good = goodRatings || [];
+  const alright = alrightRatings || [];
+  const bad = badRatings || [];
+
+  const totalCount = good.length + alright.length + bad.length;
+  const scoresUnlocked = totalCount >= 10;
+
+  // Score ranges for each category
+  const SCORE_RANGES = {
+    good: { max: 10.0, min: 7.0 },
+    alright: { max: 6.9, min: 4.0 },
+    bad: { max: 3.9, min: 1.0 },
+  };
+
+  let globalRank = 1;
+
+  // Update good ratings
+  for (let i = 0; i < good.length; i++) {
+    const score = scoresUnlocked
+      ? calculateCategoryScore(
+          i,
+          good.length,
+          SCORE_RANGES.good.max,
+          SCORE_RANGES.good.min
+        )
+      : null;
+
+    await db
+      .from("ratings")
+      .update({ global_rank: globalRank, score })
+      .eq("id", good[i].id);
+
+    globalRank++;
+  }
+
+  // Update alright ratings
+  for (let i = 0; i < alright.length; i++) {
+    const score = scoresUnlocked
+      ? calculateCategoryScore(
+          i,
+          alright.length,
+          SCORE_RANGES.alright.max,
+          SCORE_RANGES.alright.min
+        )
+      : null;
+
+    await db
+      .from("ratings")
+      .update({ global_rank: globalRank, score })
+      .eq("id", alright[i].id);
+
+    globalRank++;
+  }
+
+  // Update bad ratings
+  for (let i = 0; i < bad.length; i++) {
+    const score = scoresUnlocked
+      ? calculateCategoryScore(
+          i,
+          bad.length,
+          SCORE_RANGES.bad.max,
+          SCORE_RANGES.bad.min
+        )
+      : null;
+
+    await db
+      .from("ratings")
+      .update({ global_rank: globalRank, score })
+      .eq("id", bad[i].id);
+
+    globalRank++;
   }
 }
 

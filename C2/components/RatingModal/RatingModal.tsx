@@ -40,6 +40,7 @@ export interface TMDBTitleData {
   title: string;
   genres: string[];
   poster_path?: string | null;
+  release_year?: number | null;
 }
 
 export type RatingModalProps = {
@@ -213,6 +214,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
         genres: tmdbData.genres,
         title_type: titleType,
         poster_path: tmdbData.poster_path,
+        release_year: tmdbData.release_year,
       });
 
       // Step 2: Fetch current ratings by category
