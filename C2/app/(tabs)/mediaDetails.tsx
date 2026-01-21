@@ -20,6 +20,11 @@ import { getAllRatings, RatingPost } from "../../database/queries";
 import { getPosterUrl } from "../../TMDB";
 
 import { RatingModal, TMDBTitleData } from "../../components/RatingModal";
+import { getCurrentUserId, TitleType } from "../../lib/ratingsDb";
+import {
+  isInWatchlistByTmdb,
+  toggleWatchlistByTmdb,
+} from "../../lib/watchlistDb";
 
 // ---------- Types ----------
 type CastMember = {
@@ -298,6 +303,80 @@ const MediaDetailScreen: React.FC = () => {
   // ---- Rating Modal ----
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
 
+  // ---- Watchlist State ----
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Check watchlist status on load
+  useEffect(() => {
+    const checkWatchlistStatus = async () => {
+      if (!id || !(mediaType === "movie" || mediaType === "tv")) return;
+
+      try {
+        const userId = await getCurrentUserId();
+        setCurrentUserId(userId);
+
+        if (userId) {
+          const result = await isInWatchlistByTmdb(
+            userId,
+            parseInt(id, 10),
+            mediaType as "movie" | "tv"
+          );
+          setInWatchlist(result.inWatchlist);
+        }
+      } catch (err) {
+        console.error("Failed to check watchlist status:", err);
+      }
+    };
+
+    checkWatchlistStatus();
+  }, [id, mediaType]);
+
+  // Toggle watchlist handler
+  const handleWatchlistToggle = async () => {
+    if (!id || !(mediaType === "movie" || mediaType === "tv")) return;
+    if (watchlistLoading) return;
+
+    try {
+      setWatchlistLoading(true);
+
+      // Determine title type based on mediaType and other factors
+      let titleType: TitleType = "movie";
+      if (mediaType === "tv") {
+        // Check if it's animated based on genres
+        const isAnimated = genresArray.some((g) =>
+          g.toLowerCase().includes("animation")
+        );
+        titleType = isAnimated ? "animated" : "tv";
+      }
+
+      const result = await toggleWatchlistByTmdb({
+        tmdb_id: parseInt(id, 10),
+        tmdb_media_type: mediaType as "movie" | "tv",
+        title: displayTitle,
+        genres: genresArray,
+        title_type: titleType,
+        poster_path: posterPath || null,
+        release_year: releaseYear,
+      });
+
+      setInWatchlist(result.inWatchlist);
+
+      // Show feedback
+      if (result.inWatchlist) {
+        Alert.alert("Added", `${displayTitle} added to your watchlist`);
+      } else {
+        Alert.alert("Removed", `${displayTitle} removed from your watchlist`);
+      }
+    } catch (err) {
+      console.error("Failed to toggle watchlist:", err);
+      Alert.alert("Error", "Failed to update watchlist");
+    } finally {
+      setWatchlistLoading(false);
+    }
+  };
+
   // Extract genres array for rating modal
   const genresArray: string[] = details
     ? (
@@ -417,9 +496,28 @@ const MediaDetailScreen: React.FC = () => {
                   <Text style={styles.actionChipText}>Rate</Text>
                 </Pressable>
 
-                <Pressable style={styles.actionChip}>
-                  <Feather name="bookmark" size={16} color="#fff" />
-                  <Text style={styles.actionChipText}>Watchlist</Text>
+                <Pressable
+                  style={[
+                    styles.actionChip,
+                    inWatchlist && styles.actionChipActive,
+                  ]}
+                  onPress={handleWatchlistToggle}
+                  disabled={watchlistLoading}
+                >
+                  {watchlistLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Feather
+                        name={inWatchlist ? "check" : "bookmark"}
+                        size={16}
+                        color="#fff"
+                      />
+                      <Text style={styles.actionChipText}>
+                        {inWatchlist ? "In Watchlist" : "Watchlist"}
+                      </Text>
+                    </>
+                  )}
                 </Pressable>
               </View>
             </View>
@@ -657,6 +755,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     gap: 4,
+    minWidth: 100,
+    justifyContent: "center",
+  },
+  actionChipActive: {
+    backgroundColor: "#1a535c",
   },
   actionChipText: {
     color: "#fff",

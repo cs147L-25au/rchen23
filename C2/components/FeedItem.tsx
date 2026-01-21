@@ -1,162 +1,318 @@
+import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { formatScore } from "../lib/ratingsDb";
+
+export type ActionType = "ranked" | "bookmarked" | "unbookmarked";
+
 interface FeedItemProps {
   userName: string;
-  action: string; 
-  title: string | null;
-  rating: string;
-  profileImage: { uri: string };
+  userInitials: string;
+  profileImage: string | null;
+  actionType: ActionType;
+  title: string;
+  score: number | null;
+  genres: string[];
+  titleType: string;
   timestamp: string;
-  description: string; 
+  description?: string;
   likeCount: number;
+  commentCount: number;
   isLiked: boolean;
-  onPress: () => void;
-  likeIcon: any;
-  likedIcon: any;
+  isBookmarked: boolean;
+  onLike: () => void;
+  onComment: () => void;
+  onShare: () => void;
+  onAddToList: () => void;
+  onBookmark: () => void;
+  onPress?: () => void;
 }
 
 const FeedItem: React.FC<FeedItemProps> = ({
   userName,
-  action,
-  title,
-  rating,
+  userInitials,
   profileImage,
+  actionType,
+  title,
+  score,
+  genres,
+  titleType,
   timestamp,
   description,
   likeCount,
+  commentCount,
   isLiked,
+  isBookmarked,
+  onLike,
+  onComment,
+  onShare,
+  onAddToList,
+  onBookmark,
   onPress,
-  likeIcon,
-  likedIcon,
 }) => {
-  const pluralLikes = likeCount === 1 ? "like" : "likes";
+  // Get icon based on title type
+  const getTitleTypeIcon = () => {
+    switch (titleType) {
+      case "tv":
+        return "tv-outline";
+      case "animated":
+        return "sparkles-outline";
+      case "documentary":
+        return "film-outline";
+      default:
+        return "videocam-outline";
+    }
+  };
+
+  // Get action text based on action type
+  const getActionText = () => {
+    switch (actionType) {
+      case "ranked":
+        return "ranked";
+      case "bookmarked":
+        return "bookmarked";
+      case "unbookmarked":
+        return "removed";
+      default:
+        return "ranked";
+    }
+  };
+
+  // Format genres for display
+  const genreText = genres.slice(0, 2).join(", ") || "Movie";
+
+  // Only show score badge for ranked items with a score
+  const showScoreBadge = actionType === "ranked" && score !== null;
 
   return (
-    <View style={styles.card}>
-      {/* TOP ROW: left text block + right avatar/time */}
-      <View style={styles.headerRow}>
-        {/* LEFT BLOCK */}
-        <View style={{ flex: 1 }}>
-          <Text style={styles.userName}>{userName}</Text>
+    <View style={styles.container}>
+      <Pressable style={styles.card} onPress={onPress}>
+        {/* Main content row */}
+        <View style={styles.mainRow}>
+          {/* Left: Avatar */}
+          <View style={styles.avatarContainer}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitials}>{userInitials}</Text>
+              </View>
+            )}
+          </View>
 
-          {/* Ranked + Title */}
-          <Text style={styles.rankLine}>
-            <Text style={styles.rankPrefix}>{action} </Text>
-            <Text style={styles.rankTitle}>{title}</Text>
-          </Text>
-
-          {/* Rating line */}
-          {rating !== "" && (
-            <Text style={styles.ratingLine}>
-              Rating: <Text style={styles.ratingValue}>{rating}</Text>
+          {/* Middle: Content */}
+          <View style={styles.contentContainer}>
+            {/* Name + action + title */}
+            <Text style={styles.actionText}>
+              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.actionLabel}> {getActionText()} </Text>
+              <Text style={styles.titleText}>{title}</Text>
             </Text>
+
+            {/* Category/genre info */}
+            <View style={styles.metaRow}>
+              <Ionicons
+                name={getTitleTypeIcon()}
+                size={14}
+                color="#666"
+                style={styles.metaIcon}
+              />
+              <Text style={styles.metaText}>{genreText}</Text>
+            </View>
+
+            {/* Description if exists (only for ranked items) */}
+            {actionType === "ranked" &&
+              description &&
+              description.length > 0 && (
+                <Text style={styles.description} numberOfLines={2}>
+                  {description}
+                </Text>
+              )}
+          </View>
+
+          {/* Right: Score badge (only for ranked items with score) */}
+          {showScoreBadge && (
+            <View style={styles.scoreBadge}>
+              <Text style={styles.scoreText}>{formatScore(score)}</Text>
+            </View>
           )}
         </View>
+      </Pressable>
 
-        {/* RIGHT BLOCK */}
-        <View style={styles.rightBlock}>
-          <Image source={profileImage} style={styles.profilePic} />
-          <Text style={styles.timestamp}>{timestamp}</Text>
+      {/* Likes count */}
+      {likeCount > 0 && (
+        <Text style={styles.likesCount}>
+          {likeCount} {likeCount === 1 ? "like" : "likes"}
+        </Text>
+      )}
+
+      {/* Action buttons row */}
+      <View style={styles.actionsRow}>
+        <View style={styles.leftActions}>
+          {/* Like */}
+          <Pressable onPress={onLike} style={styles.actionButton}>
+            <Ionicons
+              name={isLiked ? "heart" : "heart-outline"}
+              size={24}
+              color={isLiked ? "#e74c3c" : "#333"}
+            />
+          </Pressable>
+
+          {/* Comment */}
+          <Pressable onPress={onComment} style={styles.actionButton}>
+            <Ionicons name="chatbubble-outline" size={22} color="#333" />
+          </Pressable>
+
+          {/* Share */}
+          <Pressable onPress={onShare} style={styles.actionButton}>
+            <Ionicons name="paper-plane-outline" size={22} color="#333" />
+          </Pressable>
+        </View>
+
+        <View style={styles.rightActions}>
+          {/* Add to list */}
+          <Pressable onPress={onAddToList} style={styles.actionButton}>
+            <Ionicons name="add-circle-outline" size={24} color="#333" />
+          </Pressable>
+
+          {/* Bookmark */}
+          <Pressable onPress={onBookmark} style={styles.actionButton}>
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={22}
+              color={isBookmarked ? "#1a535c" : "#333"}
+            />
+          </Pressable>
         </View>
       </View>
 
-      {/* OPTIONAL DESCRIPTION (for longer reviews if you want them) */}
-      {description.length > 0 && (
-        <Text style={styles.description}>{description}</Text>
-      )}
-
-      {/* BOTTOM ROW: likes on left, heart on right */}
-      <View style={styles.footerRow}>
-        <Text style={styles.likesText}>
-          {likeCount} {pluralLikes}
-        </Text>
-
-        <Pressable onPress={onPress} style={styles.heartButton}>
-          <Image
-            source={isLiked ? likedIcon : likeIcon}
-            style={styles.likeIcon}
-          />
-        </Pressable>
-      </View>
+      {/* Timestamp */}
+      <Text style={styles.timestamp}>{timestamp}</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    width: "100%",
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    paddingHorizontal: 16,
+  container: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e5e5",
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "#e3e3e3",
+    paddingHorizontal: 16,
+    backgroundColor: "#fff",
   },
-  headerRow: {
+  card: {
     flexDirection: "row",
-    justifyContent: "space-between",
   },
-  userName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#000000",
-    marginBottom: 2,
+  mainRow: {
+    flexDirection: "row",
+    flex: 1,
   },
-  rankLine: {
-    fontSize: 14,
-    color: "#555555",
-    marginBottom: 2,
+  avatarContainer: {
+    marginRight: 12,
   },
-  rankPrefix: {
-    color: "#777777",
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  rankTitle: {
-    fontWeight: "600",
-    color: "#000000",
-  },
-  ratingLine: {
-    fontSize: 14,
-    color: "#b0b0b0",
-  },
-  ratingValue: {
-    color: "#b0b0b0",
-    fontWeight: "500",
-  },
-  rightBlock: {
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#e5e5e5",
+    justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: "#d0d0d0",
   },
-  profilePic: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatarInitials: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#555",
+  },
+  contentContainer: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  actionText: {
+    fontSize: 15,
+    lineHeight: 20,
     marginBottom: 4,
   },
-  timestamp: {
-    fontSize: 11,
-    color: "#777777",
+  userName: {
+    fontWeight: "700",
+    color: "#000",
+  },
+  actionLabel: {
+    color: "#666",
+  },
+  titleText: {
+    fontWeight: "700",
+    color: "#000",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  metaIcon: {
+    marginRight: 4,
+  },
+  metaText: {
+    fontSize: 13,
+    color: "#666",
   },
   description: {
     fontSize: 14,
-    color: "#333333",
-    marginTop: 8,
+    color: "#333",
+    marginTop: 4,
   },
-  footerRow: {
+  scoreBadge: {
+    backgroundColor: "#1a535c",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    minWidth: 44,
+  },
+  scoreText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  likesCount: {
+    fontSize: 13,
+    color: "#333",
+    fontWeight: "500",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  actionsRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
     marginTop: 8,
   },
-  likesText: {
-    fontSize: 13,
-    color: "#777777",
+  leftActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
   },
-  heartButton: {
-    marginLeft: "auto",
+  rightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  likeIcon: {
-    width: 24,
-    height: 24,
+  actionButton: {
+    padding: 4,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 8,
   },
 });
 

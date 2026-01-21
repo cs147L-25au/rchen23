@@ -12,10 +12,7 @@ import SearchResults from "../../components/SearchResults";
 
 import { TMDBMediaResult } from "../../TMDB";
 
-const searchLeft = "Recent Movies";
-const searchRight = "See All";
-const feedText = "Your Feed";
-const searchBarText = "Search a movie, TV show, member, etc";
+const searchBarText = "Search a movie, TV show, member, etc.";
 
 const HomeScreen: React.FC = () => {
   const router = useRouter();
@@ -30,7 +27,7 @@ const HomeScreen: React.FC = () => {
         <Header />
       </Pressable>
 
-      {/* Make the whole bar pressable and push to /search */}
+      {/* Search bar */}
       <Pressable onPress={() => router.push("/(tabs)/search")}>
         <View style={styles.searchContainer}>
           <TextInput
@@ -48,20 +45,22 @@ const HomeScreen: React.FC = () => {
           <SearchResults results={searchResults} />
         ) : (
           <>
-            <View style={styles.bufferBar}>
-              <Text style={styles.bufferLeft}>{searchLeft}</Text>
+            {/* Recent Movies section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Movies</Text>
               <Pressable onPress={() => router.push("/(tabs)/allMovies")}>
-                <Text style={styles.bufferRight}>{searchRight}</Text>
+                <Text style={styles.seeAllText}>See All</Text>
               </Pressable>
             </View>
 
             <MyCarousel />
 
-            <View style={styles.feedBar}>
-              <Text style={styles.bufferFeedText}>{feedText}</Text>
+            {/* Feed section header */}
+            <View style={styles.feedHeader}>
+              <Text style={styles.feedTitle}>YOUR FEED</Text>
             </View>
 
-            {/* This is the DB-backed list */}
+            {/* Feed list */}
             <FeedBar />
           </>
         )}
@@ -82,66 +81,54 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   searchContainer: {
-    paddingHorizontal: "3%",
-    paddingVertical: "3%",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     backgroundColor: "#ffffff",
     width: "100%",
   },
   searchInput: {
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
-    paddingHorizontal: "2%",
-    paddingVertical: "0%",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 14,
     color: "#000000",
     borderWidth: 1,
     borderColor: "#e0e0e0",
     width: "100%",
-    height: 36,
-    minWidth: "100%",
-    fontFamily: "DM Sans",
   },
   mainContent: {
     flex: 1,
     width: "100%",
   },
-  bufferBar: {
-    alignItems: "flex-end",
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: "4%",
-    marginTop: "1%",
-    width: "100%",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
-  bufferLeft: {
-    fontSize: 22,
-    color: "#000000",
-    fontFamily: "DM Sans",
-    fontWeight: "500",
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#000",
   },
-  bufferRight: {
+  seeAllText: {
     fontSize: 14,
-    color: "#666565ff",
-    fontFamily: "DM Sans",
-    marginRight: "1%",
+    color: "#666",
   },
-  feedBar: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: "4%",
-    padding: 0,
-    margin: 0,
-    width: "95%",
+  feedHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#cbcbcbff",
+    borderBottomColor: "#e5e5e5",
   },
-  bufferFeedText: {
-    fontSize: 22,
-    color: "#000000",
-    fontFamily: "DM Sans",
-    fontWeight: "500",
-    marginRight: "1%",
-    marginBottom: "1%",
+  feedTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+    letterSpacing: 0.5,
   },
 });
