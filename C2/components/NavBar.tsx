@@ -90,7 +90,7 @@ const NavBar = () => {
         >
           <FontAwesome5
             name="trophy"
-            size={isActive(leaderboardTargets) ? 32 : 28}
+            size={28}
             color={isActive(leaderboardTargets) ? "#000000" : "#00000070"}
           />
           <Text
@@ -157,10 +157,10 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica",
     color: "#00000070",
     marginTop: 4,
+    textAlign: "center",
   },
   iconTextActive: {
     color: "#000",
-    fontWeight: "700",
   },
 });
 

@@ -34,15 +34,17 @@ export default function LeaderboardScreen() {
   );
 
   return (
-    <View style={styles.page}>
-      <Text style={styles.title}>Leaderboard</Text>
+    <View style={styles.screen}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Leaderboard</Text>
 
-      <FlatList
-        data={DATA}
-        renderItem={renderRow}
-        keyExtractor={(item) => item.username}
-        contentContainerStyle={styles.listContainer}
-      />
+        <FlatList
+          data={DATA}
+          renderItem={renderRow}
+          keyExtractor={(item) => item.username}
+          contentContainerStyle={styles.listContainer}
+        />
+      </View>
 
       <NavBar />
     </View>
@@ -50,9 +52,12 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: {
+  screen: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  content: {
+    flex: 1,
     paddingTop: "18%",
     paddingHorizontal: 20,
   },

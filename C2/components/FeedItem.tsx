@@ -80,7 +80,8 @@ const FeedItem: React.FC<FeedItemProps> = ({
   };
 
   // Format genres for display
-  const genreText = genres.slice(0, 2).join(", ") || "Movie";
+  const genreText =
+    genres && genres.length > 0 ? genres.slice(0, 2).join(", ") : "Movie";
 
   // Only show score badge for ranked items with a score
   const showScoreBadge = actionType === "ranked" && score !== null;
