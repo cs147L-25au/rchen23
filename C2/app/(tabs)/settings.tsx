@@ -22,10 +22,6 @@ import NavBar from "../../components/NavBar";
 import FeedItem from "../../components/FeedItem";
 import { getAllRatings, RatingPost } from "../../database/queries";
 
-// SAME icons used in FeedBar
-const likeIcon = require("../../assets/Icons/like_icon.png");
-const likedIcon = require("../../assets/Icons/liked_heart.png");
-
 const DEFAULT_PROFILE_PIC =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 
@@ -102,36 +98,39 @@ export default function SettingsScreen() {
   };
 
   const renderRecentItem = ({ item }: { item: RatingPost }) => {
-    const ratingText = item.score != null ? item.score.toFixed(1) : "";
-
-    const categoryLabel =
-      item.category === "good"
-        ? "Liked"
-        : item.category === "alright"
-          ? "It was fine"
-          : item.category === "bad"
-            ? "Disliked"
-            : "Rated";
+    // Get user initials from userName
+    const userInitials = userName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
 
     return (
       <FeedItem
         userName={userName}
-        action={categoryLabel}
+        userInitials={userInitials}
+        profileImage={DEFAULT_PROFILE_PIC}
+        actionType="ranked"
         title={item.title}
-        rating={ratingText}
-        profileImage={{ uri: DEFAULT_PROFILE_PIC }}
+        score={item.score ?? null}
+        genres={[]}
+        titleType="movie"
         timestamp={formatDate(item.created_at || "")}
         description={item.review_body || ""}
-        isLiked={liked[item.rating_id] === 1}
         likeCount={liked[item.rating_id] === 1 ? 1 : 0}
-        onPress={() =>
+        commentCount={0}
+        isLiked={liked[item.rating_id] === 1}
+        isBookmarked={false}
+        onLike={() =>
           setLiked((prev) => ({
             ...prev,
             [item.rating_id]: prev[item.rating_id] === 1 ? 0 : 1,
           }))
         }
-        likeIcon={likeIcon}
-        likedIcon={likedIcon}
+        onComment={() => {}}
+        onShare={() => {}}
+        onAddToList={() => {}}
+        onBookmark={() => {}}
       />
     );
   };
@@ -275,10 +274,10 @@ const styles = StyleSheet.create({
   headerTop: { alignItems: "center", marginBottom: 8 },
   headerBottom: { alignItems: "center" },
   profilePic: {
-    width: 120,
-    height: 120,
+    width: 110,
+    height: 110,
     borderRadius: 40,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   userName: {
     fontSize: 24,
@@ -296,8 +295,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     width: "100%",
-    paddingVertical: 12,
-    marginBottom: 12,
+    paddingVertical: 6,
+    marginBottom: 6,
   },
   statItem: { alignItems: "center" },
   statNumber: {
