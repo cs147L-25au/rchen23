@@ -2,7 +2,14 @@
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import MyCarousel from "../../components/Carousel";
 import FeedBar from "../../components/FeedBar";
@@ -40,7 +47,11 @@ const HomeScreen: React.FC = () => {
         </View>
       </Pressable>
 
-      <View style={styles.mainContent}>
+      <ScrollView
+        style={styles.mainContent}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {isSearching ? (
           <SearchResults results={searchResults} />
         ) : (
@@ -61,10 +72,10 @@ const HomeScreen: React.FC = () => {
             </View>
 
             {/* Feed list */}
-            <FeedBar />
+            <FeedBar scrollEnabled={false} />
           </>
         )}
-      </View>
+      </ScrollView>
 
       <NavBar />
       <StatusBar style="auto" />
@@ -100,6 +111,9 @@ const styles = StyleSheet.create({
   mainContent: {
     flex: 1,
     width: "100%",
+  },
+  scrollContent: {
+    paddingBottom: 120,
   },
   sectionHeader: {
     flexDirection: "row",

@@ -19,7 +19,7 @@ import {
 } from "../../lib/beliInsert";
 import {
   ensureTitleExists,
-  fetchTotalRatingCount,
+  fetchTitleTypeRatingCount,
   fetchUserRatingsByCategory,
   getCurrentUserId,
   RatingCategory,
@@ -86,7 +86,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
   const [flowStep, setFlowStep] = useState<FlowStep>("input");
   const [comparisonState, setComparisonState] =
     useState<ComparisonState | null>(null);
-  const [totalRatings, setTotalRatings] = useState(0);
+  const [titleTypeRatingCount, setTitleTypeRatingCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   // Load user ID on mount
@@ -98,35 +98,40 @@ const RatingModal: React.FC<RatingModalProps> = ({
   useEffect(() => {
     if (visible && tmdbData) {
       resetForm();
-      loadTotalRatings();
 
       // Infer title type from TMDB data
-      if (tmdbData.tmdb_media_type === "tv") {
-        setTitleType("tv");
-      } else {
-        setTitleType("movie");
-      }
+      let nextTitleType: TitleType =
+        tmdbData.tmdb_media_type === "tv" ? "tv" : "movie";
 
       // If updating existing rating, pre-fill form
       if (currentRating) {
         setCategory(currentRating.category);
-        setTitleType(currentRating.title_type);
+        nextTitleType = currentRating.title_type;
         setNotes(currentRating.review_body || "");
         setReviewTitle(currentRating.review_title || "");
       }
+
+      setTitleType(nextTitleType);
+      loadTitleTypeRatingCount(nextTitleType);
     }
   }, [visible, tmdbData, currentRating]);
+
+  useEffect(() => {
+    if (visible && userId) {
+      loadTitleTypeRatingCount();
+    }
+  }, [visible, userId, titleType]);
 
   const loadUserId = async () => {
     const id = await getCurrentUserId();
     setUserId(id);
   };
 
-  const loadTotalRatings = async () => {
+  const loadTitleTypeRatingCount = async (type: TitleType = titleType) => {
     if (!userId) return;
     try {
-      const count = await fetchTotalRatingCount(userId);
-      setTotalRatings(count);
+      const count = await fetchTitleTypeRatingCount(userId, type);
+      setTitleTypeRatingCount(count);
     } catch (err) {
       console.error("Failed to load rating count:", err);
     }
@@ -306,7 +311,8 @@ const RatingModal: React.FC<RatingModalProps> = ({
 
   if (!tmdbData) return null;
 
-  const scoresUnlocked = totalRatings >= 10;
+  const scoresUnlocked = titleTypeRatingCount >= 10;
+  const remainingToUnlock = Math.max(0, 10 - titleTypeRatingCount);
   const subtitle = `${tmdbData.tmdb_media_type === "tv" ? "TV" : "Movie"} | ${
     tmdbData.genres.length > 0
       ? tmdbData.genres.slice(0, 2).join(", ")
@@ -530,7 +536,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
                   <View style={styles.unlockMessage}>
                     <Ionicons name="lock-open-outline" size={16} color="#888" />
                     <Text style={styles.unlockText}>
-                      Rate {10 - totalRatings} more to unlock scores
+                      Rate {remainingToUnlock} more to unlock scores
                     </Text>
                   </View>
                 )}

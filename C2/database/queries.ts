@@ -98,6 +98,29 @@ export const getFeedEvents = async (): Promise<FeedEvent[]> => {
   }
 };
 
+// Fetch feed events for a specific user
+export const getUserFeedEvents = async (
+  userId: string
+): Promise<FeedEvent[]> => {
+  try {
+    const { data, error } = await db
+      .from("v_feed")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching user feed events:", error.message);
+      throw error;
+    }
+
+    return (data as FeedEvent[]) || [];
+  } catch (error: any) {
+    console.error("Error fetching user feed events:", error?.message || error);
+    return [];
+  }
+};
+
 // Legacy function - fetch ratings with user profiles (for backward compatibility)
 export const getFeedRatings = async (): Promise<FeedRating[]> => {
   try {

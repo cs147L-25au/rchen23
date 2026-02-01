@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +12,10 @@ import {
 
 import { FeedEvent, getFeedEvents } from "../database/queries";
 import { getCurrentUserId } from "../lib/ratingsDb";
+import {
+  getLikeStateForEvents,
+  toggleLikeForEvent,
+} from "../lib/likesDb";
 import { isInWatchlistByTmdb, toggleWatchlistByTmdb } from "../lib/watchlistDb";
 import FeedItem, { ActionType } from "./FeedItem";
 
@@ -46,7 +51,11 @@ const formatTimestamp = (dateString: string): string => {
   });
 };
 
-const FeedBar: React.FC = () => {
+type FeedBarProps = {
+  scrollEnabled?: boolean;
+};
+
+const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
   const router = useRouter();
   const [feedItems, setFeedItems] = useState<FeedEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,16 +68,21 @@ const FeedBar: React.FC = () => {
   const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
-    loadCurrentUser();
-    loadFeed();
+    const init = async () => {
+      const userId = await getCurrentUserId();
+      setCurrentUserId(userId);
+      await loadFeed(userId);
+    };
+    init();
   }, []);
 
-  const loadCurrentUser = async () => {
-    const userId = await getCurrentUserId();
-    setCurrentUserId(userId);
-  };
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed(currentUserId);
+    }, [currentUserId]),
+  );
 
-  const loadFeed = async () => {
+  const loadFeed = async (userIdOverride?: string | null) => {
     try {
       setLoading(true);
       setError(null);
@@ -76,15 +90,22 @@ const FeedBar: React.FC = () => {
       const data = await getFeedEvents();
       setFeedItems(data);
 
-      // Initialize like counts (demo data)
-      const counts: { [key: string]: number } = {};
-      data.forEach((item) => {
-        counts[item.event_id] = Math.floor(Math.random() * 5);
-      });
-      setLikeCounts(counts);
+      const eventIds = data.map((item) => item.event_id);
+      const activeUserId = userIdOverride ?? currentUserId;
+      if (activeUserId) {
+        const likeState = await getLikeStateForEvents(
+          activeUserId,
+          eventIds
+        );
+        setLikeCounts(likeState.likeCounts);
+        setLiked(likeState.likedEventIds);
+      } else {
+        setLikeCounts({});
+        setLiked(new Set());
+      }
 
       // Check watchlist status for all unique titles
-      if (currentUserId) {
+      if (activeUserId) {
         const bookmarkedSet = new Set<string>();
         const uniqueTitles = new Map<
           string,
@@ -103,7 +124,7 @@ const FeedBar: React.FC = () => {
 
         for (const [key, { tmdbId, mediaType }] of uniqueTitles) {
           const result = await isInWatchlistByTmdb(
-            currentUserId,
+            activeUserId,
             tmdbId,
             mediaType as "movie" | "tv"
           );
@@ -129,24 +150,56 @@ const FeedBar: React.FC = () => {
     }
   };
 
-  const handleLike = (eventId: string) => {
+  const handleLike = async (eventId: string) => {
+    if (!currentUserId) {
+      Alert.alert("Error", "Please log in to like posts");
+      return;
+    }
+
+    const isCurrentlyLiked = liked.has(eventId);
+
+    // Optimistic update
     setLiked((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(eventId)) {
+      if (isCurrentlyLiked) {
         newSet.delete(eventId);
-        setLikeCounts((counts) => ({
-          ...counts,
-          [eventId]: Math.max(0, (counts[eventId] || 0) - 1),
-        }));
       } else {
         newSet.add(eventId);
-        setLikeCounts((counts) => ({
-          ...counts,
-          [eventId]: (counts[eventId] || 0) + 1,
-        }));
       }
       return newSet;
     });
+    setLikeCounts((counts) => ({
+      ...counts,
+      [eventId]: Math.max(
+        0,
+        (counts[eventId] || 0) + (isCurrentlyLiked ? -1 : 1)
+      ),
+    }));
+
+    try {
+      const result = await toggleLikeForEvent({
+        userId: currentUserId,
+        eventId,
+        isLiked: isCurrentlyLiked,
+        currentLikeCount: likeCounts[eventId] || 0,
+      });
+      setLikeCounts((counts) => ({
+        ...counts,
+        [eventId]: result.likeCount,
+      }));
+      setLiked((prev) => {
+        const next = new Set(prev);
+        if (result.isLiked) {
+          next.add(eventId);
+        } else {
+          next.delete(eventId);
+        }
+        return next;
+      });
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      loadFeed(currentUserId);
+    }
   };
 
   const handleBookmark = async (item: FeedEvent) => {
@@ -158,6 +211,16 @@ const FeedBar: React.FC = () => {
     try {
       // Optimistic UI update
       const isCurrentlyBookmarked = bookmarked.has(item.event_id);
+      const alreadyBookmarkedForTitle = feedItems.some(
+        (feedItem) =>
+          feedItem.tmdb_id === item.tmdb_id &&
+          feedItem.tmdb_media_type === item.tmdb_media_type &&
+          bookmarked.has(feedItem.event_id)
+      );
+
+      if (alreadyBookmarkedForTitle) {
+        return;
+      }
 
       // Update all events with the same title
       setBookmarked((prev) => {
@@ -274,8 +337,12 @@ const FeedBar: React.FC = () => {
         data={feedItems}
         renderItem={renderFeedItem}
         keyExtractor={(item) => item.event_id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
+        scrollEnabled={scrollEnabled}
+        showsVerticalScrollIndicator={scrollEnabled}
+        contentContainerStyle={[
+          styles.listContent,
+          !scrollEnabled && styles.listContentNoScroll,
+        ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
@@ -284,11 +351,13 @@ const FeedBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: "#fff",
   },
   listContent: {
     paddingBottom: 100,
+  },
+  listContentNoScroll: {
+    paddingBottom: 0,
   },
   centerContainer: {
     flex: 1,

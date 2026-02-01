@@ -90,6 +90,21 @@ export async function addToWatchlist(
     .single();
 
   if (watchlistError) {
+    if ((watchlistError as any).code === "23505") {
+      const { data: existing, error: existingError } = await db
+        .from("watchlist")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("title_id", titleId)
+        .single();
+
+      if (existingError) {
+        console.error("Error fetching existing watchlist row:", existingError);
+        throw existingError;
+      }
+
+      return existing as WatchlistRow;
+    }
     console.error("Error adding to watchlist:", watchlistError);
     throw watchlistError;
   }

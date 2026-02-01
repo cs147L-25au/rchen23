@@ -216,6 +216,27 @@ export async function fetchTotalRatingCount(userId: string): Promise<number> {
 }
 
 /**
+ * Get total count of ratings for a user by title_type.
+ */
+export async function fetchTitleTypeRatingCount(
+  userId: string,
+  titleType: TitleType
+): Promise<number> {
+  const { count, error } = await db
+    .from("ratings")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("title_type", titleType);
+
+  if (error) {
+    console.error("Error fetching title_type rating count:", error);
+    throw error;
+  }
+
+  return count || 0;
+}
+
+/**
  * Upsert a rating at a specific rank.
  * Properly shifts existing ratings and recalculates all ranks.
  * Returns the rating_id.
@@ -405,13 +426,13 @@ function calculateCategoryScore(
  * - Bad: 3.9 to 1.0
  *
  * Scores are evenly distributed within each category.
- * Scores are only set when user has >= 10 total ratings.
+ * Scores are only set when user has >= 10 total ratings for that title_type.
  */
 async function recalculateGlobalRanks(userId: string): Promise<void> {
   // Get all ratings ordered by category priority and category_rank
   const { data: goodRatings } = await db
     .from("ratings")
-    .select("id, category_rank")
+    .select("id, category_rank, title_type")
     .eq("user_id", userId)
     .eq("category", "good")
     .neq("category_rank", 999999)
@@ -419,7 +440,7 @@ async function recalculateGlobalRanks(userId: string): Promise<void> {
 
   const { data: alrightRatings } = await db
     .from("ratings")
-    .select("id, category_rank")
+    .select("id, category_rank, title_type")
     .eq("user_id", userId)
     .eq("category", "alright")
     .neq("category_rank", 999999)
@@ -427,7 +448,7 @@ async function recalculateGlobalRanks(userId: string): Promise<void> {
 
   const { data: badRatings } = await db
     .from("ratings")
-    .select("id, category_rank")
+    .select("id, category_rank, title_type")
     .eq("user_id", userId)
     .eq("category", "bad")
     .neq("category_rank", 999999)
@@ -437,8 +458,28 @@ async function recalculateGlobalRanks(userId: string): Promise<void> {
   const alright = alrightRatings || [];
   const bad = badRatings || [];
 
-  const totalCount = good.length + alright.length + bad.length;
-  const scoresUnlocked = totalCount >= 10;
+  const totalByType = new Map<TitleType, number>();
+  const goodCountByType = new Map<TitleType, number>();
+  const alrightCountByType = new Map<TitleType, number>();
+  const badCountByType = new Map<TitleType, number>();
+
+  const allRatings = [...good, ...alright, ...bad];
+  for (const rating of allRatings) {
+    const type = rating.title_type as TitleType;
+    totalByType.set(type, (totalByType.get(type) || 0) + 1);
+  }
+  for (const rating of good) {
+    const type = rating.title_type as TitleType;
+    goodCountByType.set(type, (goodCountByType.get(type) || 0) + 1);
+  }
+  for (const rating of alright) {
+    const type = rating.title_type as TitleType;
+    alrightCountByType.set(type, (alrightCountByType.get(type) || 0) + 1);
+  }
+  for (const rating of bad) {
+    const type = rating.title_type as TitleType;
+    badCountByType.set(type, (badCountByType.get(type) || 0) + 1);
+  }
 
   // Score ranges for each category
   const SCORE_RANGES = {
@@ -448,17 +489,26 @@ async function recalculateGlobalRanks(userId: string): Promise<void> {
   };
 
   let globalRank = 1;
+  const goodIndexByType = new Map<TitleType, number>();
+  const alrightIndexByType = new Map<TitleType, number>();
+  const badIndexByType = new Map<TitleType, number>();
 
   // Update good ratings
   for (let i = 0; i < good.length; i++) {
-    const score = scoresUnlocked
-      ? calculateCategoryScore(
-          i,
-          good.length,
-          SCORE_RANGES.good.max,
-          SCORE_RANGES.good.min
-        )
-      : null;
+    const type = good[i].title_type as TitleType;
+    const typeTotal = totalByType.get(type) || 0;
+    const index = goodIndexByType.get(type) || 0;
+    const count = goodCountByType.get(type) || 0;
+    const score =
+      typeTotal >= 10
+        ? calculateCategoryScore(
+            index,
+            count,
+            SCORE_RANGES.good.max,
+            SCORE_RANGES.good.min
+          )
+        : null;
+    goodIndexByType.set(type, index + 1);
 
     await db
       .from("ratings")
@@ -470,14 +520,20 @@ async function recalculateGlobalRanks(userId: string): Promise<void> {
 
   // Update alright ratings
   for (let i = 0; i < alright.length; i++) {
-    const score = scoresUnlocked
-      ? calculateCategoryScore(
-          i,
-          alright.length,
-          SCORE_RANGES.alright.max,
-          SCORE_RANGES.alright.min
-        )
-      : null;
+    const type = alright[i].title_type as TitleType;
+    const typeTotal = totalByType.get(type) || 0;
+    const index = alrightIndexByType.get(type) || 0;
+    const count = alrightCountByType.get(type) || 0;
+    const score =
+      typeTotal >= 10
+        ? calculateCategoryScore(
+            index,
+            count,
+            SCORE_RANGES.alright.max,
+            SCORE_RANGES.alright.min
+          )
+        : null;
+    alrightIndexByType.set(type, index + 1);
 
     await db
       .from("ratings")
@@ -489,14 +545,20 @@ async function recalculateGlobalRanks(userId: string): Promise<void> {
 
   // Update bad ratings
   for (let i = 0; i < bad.length; i++) {
-    const score = scoresUnlocked
-      ? calculateCategoryScore(
-          i,
-          bad.length,
-          SCORE_RANGES.bad.max,
-          SCORE_RANGES.bad.min
-        )
-      : null;
+    const type = bad[i].title_type as TitleType;
+    const typeTotal = totalByType.get(type) || 0;
+    const index = badIndexByType.get(type) || 0;
+    const count = badCountByType.get(type) || 0;
+    const score =
+      typeTotal >= 10
+        ? calculateCategoryScore(
+            index,
+            count,
+            SCORE_RANGES.bad.max,
+            SCORE_RANGES.bad.min
+          )
+        : null;
+    badIndexByType.set(type, index + 1);
 
     await db
       .from("ratings")

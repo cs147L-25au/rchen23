@@ -27,6 +27,7 @@ interface FeedItemProps {
   onAddToList: () => void;
   onBookmark: () => void;
   onPress?: () => void;
+  rightActionVariant?: "default" | "watched" | "bookmarked";
 }
 
 const FeedItem: React.FC<FeedItemProps> = ({
@@ -50,6 +51,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
   onAddToList,
   onBookmark,
   onPress,
+  rightActionVariant = "default",
 }) => {
   // Get icon based on title type
   const getTitleTypeIcon = () => {
@@ -142,10 +144,12 @@ const FeedItem: React.FC<FeedItemProps> = ({
       </Pressable>
 
       {/* Likes count */}
-      {likeCount > 0 && (
+      {likeCount > 0 ? (
         <Text style={styles.likesCount}>
           {likeCount} {likeCount === 1 ? "like" : "likes"}
         </Text>
+      ) : (
+        <Text style={styles.likesCountSpacer}>0 likes</Text>
       )}
 
       {/* Action buttons row */}
@@ -172,19 +176,27 @@ const FeedItem: React.FC<FeedItemProps> = ({
         </View>
 
         <View style={styles.rightActions}>
-          {/* Add to list */}
-          <Pressable onPress={onAddToList} style={styles.actionButton}>
-            <Ionicons name="add-circle-outline" size={24} color="#333" />
-          </Pressable>
+          {rightActionVariant === "watched" ? (
+            <Ionicons name="checkmark-circle" size={22} color="#1a535c" />
+          ) : (
+            <>
+              {/* Add to list */}
+              <Pressable onPress={onAddToList} style={styles.actionButton}>
+                <Ionicons name="add-circle-outline" size={24} color="#333" />
+              </Pressable>
 
-          {/* Bookmark */}
-          <Pressable onPress={onBookmark} style={styles.actionButton}>
-            <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={22}
-              color={isBookmarked ? "#1a535c" : "#333"}
-            />
-          </Pressable>
+              {/* Bookmark */}
+              {rightActionVariant !== "bookmarked" && (
+                <Pressable onPress={onBookmark} style={styles.actionButton}>
+                  <Ionicons
+                    name={isBookmarked ? "bookmark" : "bookmark-outline"}
+                    size={22}
+                    color={isBookmarked ? "#1a535c" : "#333"}
+                  />
+                </Pressable>
+              )}
+            </>
+          )}
         </View>
       </View>
 
@@ -287,6 +299,13 @@ const styles = StyleSheet.create({
   likesCount: {
     fontSize: 13,
     color: "#333",
+    fontWeight: "500",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  likesCountSpacer: {
+    fontSize: 13,
+    color: "transparent",
     fontWeight: "500",
     marginTop: 8,
     marginBottom: 4,

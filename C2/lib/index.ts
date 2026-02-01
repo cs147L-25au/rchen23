@@ -6,6 +6,7 @@ export {
   ensureTitleExists,
   fetchUserRatingsByCategory,
   fetchTotalRatingCount,
+  fetchTitleTypeRatingCount,
   upsertRatingAtRank,
   setWatchedWith,
   getWatchedWith,
@@ -31,4 +32,3 @@ export {
 } from "./beliInsert";
 
 export type { CompareCallback } from "./beliInsert";
-

@@ -2,8 +2,9 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,8 +20,36 @@ import {
 import db from "@/database/db";
 import NavBar from "../../components/NavBar";
 
-import FeedItem from "../../components/FeedItem";
-import { getAllRatings, RatingPost } from "../../database/queries";
+import FeedItem, { ActionType } from "../../components/FeedItem";
+import {
+  FeedEvent,
+  getAllRatings,
+  getUserFeedEvents,
+  RatingPost,
+} from "../../database/queries";
+import {
+  getLikeStateForEvents,
+  toggleLikeForEvent,
+} from "../../lib/likesDb";
+import { getCurrentUserId } from "../../lib/ratingsDb";
+import { getUserWatchlist } from "../../lib/watchlistDb";
+
+type WatchlistItem = {
+  id: string;
+  user_id: string;
+  title_id: string;
+  created_at: string;
+  titles: {
+    id: string;
+    tmdb_id: number;
+    tmdb_media_type: string;
+    title: string;
+    genres: string[];
+    title_type: string;
+    poster_path?: string | null;
+    release_year?: number | null;
+  };
+};
 
 const DEFAULT_PROFILE_PIC =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
@@ -28,8 +57,12 @@ const DEFAULT_PROFILE_PIC =
 export default function SettingsScreen() {
   const router = useRouter();
 
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userRatings, setUserRatings] = useState<RatingPost[]>([]);
-  const [liked, setLiked] = useState<{ [key: string]: number }>({});
+  const [userBookmarks, setUserBookmarks] = useState<WatchlistItem[]>([]);
+  const [recentEvents, setRecentEvents] = useState<FeedEvent[]>([]);
+  const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   // These profile numbers remain local for now
@@ -38,25 +71,55 @@ export default function SettingsScreen() {
   const userRank = 1;
   const followers = 0;
   const following = 0;
-  const watched = 3;
-  const wantToWatch = 0;
+  const watched = (() => {
+    const uniqueTitles = new Set(userRatings.map((r) => r.title_id));
+    return uniqueTitles.size;
+  })();
+  const wantToWatch = userBookmarks.length;
   const currentStreak = 15;
 
-  useEffect(() => {
-    loadUserRatings();
-  }, []);
-
-  const loadUserRatings = async () => {
+  const loadRecentActivity = async () => {
     try {
       setLoading(true);
+      const userId = await getCurrentUserId();
+      setCurrentUserId(userId);
+
       const data = await getAllRatings();
       setUserRatings(data);
+
+      if (!userId) {
+        setUserBookmarks([]);
+        setRecentEvents([]);
+        setLikeCounts({});
+        setLikedEvents(new Set());
+        return;
+      }
+
+      const bookmarks = await getUserWatchlist(userId);
+      setUserBookmarks(bookmarks as WatchlistItem[]);
+
+      const events = await getUserFeedEvents(userId);
+      const filteredEvents = events.filter(
+        (event) => event.action_type !== "unbookmarked",
+      );
+      setRecentEvents(filteredEvents);
+
+      const eventIds = filteredEvents.map((event) => event.event_id);
+      const likeState = await getLikeStateForEvents(userId, eventIds);
+      setLikeCounts(likeState.likeCounts);
+      setLikedEvents(likeState.likedEventIds);
     } catch (err) {
-      console.error("Failed to load ratings:", err);
+      console.error("Failed to load recent activity:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRecentActivity();
+    }, []),
+  );
 
   const handleLogoutPress = () => {
     Alert.alert(
@@ -77,7 +140,7 @@ export default function SettingsScreen() {
           },
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -97,7 +160,58 @@ export default function SettingsScreen() {
     return date.toLocaleDateString();
   };
 
-  const renderRecentItem = ({ item }: { item: RatingPost }) => {
+  const handleLike = async (eventId: string) => {
+    if (!currentUserId) {
+      Alert.alert("Error", "Please log in to like posts");
+      return;
+    }
+
+    const isCurrentlyLiked = likedEvents.has(eventId);
+
+    setLikedEvents((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyLiked) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+      }
+      return next;
+    });
+    setLikeCounts((counts) => ({
+      ...counts,
+      [eventId]: Math.max(
+        0,
+        (counts[eventId] || 0) + (isCurrentlyLiked ? -1 : 1),
+      ),
+    }));
+
+    try {
+      const result = await toggleLikeForEvent({
+        userId: currentUserId,
+        eventId,
+        isLiked: isCurrentlyLiked,
+        currentLikeCount: likeCounts[eventId] || 0,
+      });
+      setLikeCounts((counts) => ({
+        ...counts,
+        [eventId]: result.likeCount,
+      }));
+      setLikedEvents((prev) => {
+        const next = new Set(prev);
+        if (result.isLiked) {
+          next.add(eventId);
+        } else {
+          next.delete(eventId);
+        }
+        return next;
+      });
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      loadRecentActivity();
+    }
+  };
+
+  const renderRecentItem = ({ item }: { item: FeedEvent }) => {
     // Get user initials from userName
     const userInitials = userName
       .split(" ")
@@ -105,32 +219,32 @@ export default function SettingsScreen() {
       .join("")
       .toUpperCase();
 
+    const actionType = item.action_type as ActionType;
+    const isRanked = actionType === "ranked";
+    const rightActionVariant = isRanked ? "watched" : "bookmarked";
+
     return (
       <FeedItem
         userName={userName}
         userInitials={userInitials}
         profileImage={DEFAULT_PROFILE_PIC}
-        actionType="ranked"
+        actionType={actionType}
         title={item.title}
         score={item.score ?? null}
-        genres={[]}
-        titleType="movie"
+        genres={item.genres || []}
+        titleType={item.title_type || "movie"}
         timestamp={formatDate(item.created_at || "")}
         description={item.review_body || ""}
-        likeCount={liked[item.rating_id] === 1 ? 1 : 0}
+        likeCount={likeCounts[item.event_id] || 0}
         commentCount={0}
-        isLiked={liked[item.rating_id] === 1}
-        isBookmarked={false}
-        onLike={() =>
-          setLiked((prev) => ({
-            ...prev,
-            [item.rating_id]: prev[item.rating_id] === 1 ? 0 : 1,
-          }))
-        }
+        isLiked={likedEvents.has(item.event_id)}
+        isBookmarked={actionType === "bookmarked"}
+        onLike={() => handleLike(item.event_id)}
         onComment={() => {}}
         onShare={() => {}}
         onAddToList={() => {}}
         onBookmark={() => {}}
+        rightActionVariant={rightActionVariant}
       />
     );
   };
@@ -187,10 +301,13 @@ export default function SettingsScreen() {
 
         {/* ---------------- STATS LIST (UNCHANGED) ---------------- */}
         <View style={styles.statsLinesContainer}>
-          <TouchableOpacity style={styles.statLine}>
+          <TouchableOpacity
+            style={styles.statLine}
+            onPress={() => router.push("/(tabs)/list")}
+          >
             <View style={styles.statLineLeft}>
               <MaterialIcons name="movie" size={24} color="#000" />
-              <Text style={styles.statLineLabel}>Been</Text>
+              <Text style={styles.statLineLabel}>Watched</Text>
             </View>
             <View style={styles.statLineRight}>
               <Text style={styles.statLineNumber}>{watched}</Text>
@@ -201,7 +318,7 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.statLine}>
             <View style={styles.statLineLeft}>
               <FontAwesome name="bookmark" size={24} color="#000" />
-              <Text style={styles.statLineLabel}>Want to Watch</Text>
+              <Text style={styles.statLineLabel}>Watchlist</Text>
             </View>
             <View style={styles.statLineRight}>
               <Text style={styles.statLineNumber}>{wantToWatch}</Text>
@@ -231,13 +348,13 @@ export default function SettingsScreen() {
 
           {loading ? (
             <ActivityIndicator size="large" />
-          ) : userRatings.length === 0 ? (
+          ) : recentEvents.length === 0 ? (
             <Text style={styles.noActivityText}>No recent activity</Text>
           ) : (
             <FlatList
-              data={userRatings}
+              data={recentEvents}
               renderItem={renderRecentItem}
-              keyExtractor={(p) => p.rating_id}
+              keyExtractor={(p) => p.event_id}
               contentContainerStyle={{ gap: 12 }}
               scrollEnabled={false} // let outer scroll handle it
             />
