@@ -1,5 +1,6 @@
 import NavBar from "@/components/NavBar";
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,17 +15,20 @@ import {
 } from "react-native";
 
 import db from "@/database/db";
+import { getCurrentUserId } from "../../lib/ratingsDb";
+import { getUserWatchlist } from "../../lib/watchlistDb";
 
 type RankedItem = {
   rank: number;
   title: string;
   subtitle: string; // genres from TMDB
   meta: string; // same item
-  score: number;
+  score: number | null;
 };
 
 type MediaCategory = "Movies" | "TV Shows" | "Animated" | "Documentaries";
 type SortOption = "Score" | "Title" | "Date added";
+type ListTab = "Watched" | "Watchlist" | "Favorites";
 
 const CATEGORIES: MediaCategory[] = [
   "Movies",
@@ -33,6 +37,7 @@ const CATEGORIES: MediaCategory[] = [
   "Documentaries",
 ];
 const SORT_OPTIONS: SortOption[] = ["Score", "Title", "Date added"];
+const TABS_HEIGHT = 44;
 
 const getColor = (score: number) => {
   if (score >= 7.0) {
@@ -64,14 +69,47 @@ export default function ListScreen() {
   const [sortBy, setSortBy] = useState<SortOption>("Score");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
+  const [headerFixedHeight, setHeaderFixedHeight] = useState(0);
+  const [activeTab, setActiveTab] = useState<ListTab>("Watched");
+  const params = useLocalSearchParams<{ tab?: string }>();
 
   useEffect(() => {
-    loadRankedList();
-  }, [selectedCategory]);
+    loadList();
+  }, [selectedCategory, activeTab]);
 
-  const loadRankedList = async () => {
+  useEffect(() => {
+    const tabParam = String(params.tab || "").toLowerCase();
+    if (tabParam === "watchlist") setActiveTab("Watchlist");
+    else if (tabParam === "watched") setActiveTab("Watched");
+    else if (tabParam === "favorites") setActiveTab("Favorites");
+  }, [params.tab]);
+
+  const loadList = async () => {
     try {
       setLoading(true);
+
+      if (activeTab === "Watchlist") {
+        const userId = await getCurrentUserId();
+        if (!userId) {
+          setItems([]);
+          return;
+        }
+
+        const watchlist = await getUserWatchlist(userId);
+        const ranked: RankedItem[] = (watchlist || []).map(
+          (row: any, idx: number) => ({
+            rank: idx + 1,
+            title: row.titles?.title || "Unknown",
+            subtitle: Array.isArray(row.titles?.genres)
+              ? row.titles.genres.join(", ")
+              : row.titles?.genres || "Unknown genre",
+            meta: "Watchlist",
+            score: null,
+          })
+        );
+        setItems(ranked);
+        return;
+      }
 
       // Map category to title_type filter
       const titleTypeMap: Record<MediaCategory, string | null> = {
@@ -86,7 +124,7 @@ export default function ListScreen() {
       let query = db
         .from("v_user_ratings")
         .select(
-          "title, genres, score, category, category_rank, global_rank, title_type"
+          "title, genres, score, category, category_rank, global_rank, title_type",
         )
         .order("global_rank", { ascending: true });
 
@@ -117,7 +155,7 @@ export default function ListScreen() {
         meta: row.category
           ? `${row.category.charAt(0).toUpperCase()}${row.category.slice(1)}`
           : "",
-        score: row.score ?? 0,
+        score: row.score ?? null,
       }));
 
       setItems(ranked);
@@ -129,7 +167,10 @@ export default function ListScreen() {
   };
 
   const renderRow = ({ item }: ListRenderItemInfo<RankedItem>) => {
-    const { borderColor, bgColor, textColor } = getColor(item.score);
+    const hasScore = typeof item.score === "number";
+    const { borderColor, bgColor, textColor } = hasScore
+      ? getColor(item.score as number)
+      : { borderColor: "#ccc", bgColor: "#fff", textColor: "#666" };
 
     return (
       <View style={styles.row}>
@@ -143,85 +184,132 @@ export default function ListScreen() {
           </View>
         </View>
 
-        <View
-          style={[
-            styles.scoreBubble,
-            { borderColor: borderColor, backgroundColor: bgColor },
-          ]}
-        >
-          <Text style={[styles.scoreText, { color: textColor }]}>
-            {item.score.toFixed(1)}
-          </Text>
-        </View>
+        {hasScore && (
+          <View
+            style={[
+              styles.scoreBubble,
+              { borderColor: borderColor, backgroundColor: bgColor },
+            ]}
+          >
+            <Text style={[styles.scoreText, { color: textColor }]}>
+              {(item.score as number).toFixed(1)}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
 
   // Sort items based on selected option
   const sortedItems = [...items].sort((a, b) => {
-    if (sortBy === "Score") return b.score - a.score;
+    if (sortBy === "Score") {
+      const aScore = a.score ?? -1;
+      const bScore = b.score ?? -1;
+      return bScore - aScore;
+    }
     if (sortBy === "Title") return a.title.localeCompare(b.title);
     return 0; // Date added - keep original order
   });
 
   return (
     <View style={styles.screen}>
-      {/* Header with category dropdown */}
-      <View style={styles.headerWrapper}>
-        <Pressable
-          style={styles.categoryDropdown}
-          onPress={() => setShowCategoryModal(true)}
+      <View
+        style={styles.headerFixedContainer}
+        onLayout={(e) => setHeaderFixedHeight(e.nativeEvent.layout.height)}
+      >
+        {/* Header with category dropdown */}
+        <View style={styles.headerWrapper}>
+          <Pressable
+            style={styles.categoryDropdown}
+            onPress={() => setShowCategoryModal(true)}
+          >
+            <Text style={styles.headerTitle}>{selectedCategory}</Text>
+            <Ionicons name="chevron-down" size={24} color="#000" />
+          </Pressable>
+        </View>
+
+        {/* Tabs row */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[styles.tabsContainer, { height: TABS_HEIGHT }]}
+          contentContainerStyle={styles.tabsContent}
         >
-          <Text style={styles.headerTitle}>{selectedCategory}</Text>
-          <Ionicons name="chevron-down" size={24} color="#000" />
-        </Pressable>
+          <Pressable
+            style={activeTab === "Watched" ? styles.tabActive : styles.tab}
+            onPress={() => setActiveTab("Watched")}
+          >
+            <Text
+              style={
+                activeTab === "Watched" ? styles.tabTextActive : styles.tabText
+              }
+            >
+              Watched
+            </Text>
+          </Pressable>
+          <Pressable
+            style={activeTab === "Watchlist" ? styles.tabActive : styles.tab}
+            onPress={() => setActiveTab("Watchlist")}
+          >
+            <Text
+              style={
+                activeTab === "Watchlist"
+                  ? styles.tabTextActive
+                  : styles.tabText
+              }
+            >
+              Watchlist
+            </Text>
+          </Pressable>
+          <Pressable
+            style={activeTab === "Favorites" ? styles.tabActive : styles.tab}
+            onPress={() => setActiveTab("Favorites")}
+          >
+            <Text
+              style={
+                activeTab === "Favorites"
+                  ? styles.tabTextActive
+                  : styles.tabText
+              }
+            >
+              Favorites
+            </Text>
+          </Pressable>
+        </ScrollView>
       </View>
 
-      {/* Tabs row */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsContainer}
-        contentContainerStyle={styles.tabsContent}
-      >
-        <View style={styles.tabActive}>
-          <Text style={styles.tabTextActive}>Watched</Text>
-        </View>
-        <View style={styles.tab}>
-          <Text style={styles.tabText}>Want to Watch</Text>
-        </View>
-        <View style={styles.tab}>
-          <Text style={styles.tabText}>Favorites</Text>
-        </View>
-      </ScrollView>
+      <View style={[styles.contentBelowTabs, { paddingTop: headerFixedHeight }]}>
+        {/* Sort row */}
+        <Pressable
+          style={styles.sortRow}
+          onPress={() => setShowSortModal(true)}
+        >
+          <Ionicons name="swap-vertical" size={18} color="#000" />
+          <Text style={styles.sortText}>{sortBy}</Text>
+        </Pressable>
 
-      {/* Sort row */}
-      <Pressable style={styles.sortRow} onPress={() => setShowSortModal(true)}>
-        <Ionicons name="swap-vertical" size={18} color="#000" />
-        <Text style={styles.sortText}>{sortBy}</Text>
-      </Pressable>
-
-      {/* Content */}
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 30 }} size="large" />
-      ) : sortedItems.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>
-            No {selectedCategory.toLowerCase()} rated yet
-          </Text>
-          <Text style={styles.emptySubtext}>
-            Start rating to build your list!
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={sortedItems}
-          renderItem={renderRow}
-          keyExtractor={(item) => item.title}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+        {/* Content */}
+        {loading ? (
+          <ActivityIndicator style={{ marginTop: 30 }} size="large" />
+        ) : sortedItems.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              No {selectedCategory.toLowerCase()} rated yet
+            </Text>
+            <Text style={styles.emptySubtext}>
+              Start rating to build your list!
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={sortedItems}
+            renderItem={renderRow}
+            keyExtractor={(item) => item.title}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
+      </View>
 
       {/* Category Selection Modal */}
       <Modal
@@ -309,7 +397,7 @@ const styles = StyleSheet.create({
   headerWrapper: {
     marginTop: "15%",
     paddingHorizontal: "4%",
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   categoryDropdown: {
     flexDirection: "row",
@@ -325,16 +413,29 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e5e5e5",
     flexGrow: 0,
+    paddingTop: 0,
+  },
+  headerFixedContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    zIndex: 10,
+  },
+  contentBelowTabs: {
+    flex: 1,
   },
   tabsContent: {
     paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: "center",
     gap: 24,
   },
   tab: {
-    paddingVertical: 12,
+    paddingVertical: 0,
   },
   tabActive: {
-    paddingVertical: 12,
+    paddingVertical: 0,
     borderBottomWidth: 2,
     borderBottomColor: "#000",
   },
@@ -342,11 +443,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#888",
     fontWeight: "500",
+    lineHeight: 20,
   },
   tabTextActive: {
     fontSize: 15,
     color: "#000",
     fontWeight: "600",
+    lineHeight: 20,
   },
   sortRow: {
     flexDirection: "row",

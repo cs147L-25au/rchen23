@@ -12,8 +12,10 @@ import {
 
 import { FeedEvent, getFeedEvents } from "../database/queries";
 import { getCurrentUserId } from "../lib/ratingsDb";
+import LikesModal, { LikeUser } from "./LikesModal";
 import {
   getLikeStateForEvents,
+  getLikesForEvent,
   toggleLikeForEvent,
 } from "../lib/likesDb";
 import { isInWatchlistByTmdb, toggleWatchlistByTmdb } from "../lib/watchlistDb";
@@ -66,6 +68,9 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
+  const [likesModalVisible, setLikesModalVisible] = useState(false);
+  const [likesModalLoading, setLikesModalLoading] = useState(false);
+  const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
 
   useEffect(() => {
     const init = async () => {
@@ -202,6 +207,26 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
     }
   };
 
+  const handleLikesPress = async (eventId: string) => {
+    try {
+      setLikesModalVisible(true);
+      setLikesModalLoading(true);
+      const users = await getLikesForEvent(eventId);
+      setLikesModalUsers(
+        users.map((u) => ({
+          id: u.user_id,
+          displayName: u.display_name || "User",
+          profilePic: u.profile_pic || null,
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to load likes list:", error);
+      setLikesModalUsers([]);
+    } finally {
+      setLikesModalLoading(false);
+    }
+  };
+
   const handleBookmark = async (item: FeedEvent) => {
     if (!currentUserId) {
       Alert.alert("Error", "Please log in to bookmark");
@@ -289,6 +314,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
         isLiked={liked.has(item.event_id)}
         isBookmarked={bookmarked.has(item.event_id)}
         onLike={() => handleLike(item.event_id)}
+        onLikesPress={() => handleLikesPress(item.event_id)}
         onComment={() => {
           /* TODO: Open comments */
         }}
@@ -344,6 +370,11 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
           !scrollEnabled && styles.listContentNoScroll,
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
+      <LikesModal
+        visible={likesModalVisible}
+        likes={likesModalLoading ? [] : likesModalUsers}
+        onClose={() => setLikesModalVisible(false)}
       />
     </View>
   );

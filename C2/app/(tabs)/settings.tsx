@@ -21,6 +21,7 @@ import db from "@/database/db";
 import NavBar from "../../components/NavBar";
 
 import FeedItem, { ActionType } from "../../components/FeedItem";
+import LikesModal, { LikeUser } from "../../components/LikesModal";
 import {
   FeedEvent,
   getAllRatings,
@@ -29,6 +30,7 @@ import {
 } from "../../database/queries";
 import {
   getLikeStateForEvents,
+  getLikesForEvent,
   toggleLikeForEvent,
 } from "../../lib/likesDb";
 import { getCurrentUserId } from "../../lib/ratingsDb";
@@ -63,6 +65,9 @@ export default function SettingsScreen() {
   const [recentEvents, setRecentEvents] = useState<FeedEvent[]>([]);
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [likesModalVisible, setLikesModalVisible] = useState(false);
+  const [likesModalLoading, setLikesModalLoading] = useState(false);
+  const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   // These profile numbers remain local for now
@@ -211,6 +216,26 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleLikesPress = async (eventId: string) => {
+    try {
+      setLikesModalVisible(true);
+      setLikesModalLoading(true);
+      const users = await getLikesForEvent(eventId);
+      setLikesModalUsers(
+        users.map((u) => ({
+          id: u.user_id,
+          displayName: u.display_name || "User",
+          profilePic: u.profile_pic || null,
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to load likes list:", error);
+      setLikesModalUsers([]);
+    } finally {
+      setLikesModalLoading(false);
+    }
+  };
+
   const renderRecentItem = ({ item }: { item: FeedEvent }) => {
     // Get user initials from userName
     const userInitials = userName
@@ -240,6 +265,7 @@ export default function SettingsScreen() {
         isLiked={likedEvents.has(item.event_id)}
         isBookmarked={actionType === "bookmarked"}
         onLike={() => handleLike(item.event_id)}
+        onLikesPress={() => handleLikesPress(item.event_id)}
         onComment={() => {}}
         onShare={() => {}}
         onAddToList={() => {}}
@@ -315,7 +341,10 @@ export default function SettingsScreen() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.statLine}>
+          <TouchableOpacity
+            style={styles.statLine}
+            onPress={() => router.push({ pathname: "/(tabs)/list", params: { tab: "watchlist" } })}
+          >
             <View style={styles.statLineLeft}>
               <FontAwesome name="bookmark" size={24} color="#000" />
               <Text style={styles.statLineLabel}>Watchlist</Text>
@@ -364,6 +393,11 @@ export default function SettingsScreen() {
         <View style={styles.bottomPadding} />
       </ScrollView>
 
+      <LikesModal
+        visible={likesModalVisible}
+        likes={likesModalLoading ? [] : likesModalUsers}
+        onClose={() => setLikesModalVisible(false)}
+      />
       <NavBar />
     </View>
   );

@@ -22,6 +22,7 @@ interface FeedItemProps {
   isLiked: boolean;
   isBookmarked: boolean;
   onLike: () => void;
+  onLikesPress?: () => void;
   onComment: () => void;
   onShare: () => void;
   onAddToList: () => void;
@@ -46,6 +47,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
   isLiked,
   isBookmarked,
   onLike,
+  onLikesPress,
   onComment,
   onShare,
   onAddToList,
@@ -145,9 +147,11 @@ const FeedItem: React.FC<FeedItemProps> = ({
 
       {/* Likes count */}
       {likeCount > 0 ? (
-        <Text style={styles.likesCount}>
-          {likeCount} {likeCount === 1 ? "like" : "likes"}
-        </Text>
+        <Pressable onPress={onLikesPress} style={styles.likesPressable}>
+          <Text style={styles.likesCount}>
+            {likeCount} {likeCount === 1 ? "like" : "likes"}
+          </Text>
+        </Pressable>
       ) : (
         <Text style={styles.likesCountSpacer}>0 likes</Text>
       )}
@@ -309,6 +313,9 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 8,
     marginBottom: 4,
+  },
+  likesPressable: {
+    alignSelf: "flex-start",
   },
   actionsRow: {
     flexDirection: "row",

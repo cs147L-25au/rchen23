@@ -162,3 +162,29 @@ export async function toggleLikeForEvent(params: {
 
   return { likeCount: newLikeCount, isLiked: !isLiked };
 }
+
+export type LikeProfile = {
+  user_id: string;
+  display_name: string | null;
+  profile_pic: string | null;
+};
+
+export async function getLikesForEvent(eventId: string): Promise<LikeProfile[]> {
+  const post = await ensureFeedPost(eventId);
+
+  const { data, error } = await db
+    .from("feed_post_likes")
+    .select("user_id, profiles(display_name, profile_pic)")
+    .eq("post_id", post.id);
+
+  if (error) {
+    console.error("Error fetching likes list:", error);
+    throw error;
+  }
+
+  return (data || []).map((row: any) => ({
+    user_id: row.user_id,
+    display_name: row.profiles?.display_name ?? "User",
+    profile_pic: row.profiles?.profile_pic ?? null,
+  }));
+}
