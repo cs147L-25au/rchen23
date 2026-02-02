@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
-export type TitleType = "movie" | "tv" | "documentary" | "animated";
+export type TitleType = "movie" | "tv" | "documentary";
 
 interface TitleTypePickerProps {
   selected: TitleType;
@@ -14,7 +14,6 @@ const TITLE_TYPES: { value: TitleType; label: string; icon: string }[] = [
   { value: "movie", label: "Movie", icon: "film-outline" },
   { value: "tv", label: "TV Show", icon: "tv-outline" },
   { value: "documentary", label: "Documentary", icon: "document-text-outline" },
-  { value: "animated", label: "Animated", icon: "sparkles-outline" },
 ];
 
 const TitleTypePicker: React.FC<TitleTypePickerProps> = ({

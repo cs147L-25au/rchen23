@@ -17,11 +17,12 @@ import {
   View,
 } from "react-native";
 
-import db from "@/database/db";
+import { signOut } from "@/utils/auth";
 import NavBar from "../../components/NavBar";
 
 import FeedItem, { ActionType } from "../../components/FeedItem";
 import LikesModal, { LikeUser } from "../../components/LikesModal";
+import { getProfileById, UserProfile } from "../../database/profileQueries";
 import {
   FeedEvent,
   getAllRatings,
@@ -29,8 +30,8 @@ import {
   RatingPost,
 } from "../../database/queries";
 import {
-  getLikeStateForEvents,
   getLikesForEvent,
+  getLikeStateForEvents,
   toggleLikeForEvent,
 } from "../../lib/likesDb";
 import { getCurrentUserId } from "../../lib/ratingsDb";
@@ -69,10 +70,10 @@ export default function SettingsScreen() {
   const [likesModalLoading, setLikesModalLoading] = useState(false);
   const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  // These profile numbers remain local for now
-  const userName = "Richard Chen";
-  const userHandle = "@RRChen";
+  const userName = profile?.display_name || "User";
+  const userHandle = profile?.username ? `@${profile.username}` : "@user";
   const userRank = 1;
   const followers = 0;
   const following = 0;
@@ -93,12 +94,16 @@ export default function SettingsScreen() {
       setUserRatings(data);
 
       if (!userId) {
+        setProfile(null);
         setUserBookmarks([]);
         setRecentEvents([]);
         setLikeCounts({});
         setLikedEvents(new Set());
         return;
       }
+
+      const profileData = await getProfileById(userId);
+      setProfile(profileData);
 
       const bookmarks = await getUserWatchlist(userId);
       setUserBookmarks(bookmarks as WatchlistItem[]);
@@ -137,11 +142,12 @@ export default function SettingsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await db.auth.signOut();
+              // Use the signOut utility which clears all stored auth data
+              await signOut();
             } catch (err) {
               console.error("Failed to sign out", err);
             }
-            router.replace("/");
+            router.replace("/auth");
           },
         },
       ],
@@ -291,7 +297,9 @@ export default function SettingsScreen() {
 
           <View style={styles.headerTop}>
             <Image
-              source={require("../../assets/profile_pic.png")}
+              source={{
+                uri: profile?.profile_pic || DEFAULT_PROFILE_PIC,
+              }}
               style={styles.profilePic}
             />
             <Text style={styles.userName}>{userName}</Text>
@@ -315,7 +323,10 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.editButton}>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => router.push("/(tabs)/editProfile")}
+              >
                 <Text style={styles.editButtonText}>Edit profile</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.shareButton}>
@@ -343,7 +354,12 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.statLine}
-            onPress={() => router.push({ pathname: "/(tabs)/list", params: { tab: "watchlist" } })}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/list",
+                params: { tab: "watchlist" },
+              })
+            }
           >
             <View style={styles.statLineLeft}>
               <FontAwesome name="bookmark" size={24} color="#000" />

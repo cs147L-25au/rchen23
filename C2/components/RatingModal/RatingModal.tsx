@@ -1,8 +1,11 @@
 // components/RatingModal/RatingModal.tsx
+import db from "@/database/db";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
+  ImageBackground,
   Modal,
   Pressable,
   ScrollView,
@@ -61,6 +64,18 @@ interface ComparisonState {
   resolve: (result: "A" | "B") => void;
 }
 
+interface PostPreview {
+  displayName: string;
+  username: string;
+  title: string;
+  subtitle: string;
+  notes: string | null;
+  score: number | null;
+  showScore: boolean;
+  posterPath: string | null;
+  profilePic: string | null;
+}
+
 // ============ Component ============
 
 const RatingModal: React.FC<RatingModalProps> = ({
@@ -88,15 +103,18 @@ const RatingModal: React.FC<RatingModalProps> = ({
     useState<ComparisonState | null>(null);
   const [titleTypeRatingCount, setTitleTypeRatingCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [postPreview, setPostPreview] = useState<PostPreview | null>(null);
 
   // Load user ID on mount
   useEffect(() => {
     loadUserId();
   }, []);
 
-  // Reset state when modal opens
+  const wasVisibleRef = useRef(false);
+
+  // Reset state only when modal transitions closed -> open
   useEffect(() => {
-    if (visible && tmdbData) {
+    if (!wasVisibleRef.current && visible && tmdbData) {
       resetForm();
 
       // Infer title type from TMDB data
@@ -114,6 +132,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
       setTitleType(nextTitleType);
       loadTitleTypeRatingCount(nextTitleType);
     }
+    wasVisibleRef.current = visible;
   }, [visible, tmdbData, currentRating]);
 
   useEffect(() => {
@@ -147,6 +166,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
     setFlowStep("input");
     setComparisonState(null);
     setError(null);
+    setPostPreview(null);
   };
 
   const handleClose = () => {
@@ -158,13 +178,13 @@ const RatingModal: React.FC<RatingModalProps> = ({
 
   // Store the resolve function in a ref so it persists across renders
   const comparisonResolveRef = useRef<((choice: "A" | "B") => void) | null>(
-    null
+    null,
   );
 
   const compareCallback = useCallback(
     (
       newItem: { title: string; poster_path?: string | null },
-      existingItem: { title: string; poster_path?: string | null }
+      existingItem: { title: string; poster_path?: string | null },
     ): Promise<"A" | "B"> => {
       return new Promise((resolve) => {
         // Store resolve in ref
@@ -180,7 +200,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
         }));
       });
     },
-    []
+    [],
   );
 
   const handleComparisonSelect = (choice: "A" | "B") => {
@@ -239,7 +259,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
         // Start comparison flow
         console.log(
           "Starting comparison flow, categoryList length:",
-          categoryList.length
+          categoryList.length,
         );
 
         // Set up initial comparison state BEFORE changing flow step
@@ -267,7 +287,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
           categoryList,
           tmdbData.title,
           tmdbData.poster_path,
-          compareCallback
+          compareCallback,
         );
 
         console.log("Comparison done, rank:", categoryRank);
@@ -292,14 +312,45 @@ const RatingModal: React.FC<RatingModalProps> = ({
         await setWatchedWith(ratingId, selectedFriendIds);
       }
 
+      // Refresh counts for score visibility
+      const updatedCount = await fetchTitleTypeRatingCount(userId, titleType);
+      setTitleTypeRatingCount(updatedCount);
+
+      // Fetch score for the new rating from v_user_ratings
+      const { data: ratingRow } = await db
+        .from("v_user_ratings")
+        .select("score")
+        .eq("rating_id", ratingId)
+        .maybeSingle();
+
+      // Fetch user profile info for post preview
+      const { data: profileRow } = await db
+        .from("profiles")
+        .select("display_name, username, profile_pic, first_name")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const displayName =
+        profileRow?.display_name || profileRow?.first_name || "User";
+      const username = profileRow?.username ? `@${profileRow.username}` : "";
+
+      setPostPreview({
+        displayName,
+        username,
+        title: tmdbData.title,
+        subtitle,
+        notes: notes.trim() || null,
+        score: ratingRow?.score ?? null,
+        showScore: updatedCount >= 10,
+        posterPath: tmdbData.poster_path || null,
+        profilePic: profileRow?.profile_pic || null,
+      });
+
       // Done!
       setFlowStep("done");
 
-      // Close modal after brief delay to show success
-      setTimeout(() => {
-        handleClose();
-        onSuccess?.();
-      }, 500);
+      // Keep the post preview open so user can take a photo/screenshot
+      onSuccess?.();
     } catch (err) {
       console.error("Rating submission failed:", err);
       setError("Failed to save rating. Please try again.");
@@ -318,25 +369,35 @@ const RatingModal: React.FC<RatingModalProps> = ({
       ? tmdbData.genres.slice(0, 2).join(", ")
       : "Unknown Genre"
   }`;
+  const posterUri = tmdbData.poster_path
+    ? `https://image.tmdb.org/t/p/w780${tmdbData.poster_path}`
+    : null;
 
   return (
     <>
       <Modal visible={visible} transparent animationType="slide">
-        <View style={styles.container}>
+        <View
+          style={[
+            styles.container,
+            flowStep === "done" && styles.containerFull,
+          ]}
+        >
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {tmdbData.title}
-              </Text>
-              <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {subtitle}
-              </Text>
+          {flowStep !== "done" && (
+            <View style={styles.header}>
+              <View style={styles.headerContent}>
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                  {tmdbData.title}
+                </Text>
+                <Text style={styles.headerSubtitle} numberOfLines={1}>
+                  {subtitle}
+                </Text>
+              </View>
+              <Pressable onPress={handleClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
             </View>
-            <Pressable onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#fff" />
-            </Pressable>
-          </View>
+          )}
 
           {/* Loading/Saving State */}
           {flowStep === "saving" && (
@@ -347,10 +408,81 @@ const RatingModal: React.FC<RatingModalProps> = ({
           )}
 
           {/* Done State */}
-          {flowStep === "done" && (
-            <View style={styles.loadingContainer}>
-              <Ionicons name="checkmark-circle" size={64} color="#2E7D32" />
-              <Text style={styles.successText}>Rating saved!</Text>
+          {flowStep === "done" && postPreview && (
+            <View style={styles.postPreviewContainer}>
+              <ImageBackground
+                source={posterUri ? { uri: posterUri } : undefined}
+                style={styles.postPreviewBackground}
+                imageStyle={styles.postPreviewImage}
+                resizeMode="cover"
+              >
+                <View style={styles.postPreviewOverlay} />
+                <Pressable
+                  style={styles.postPreviewClose}
+                  onPress={handleClose}
+                >
+                  <Ionicons name="chevron-back" size={26} color="#fff" />
+                </Pressable>
+                <View style={styles.postCard}>
+                  <View style={styles.postHeader}>
+                    <View style={styles.postHeaderTopRow}>
+                      <View style={styles.postUserRow}>
+                        <Image
+                          source={
+                            postPreview.profilePic
+                              ? { uri: postPreview.profilePic }
+                              : undefined
+                          }
+                          style={styles.postAvatar}
+                        />
+                        <View>
+                          <Text style={styles.postName}>
+                            {postPreview.displayName}
+                          </Text>
+                          {postPreview.username ? (
+                            <Text style={styles.postHandle}>
+                              {postPreview.username}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      <Text style={styles.postBrand}>MyFlix</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.postTitleRow}>
+                    <View style={styles.postTitleColumn}>
+                      <Text style={styles.postTitle}>{postPreview.title}</Text>
+                      <Text style={styles.postSubtitle}>
+                        {postPreview.subtitle}
+                      </Text>
+                    </View>
+                    {postPreview.showScore ? (
+                      <View style={styles.postScoreBadge}>
+                        <Text style={styles.postScoreText}>
+                          {postPreview.score?.toFixed(1) ?? "—"}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={42}
+                        color="#1a535c"
+                        style={styles.postCheck}
+                      />
+                    )}
+                  </View>
+
+                  {postPreview.notes ? (
+                    <View style={styles.postNotes}>
+                      <Text style={styles.postNotesText}>
+                        <Text style={styles.postNotesLabel}>Review: </Text>
+                        {postPreview.notes}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </ImageBackground>
             </View>
           )}
 
@@ -459,12 +591,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
                 <Pressable style={styles.optionRow}>
                   <Ionicons name="create-outline" size={22} color="#555" />
                   <View style={styles.optionContent}>
-                    <Text style={styles.optionLabel}>Add notes</Text>
-                    {notes.length > 0 && (
-                      <Text style={styles.optionValue} numberOfLines={1}>
-                        {notes}
-                      </Text>
-                    )}
+                    <Text style={styles.optionLabel}>Write a Review</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#ccc" />
                 </Pressable>
@@ -618,6 +745,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     overflow: "hidden",
   },
+  containerFull: {
+    marginTop: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
   header: {
     backgroundColor: "#1a1a1a",
     paddingVertical: 16,
@@ -660,6 +792,137 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#2E7D32",
+  },
+  postPreviewContainer: {
+    flex: 1,
+  },
+  postPreviewBackground: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  postPreviewImage: {
+    width: "100%",
+    height: "100%",
+    alignSelf: "center",
+  },
+  postPreviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  postPreviewClose: {
+    position: "absolute",
+    top: 48,
+    left: 18,
+    zIndex: 2,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  postCard: {
+    width: "82%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    zIndex: 1,
+  },
+  postHeader: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  postHeaderTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  postUserRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  postAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#eee",
+  },
+  postName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111",
+  },
+  postHandle: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 2,
+  },
+  postScoreBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: "#E6E6E6",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+  },
+  postScoreText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1a535c",
+  },
+  postCheck: {
+    alignSelf: "center",
+  },
+  postTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  postTitleColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  postTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+  },
+  postSubtitle: {
+    fontSize: 12,
+    color: "#777",
+    marginTop: 4,
+  },
+  postNotes: {
+    marginTop: 12,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 0,
+    paddingVertical: 8,
+  },
+  postNotesLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#333",
+  },
+  postNotesText: {
+    fontSize: 12,
+    color: "#555",
+  },
+  postBrandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  postBrand: {
+    fontSize: 24.5,
+    fontWeight: "700",
+    color: "#B3261E",
+    marginTop: 2,
   },
   divider: {
     height: 1,

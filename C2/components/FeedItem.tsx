@@ -60,8 +60,6 @@ const FeedItem: React.FC<FeedItemProps> = ({
     switch (titleType) {
       case "tv":
         return "tv-outline";
-      case "animated":
-        return "sparkles-outline";
       case "documentary":
         return "film-outline";
       default:

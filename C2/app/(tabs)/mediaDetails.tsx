@@ -55,7 +55,7 @@ async function ensureProfile() {
       id: user.id, // must be the PK in profiles
       profile_pic: DEFAULT_PROFILE_PIC,
     },
-    { onConflict: "id" }
+    { onConflict: "id" },
   );
 
   return user;
@@ -80,10 +80,10 @@ const MediaDetailScreen: React.FC = () => {
     mediaType === "movie"
       ? "Movie"
       : mediaType === "tv"
-      ? "TV Show"
-      : mediaType === "person"
-      ? "Person"
-      : "";
+        ? "TV Show"
+        : mediaType === "person"
+          ? "Person"
+          : "";
 
   const posterUri = posterPath
     ? getPosterUrl(posterPath as string, null)
@@ -133,7 +133,7 @@ const MediaDetailScreen: React.FC = () => {
           const results = ratingJson.results ?? [];
           const us = results.find((r: any) => r.iso_3166_1 === "US");
           const cert = us?.release_dates?.find(
-            (rd: any) => rd.certification
+            (rd: any) => rd.certification,
           )?.certification;
           if (cert && typeof cert === "string" && cert.trim().length > 0) {
             setContentRating(cert.trim());
@@ -175,7 +175,7 @@ const MediaDetailScreen: React.FC = () => {
       const episodes = (details as any).number_of_episodes;
       if (seasons) {
         pieces.push(
-          `${seasons} season${seasons > 1 ? "s" : ""}${episodes ? "" : ""}`
+          `${seasons} season${seasons > 1 ? "s" : ""}${episodes ? "" : ""}`,
         );
       }
       if (episodes) {
@@ -243,7 +243,7 @@ const MediaDetailScreen: React.FC = () => {
             (m: any) =>
               m.job === "Creator" ||
               m.job === "Developed by" ||
-              m.job === "Executive Producer"
+              m.job === "Executive Producer",
           );
           if (creators.length === 1) {
             line = `Created by ${creators[0].name}`;
@@ -321,7 +321,7 @@ const MediaDetailScreen: React.FC = () => {
           const result = await isInWatchlistByTmdb(
             userId,
             parseInt(id, 10),
-            mediaType as "movie" | "tv"
+            mediaType as "movie" | "tv",
           );
           setInWatchlist(result.inWatchlist);
         }
@@ -344,11 +344,7 @@ const MediaDetailScreen: React.FC = () => {
       // Determine title type based on mediaType and other factors
       let titleType: TitleType = "movie";
       if (mediaType === "tv") {
-        // Check if it's animated based on genres
-        const isAnimated = genresArray.some((g) =>
-          g.toLowerCase().includes("animation")
-        );
-        titleType = isAnimated ? "animated" : "tv";
+        titleType = "tv";
       }
 
       const result = await toggleWatchlistByTmdb({
@@ -411,7 +407,6 @@ const MediaDetailScreen: React.FC = () => {
       : null;
 
   const handleRatingSuccess = () => {
-    Alert.alert("Success", "Your rating was saved!");
     // Optionally refresh comments
     const loadComments = async () => {
       try {
@@ -588,8 +583,8 @@ const MediaDetailScreen: React.FC = () => {
                           post.category === "good"
                             ? "Liked"
                             : post.category === "alright"
-                            ? "It was fine"
-                            : "Disliked"
+                              ? "It was fine"
+                              : "Disliked"
                         } this.`)}
                 </Text>
               </View>

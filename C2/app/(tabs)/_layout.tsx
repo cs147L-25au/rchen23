@@ -18,6 +18,7 @@ export default function TabsLayout() {
       <Stack.Screen name="search" />
       <Stack.Screen name="leaderboard" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="editProfile" />
       <Stack.Screen name="allMovies" />
       <Stack.Screen name="mediaDetails" />
     </Stack>

@@ -14,8 +14,19 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
-        {/* Index handles auth gate, redirects to (tabs)/feed */}
+        {/* Index handles auth gate, redirects to appropriate screen */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
+
+        {/* Auth screen (login/signup) */}
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+
+        {/* Onboarding screens */}
+        <Stack.Screen
+          name="onboarding1"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen name="onboarding2" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding3" options={{ headerShown: false }} />
 
         {/* Main tab navigator */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

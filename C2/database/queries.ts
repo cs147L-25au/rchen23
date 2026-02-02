@@ -1,5 +1,7 @@
 import db from "./db";
 
+const SCORE_UNLOCK_COUNT = 10;
+
 export interface Profile {
   id: string;
   display_name: string;
@@ -59,6 +61,73 @@ export type FeedRating = RatingPost & {
   user_profile_pic: string | null;
 };
 
+type UserTypeCountMap = Map<string, Map<string, number>>;
+
+const buildUserTypeCountMap = (
+  rows: Array<{ user_id: string; title_type: string }>,
+): UserTypeCountMap => {
+  const map: UserTypeCountMap = new Map();
+  rows.forEach((row) => {
+    if (!row.user_id || !row.title_type) return;
+    const userMap = map.get(row.user_id) ?? new Map<string, number>();
+    userMap.set(row.title_type, (userMap.get(row.title_type) ?? 0) + 1);
+    map.set(row.user_id, userMap);
+  });
+  return map;
+};
+
+const shouldShowScore = (
+  userTypeCountMap: UserTypeCountMap,
+  userId: string,
+  titleType: string,
+) => {
+  const count = userTypeCountMap.get(userId)?.get(titleType) ?? 0;
+  return count >= SCORE_UNLOCK_COUNT;
+};
+
+const maskScoresForRatings = (ratings: RatingPost[]): RatingPost[] => {
+  const counts = buildUserTypeCountMap(ratings);
+  return ratings.map((rating) => {
+    if (!shouldShowScore(counts, rating.user_id, rating.title_type)) {
+      return { ...rating, score: null };
+    }
+    return rating;
+  });
+};
+
+const maskScoresForFeedEvents = (
+  events: FeedEvent[],
+  counts: UserTypeCountMap,
+): FeedEvent[] =>
+  events.map((event) => {
+    if (
+      event.action_type === "ranked" &&
+      event.score !== null &&
+      !shouldShowScore(counts, event.user_id, event.title_type)
+    ) {
+      return { ...event, score: null };
+    }
+    return event;
+  });
+
+const fetchUserTypeCounts = async (
+  userIds: string[],
+): Promise<UserTypeCountMap> => {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await db
+    .from("v_user_ratings")
+    .select("user_id, title_type")
+    .in("user_id", userIds);
+
+  if (error) {
+    console.error("Error fetching rating counts:", error.message);
+    return new Map();
+  }
+  return buildUserTypeCountMap(
+    (data as Array<{ user_id: string; title_type: string }>) || [],
+  );
+};
+
 // Fetch all ratings from v_user_ratings view
 export const getAllRatings = async (): Promise<RatingPost[]> => {
   try {
@@ -71,7 +140,8 @@ export const getAllRatings = async (): Promise<RatingPost[]> => {
       console.error("Supabase error details:", error.message);
       throw error;
     }
-    return (data as RatingPost[]) || [];
+    const ratings = (data as RatingPost[]) || [];
+    return maskScoresForRatings(ratings);
   } catch (error: any) {
     console.error("Error fetching ratings:", error?.message || error);
     return [];
@@ -91,7 +161,10 @@ export const getFeedEvents = async (): Promise<FeedEvent[]> => {
       throw error;
     }
 
-    return (data as FeedEvent[]) || [];
+    const events = (data as FeedEvent[]) || [];
+    const userIds = [...new Set(events.map((event) => event.user_id))];
+    const counts = await fetchUserTypeCounts(userIds);
+    return maskScoresForFeedEvents(events, counts);
   } catch (error: any) {
     console.error("Error fetching feed events:", error?.message || error);
     return [];
@@ -100,7 +173,7 @@ export const getFeedEvents = async (): Promise<FeedEvent[]> => {
 
 // Fetch feed events for a specific user
 export const getUserFeedEvents = async (
-  userId: string
+  userId: string,
 ): Promise<FeedEvent[]> => {
   try {
     const { data, error } = await db
@@ -114,7 +187,9 @@ export const getUserFeedEvents = async (
       throw error;
     }
 
-    return (data as FeedEvent[]) || [];
+    const events = (data as FeedEvent[]) || [];
+    const counts = await fetchUserTypeCounts([userId]);
+    return maskScoresForFeedEvents(events, counts);
   } catch (error: any) {
     console.error("Error fetching user feed events:", error?.message || error);
     return [];
@@ -133,8 +208,10 @@ export const getFeedRatings = async (): Promise<FeedRating[]> => {
     if (ratingsError) throw ratingsError;
     if (!ratings || ratings.length === 0) return [];
 
+    const maskedRatings = maskScoresForRatings(ratings as RatingPost[]);
+
     // Get unique user IDs
-    const userIds = [...new Set(ratings.map((r: any) => r.user_id))];
+    const userIds = [...new Set(maskedRatings.map((r: any) => r.user_id))];
 
     // Fetch profiles for all users
     const { data: profiles, error: profilesError } = await db
@@ -151,7 +228,7 @@ export const getFeedRatings = async (): Promise<FeedRating[]> => {
     });
 
     // Combine ratings with profile info
-    const feedRatings: FeedRating[] = ratings.map((rating: any) => {
+    const feedRatings: FeedRating[] = maskedRatings.map((rating: any) => {
       const profile = profileMap.get(rating.user_id);
       return {
         ...rating,
@@ -177,7 +254,8 @@ export const getUserRatings = async (userId: string): Promise<RatingPost[]> => {
       .order("global_rank", { ascending: true });
 
     if (error) throw error;
-    return (data as RatingPost[]) || [];
+    const ratings = (data as RatingPost[]) || [];
+    return maskScoresForRatings(ratings);
   } catch (error) {
     console.error("Error fetching user ratings:", error);
     return [];
@@ -204,7 +282,7 @@ export const getProfile = async (userId: string): Promise<Profile | null> => {
 // Update profile
 export const updateProfile = async (
   userId: string,
-  updates: Partial<Profile>
+  updates: Partial<Profile>,
 ): Promise<Profile | null> => {
   try {
     const { data, error } = await db

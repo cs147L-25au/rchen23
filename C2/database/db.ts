@@ -24,4 +24,8 @@ AppState.addEventListener("change", (state) => {
   }
 });
 
+// Named export for explicit imports
+export { db };
+
+// Default export for backward compatibility
 export default db;

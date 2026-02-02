@@ -1,35 +1,191 @@
-import React from "react";
-import { FlatList, Image, StyleSheet, Text, View } from "react-native";
+import db from "@/database/db";
+import { useEffect, useMemo, useState } from "react";
+import {
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import NavBar from "../../components/NavBar";
 
 const placeholder_pfp = require("../../assets/profile_pic.png");
 
+type CategoryKey = "movie" | "tv" | "documentary";
+
 type LeaderItem = {
   rank: number;
-  username: string;
-  score: number;
-  avatar: any;
+  userId: string;
+  displayName: string;
+  username?: string;
+  count: number;
+  profilePic?: string | null;
 };
 
-const DATA: LeaderItem[] = [
-  {
-    rank: 1,
-    username: "@RRChen",
-    score: 3,
-    avatar: placeholder_pfp,
-  },
+const CATEGORY_TABS: { key: CategoryKey; label: string }[] = [
+  { key: "movie", label: "Movies" },
+  { key: "tv", label: "TV Shows" },
+  { key: "documentary", label: "Documentaries" },
+];
+
+const GENRES = [
+  "All",
+  "Action",
+  "Adventure",
+  "Animation",
+  "Comedy",
+  "Crime",
+  "Documentary",
+  "Drama",
+  "Family",
+  "Fantasy",
+  "History",
+  "Horror",
+  "Music",
+  "Mystery",
+  "Romance",
+  "Science Fiction",
+  "Thriller",
+  "War",
+  "Western",
 ];
 
 export default function LeaderboardScreen() {
+  const [category, setCategory] = useState<CategoryKey>("movie");
+  const [genre, setGenre] = useState("All");
+  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<LeaderItem[]>([]);
+  const [genreModalVisible, setGenreModalVisible] = useState(false);
+
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      setLoading(true);
+      try {
+        if (genre === "All") {
+          const { data, error } = await db
+            .from("v_leaderboard_global")
+            .select("category, user_id, display_name, watched_count, rank");
+
+          if (error) {
+            console.error("Leaderboard fetch error:", error.message);
+            setItems([]);
+            return;
+          }
+
+          const rows =
+            (data as Array<{
+              category: string;
+              user_id: string;
+              display_name: string | null;
+              watched_count: number | null;
+              rank: number | null;
+            }>) || [];
+
+          const filtered = rows.filter((row) => row.category === category);
+          const userIds = [...new Set(filtered.map((row) => row.user_id))];
+          const { data: profiles } = await db
+            .from("profiles")
+            .select("id, username, profile_pic, display_name")
+            .in("id", userIds);
+
+          const profileMap = new Map(
+            (profiles || []).map((p: any) => [p.id, p]),
+          );
+
+          const nextItems = filtered
+            .sort((a, b) => (a.rank || 0) - (b.rank || 0))
+            .map((row, index) => {
+              const profile = profileMap.get(row.user_id);
+              return {
+                rank: row.rank || index + 1,
+                userId: row.user_id,
+                displayName:
+                  row.display_name || profile?.display_name || "User",
+                username: profile?.username || "",
+                count: row.watched_count || 0,
+                profilePic: profile?.profile_pic || null,
+              };
+            });
+
+          setItems(nextItems);
+          return;
+        }
+
+        // Genre filter: compute from v_user_ratings
+        const { data, error } = await db
+          .from("v_user_ratings")
+          .select("user_id, title_type, genres")
+          .eq("title_type", category)
+          .contains("genres", [genre]);
+
+        if (error) {
+          console.error("Genre leaderboard error:", error.message);
+          setItems([]);
+          return;
+        }
+
+        const counts = new Map<string, number>();
+        (data || []).forEach((row: any) => {
+          counts.set(row.user_id, (counts.get(row.user_id) || 0) + 1);
+        });
+
+        const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+        const userIds = sorted.map(([id]) => id);
+        const { data: profiles } = await db
+          .from("profiles")
+          .select("id, username, profile_pic, display_name")
+          .in("id", userIds);
+
+        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+        const nextItems = sorted.map(([id, count], index) => {
+          const profile = profileMap.get(id);
+          return {
+            rank: index + 1,
+            userId: id,
+            displayName: profile?.display_name || "User",
+            username: profile?.username || "",
+            count,
+            profilePic: profile?.profile_pic || null,
+          };
+        });
+
+        setItems(nextItems);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLeaderboard();
+  }, [category, genre]);
+
+  const subtitle = useMemo(() => {
+    if (genre === "All") {
+      return "Number of places on your been list";
+    }
+    return `${genre} watched count`;
+  }, [genre]);
+
   const renderRow = ({ item }: { item: LeaderItem }) => (
     <View style={styles.row}>
       <Text style={styles.rank}>{item.rank}</Text>
 
-      <Image source={item.avatar} style={styles.avatar} />
+      <Image
+        source={item.profilePic ? { uri: item.profilePic } : placeholder_pfp}
+        style={styles.avatar}
+      />
 
-      <Text style={styles.username}>{item.username}</Text>
+      <View style={styles.userInfo}>
+        <Text style={styles.displayName}>{item.displayName}</Text>
+        {item.username ? (
+          <Text style={styles.username}>@{item.username}</Text>
+        ) : null}
+      </View>
 
-      <Text style={styles.score}>{item.score}</Text>
+      <Text style={styles.score}>{item.count}</Text>
     </View>
   );
 
@@ -38,15 +194,84 @@ export default function LeaderboardScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>Leaderboard</Text>
 
+        <View style={styles.tabs}>
+          {CATEGORY_TABS.map((tab) => (
+            <Pressable
+              key={tab.key}
+              style={[styles.tab, category === tab.key && styles.tabActive]}
+              onPress={() => setCategory(tab.key)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  category === tab.key && styles.tabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          style={styles.genreDropdown}
+          onPress={() => setGenreModalVisible(true)}
+        >
+          <Text style={styles.genreDropdownText}>{genre}</Text>
+          <Text style={styles.genreChevron}>⌄</Text>
+        </Pressable>
+
+        <Text style={styles.subtitle}>{subtitle}</Text>
+
         <FlatList
-          data={DATA}
+          data={items}
           renderItem={renderRow}
-          keyExtractor={(item) => item.username}
+          keyExtractor={(item) => item.userId}
           contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
+            loading ? null : <Text style={styles.emptyText}>No data yet.</Text>
+          }
         />
       </View>
 
       <NavBar />
+
+      <Modal
+        visible={genreModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGenreModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setGenreModalVisible(false)}
+        >
+          <Pressable style={styles.modalContent} onPress={() => null}>
+            <Text style={styles.modalTitle}>Select Genre</Text>
+            <ScrollView style={styles.modalList} showsVerticalScrollIndicator>
+              {GENRES.map((g) => (
+                <Pressable
+                  key={g}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setGenre(g);
+                    setGenreModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      genre === g && styles.modalOptionSelected,
+                    ]}
+                  >
+                    {g}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -61,50 +286,142 @@ const styles = StyleSheet.create({
     paddingTop: "18%",
     paddingHorizontal: 20,
   },
-
   title: {
     fontSize: 32,
     fontWeight: "700",
-    marginBottom: 20,
+    marginBottom: 12,
     color: "#000",
   },
-
+  subtitle: {
+    color: "#8B8B8B",
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  tabs: {
+    flexDirection: "row",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E6E6E6",
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#F7F7F7",
+  },
+  tabActive: {
+    backgroundColor: "#fff",
+  },
+  tabText: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "600",
+  },
+  tabTextActive: {
+    color: "#000",
+  },
+  genreDropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E6E6E6",
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  genreDropdownText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000",
+  },
+  genreChevron: {
+    fontSize: 16,
+    color: "#666",
+  },
   listContainer: {
     paddingBottom: 100,
   },
-
   row: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#e5e5e5",
   },
-
   rank: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
-    width: 30,
+    width: 26,
   },
-
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     marginRight: 12,
   },
-
-  username: {
-    fontSize: 16,
-    fontWeight: "500",
+  userInfo: {
     flex: 1,
   },
-
+  displayName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000",
+  },
+  username: {
+    fontSize: 13,
+    color: "#8B8B8B",
+    marginTop: 2,
+  },
   score: {
     fontSize: 16,
     fontWeight: "700",
     color: "#000",
     marginRight: 8,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#999",
+    paddingVertical: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+    width: "100%",
+    maxWidth: 360,
+    maxHeight: 360,
+  },
+  modalTitle: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 8,
+  },
+  modalList: {
+    maxHeight: 280,
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  modalOptionText: {
+    fontSize: 15,
+    color: "#111",
+  },
+  modalOptionSelected: {
+    fontWeight: "600",
+    color: "#007AFF",
   },
 });

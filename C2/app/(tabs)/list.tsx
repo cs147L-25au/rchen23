@@ -26,16 +26,11 @@ type RankedItem = {
   score: number | null;
 };
 
-type MediaCategory = "Movies" | "TV Shows" | "Animated" | "Documentaries";
+type MediaCategory = "Movies" | "TV Shows" | "Documentaries";
 type SortOption = "Score" | "Title" | "Date added";
 type ListTab = "Watched" | "Watchlist" | "Favorites";
 
-const CATEGORIES: MediaCategory[] = [
-  "Movies",
-  "TV Shows",
-  "Animated",
-  "Documentaries",
-];
+const CATEGORIES: MediaCategory[] = ["Movies", "TV Shows", "Documentaries"];
 const SORT_OPTIONS: SortOption[] = ["Score", "Title", "Date added"];
 const TABS_HEIGHT = 44;
 
@@ -105,7 +100,7 @@ export default function ListScreen() {
               : row.titles?.genres || "Unknown genre",
             meta: "Watchlist",
             score: null,
-          })
+          }),
         );
         setItems(ranked);
         return;
@@ -115,7 +110,6 @@ export default function ListScreen() {
       const titleTypeMap: Record<MediaCategory, string | null> = {
         Movies: "movie",
         "TV Shows": "tv",
-        Animated: "animated",
         Documentaries: "documentary",
       };
       const titleTypeFilter = titleTypeMap[selectedCategory];
@@ -145,6 +139,8 @@ export default function ListScreen() {
         return;
       }
 
+      const scoresUnlocked = data.length >= 10;
+
       // Build ranked items from v_user_ratings
       const ranked: RankedItem[] = data.map((row: any, idx: number) => ({
         rank: idx + 1,
@@ -155,7 +151,7 @@ export default function ListScreen() {
         meta: row.category
           ? `${row.category.charAt(0).toUpperCase()}${row.category.slice(1)}`
           : "",
-        score: row.score ?? null,
+        score: scoresUnlocked ? (row.score ?? null) : null,
       }));
 
       setItems(ranked);
@@ -278,7 +274,9 @@ export default function ListScreen() {
         </ScrollView>
       </View>
 
-      <View style={[styles.contentBelowTabs, { paddingTop: headerFixedHeight }]}>
+      <View
+        style={[styles.contentBelowTabs, { paddingTop: headerFixedHeight }]}
+      >
         {/* Sort row */}
         <Pressable
           style={styles.sortRow}
