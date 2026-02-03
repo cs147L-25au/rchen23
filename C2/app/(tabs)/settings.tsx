@@ -25,8 +25,8 @@ import LikesModal, { LikeUser } from "../../components/LikesModal";
 import { getProfileById, UserProfile } from "../../database/profileQueries";
 import {
   FeedEvent,
-  getAllRatings,
   getUserFeedEvents,
+  getUserRatings,
   RatingPost,
 } from "../../database/queries";
 import {
@@ -36,6 +36,9 @@ import {
 } from "../../lib/likesDb";
 import { getCurrentUserId } from "../../lib/ratingsDb";
 import { getUserWatchlist } from "../../lib/watchlistDb";
+
+const DEFAULT_PROFILE_URL =
+  "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 
 type WatchlistItem = {
   id: string;
@@ -53,9 +56,6 @@ type WatchlistItem = {
     release_year?: number | null;
   };
 };
-
-const DEFAULT_PROFILE_PIC =
-  "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -82,7 +82,7 @@ export default function SettingsScreen() {
     return uniqueTitles.size;
   })();
   const wantToWatch = userBookmarks.length;
-  const currentStreak = 15;
+  const currentStreak = profile?.weekly_streak ?? 0;
 
   const loadRecentActivity = async () => {
     try {
@@ -90,8 +90,12 @@ export default function SettingsScreen() {
       const userId = await getCurrentUserId();
       setCurrentUserId(userId);
 
-      const data = await getAllRatings();
-      setUserRatings(data);
+      if (userId) {
+        const data = await getUserRatings(userId);
+        setUserRatings(data);
+      } else {
+        setUserRatings([]);
+      }
 
       if (!userId) {
         setProfile(null);
@@ -103,7 +107,11 @@ export default function SettingsScreen() {
       }
 
       const profileData = await getProfileById(userId);
-      setProfile(profileData);
+      const cleanedProfile =
+        profileData?.profile_pic === DEFAULT_PROFILE_URL
+          ? { ...profileData, profile_pic: null }
+          : profileData;
+      setProfile(cleanedProfile);
 
       const bookmarks = await getUserWatchlist(userId);
       setUserBookmarks(bookmarks as WatchlistItem[]);
@@ -258,7 +266,7 @@ export default function SettingsScreen() {
       <FeedItem
         userName={userName}
         userInitials={userInitials}
-        profileImage={DEFAULT_PROFILE_PIC}
+        profileImage={profile?.profile_pic || null}
         actionType={actionType}
         title={item.title}
         score={item.score ?? null}
@@ -296,12 +304,14 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerTop}>
-            <Image
-              source={{
-                uri: profile?.profile_pic || DEFAULT_PROFILE_PIC,
-              }}
-              style={styles.profilePic}
-            />
+            {profile?.profile_pic ? (
+              <Image
+                source={{ uri: profile.profile_pic }}
+                style={styles.profilePic}
+              />
+            ) : (
+              <View style={styles.profilePicPlaceholder} />
+            )}
             <Text style={styles.userName}>{userName}</Text>
             <Text style={styles.userHandle}>{userHandle}</Text>
           </View>
@@ -445,6 +455,13 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 40,
     marginBottom: 8,
+  },
+  profilePicPlaceholder: {
+    width: 110,
+    height: 110,
+    borderRadius: 40,
+    marginBottom: 8,
+    backgroundColor: "#ededed",
   },
   userName: {
     fontSize: 24,

@@ -38,9 +38,6 @@ type CastMember = {
 const ACCENT_RED = "#B3261E";
 const TMDB_API_KEY = "b6a79cf2e43d2d321e6bba3ca5b02c63";
 
-const DEFAULT_PROFILE_PIC =
-  "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
-
 // Make sure a profile row exists for the current user
 async function ensureProfile() {
   const {
@@ -53,7 +50,6 @@ async function ensureProfile() {
   await db.from("profiles").upsert(
     {
       id: user.id, // must be the PK in profiles
-      profile_pic: DEFAULT_PROFILE_PIC,
     },
     { onConflict: "id" },
   );

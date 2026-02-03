@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -10,16 +10,17 @@ import {
   View,
 } from "react-native";
 
+import db from "../database/db";
 import { FeedEvent, getFeedEvents } from "../database/queries";
-import { getCurrentUserId } from "../lib/ratingsDb";
-import LikesModal, { LikeUser } from "./LikesModal";
 import {
   getLikeStateForEvents,
   getLikesForEvent,
   toggleLikeForEvent,
 } from "../lib/likesDb";
+import { getCurrentUserId } from "../lib/ratingsDb";
 import { isInWatchlistByTmdb, toggleWatchlistByTmdb } from "../lib/watchlistDb";
 import FeedItem, { ActionType } from "./FeedItem";
+import LikesModal, { LikeUser } from "./LikesModal";
 
 // Helper to get user initials from display name
 const getInitials = (name: string): string => {
@@ -72,6 +73,9 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
   const [likesModalLoading, setLikesModalLoading] = useState(false);
   const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
 
+  const DEFAULT_PROFILE_URL =
+    "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
+
   useEffect(() => {
     const init = async () => {
       const userId = await getCurrentUserId();
@@ -93,15 +97,42 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
       setError(null);
 
       const data = await getFeedEvents();
-      setFeedItems(data);
+      const userIds = [...new Set(data.map((item) => item.user_id))];
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await db
+          .from("profiles")
+          .select("id, display_name, profile_pic")
+          .in("id", userIds);
+
+        if (profilesError) {
+          console.warn("Feed profile fetch error:", profilesError.message);
+          setFeedItems(data);
+        } else {
+          const profileMap = new Map(
+            (profiles || []).map((profile: any) => [profile.id, profile]),
+          );
+          const merged = data.map((item) => {
+            const profile = profileMap.get(item.user_id);
+            const profilePic =
+              profile?.profile_pic === DEFAULT_PROFILE_URL
+                ? null
+                : profile?.profile_pic;
+            return {
+              ...item,
+              display_name: profile?.display_name || item.display_name,
+              profile_pic: profilePic || item.profile_pic,
+            };
+          });
+          setFeedItems(merged);
+        }
+      } else {
+        setFeedItems(data);
+      }
 
       const eventIds = data.map((item) => item.event_id);
       const activeUserId = userIdOverride ?? currentUserId;
       if (activeUserId) {
-        const likeState = await getLikeStateForEvents(
-          activeUserId,
-          eventIds
-        );
+        const likeState = await getLikeStateForEvents(activeUserId, eventIds);
         setLikeCounts(likeState.likeCounts);
         setLiked(likeState.likedEventIds);
       } else {
@@ -131,7 +162,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
           const result = await isInWatchlistByTmdb(
             activeUserId,
             tmdbId,
-            mediaType as "movie" | "tv"
+            mediaType as "movie" | "tv",
           );
           if (result.inWatchlist) {
             // Mark all events with this title as bookmarked
@@ -177,7 +208,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
       ...counts,
       [eventId]: Math.max(
         0,
-        (counts[eventId] || 0) + (isCurrentlyLiked ? -1 : 1)
+        (counts[eventId] || 0) + (isCurrentlyLiked ? -1 : 1),
       ),
     }));
 
@@ -240,7 +271,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
         (feedItem) =>
           feedItem.tmdb_id === item.tmdb_id &&
           feedItem.tmdb_media_type === item.tmdb_media_type &&
-          bookmarked.has(feedItem.event_id)
+          bookmarked.has(feedItem.event_id),
       );
 
       if (alreadyBookmarkedForTitle) {

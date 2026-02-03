@@ -53,6 +53,31 @@ export interface TMDBSearchResponse {
   results: TMDBMediaResult[];
 }
 
+export interface TMDBPersonCredit {
+  id: number;
+  media_type?: "movie" | "tv";
+  title?: string;
+  name?: string;
+  character?: string;
+  job?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path?: string | null;
+  popularity?: number;
+}
+
+export interface TMDBPersonDetails {
+  id: number;
+  name: string;
+  profile_path?: string | null;
+  biography?: string;
+  known_for_department?: string;
+  combined_credits?: {
+    cast: TMDBPersonCredit[];
+    crew: TMDBPersonCredit[];
+  };
+}
+
 // Trending movie item
 export interface TrendingMovie {
   id: number;
@@ -75,7 +100,7 @@ export interface TrendingMovieDetailed extends TrendingMovie {
 // helper to build image URL
 export function getPosterUrl(
   posterPath?: string | null,
-  profilePath?: string | null
+  profilePath?: string | null,
 ): string | null {
   const path = posterPath ?? profilePath ?? null;
   if (!path) return null;
@@ -90,10 +115,10 @@ async function loadGenres(): Promise<void> {
   try {
     const [movieRes, tvRes] = await Promise.all([
       fetch(
-        `https://api.themoviedb.org/3/genre/movie/list?api_key=${TMDB_API_KEY}&language=en-US`
+        `https://api.themoviedb.org/3/genre/movie/list?api_key=${TMDB_API_KEY}&language=en-US`,
       ),
       fetch(
-        `https://api.themoviedb.org/3/genre/tv/list?api_key=${TMDB_API_KEY}&language=en-US`
+        `https://api.themoviedb.org/3/genre/tv/list?api_key=${TMDB_API_KEY}&language=en-US`,
       ),
     ]);
 
@@ -120,7 +145,7 @@ async function loadGenres(): Promise<void> {
 // Convert genre IDs to names
 export function getGenreNames(
   genreIds: number[],
-  mediaType: "movie" | "tv"
+  mediaType: "movie" | "tv",
 ): string[] {
   const map = mediaType === "movie" ? movieGenreMap : tvGenreMap;
   return genreIds
@@ -143,7 +168,7 @@ export async function getGenresForTitle(title: string): Promise<string> {
 
     // Find the first movie or TV result
     const match = results.find(
-      (r) => r.media_type === "movie" || r.media_type === "tv"
+      (r) => r.media_type === "movie" || r.media_type === "tv",
     );
 
     if (!match || !match.genre_ids || match.genre_ids.length === 0) {
@@ -152,7 +177,7 @@ export async function getGenresForTitle(title: string): Promise<string> {
 
     const genreNames = getGenreNames(
       match.genre_ids,
-      match.media_type as "movie" | "tv"
+      match.media_type as "movie" | "tv",
     );
     return genreNames.length > 0 ? genreNames.join(", ") : "Genres unavailable";
   } catch (err) {
@@ -171,7 +196,7 @@ export async function searchTMDB(query: string): Promise<TMDBMediaResult[]> {
   await loadGenres();
 
   const url = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=en-US&include_adult=false&query=${encodeURIComponent(
-    query.trim()
+    query.trim(),
   )}`;
 
   const res = await fetch(url);
@@ -183,10 +208,21 @@ export async function searchTMDB(query: string): Promise<TMDBMediaResult[]> {
   return data.results;
 }
 
+export async function fetchPersonDetails(
+  personId: number,
+): Promise<TMDBPersonDetails> {
+  const url = `https://api.themoviedb.org/3/person/${personId}?api_key=${TMDB_API_KEY}&language=en-US&append_to_response=combined_credits`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`TMDB person failed with status ${res.status}`);
+  }
+  return (await res.json()) as TMDBPersonDetails;
+}
+
 // 2. detail API: /movie/{id}?append_to_response=credits OR /tv/{id}?append_to_response=credits
 export async function fetchDetails(
   id: number,
-  mediaType: "movie" | "tv"
+  mediaType: "movie" | "tv",
 ): Promise<TMDBDetailsData> {
   const baseUrl =
     mediaType === "movie"
@@ -232,7 +268,8 @@ export async function fetchDetails(
   if (data.credits && Array.isArray(data.credits.crew)) {
     const dirEntry: TMDBCrewMember | undefined = data.credits.crew.find(
       (crewMember: TMDBCrewMember) =>
-        crewMember.job === "Director" || crewMember.job === "Executive Producer"
+        crewMember.job === "Director" ||
+        crewMember.job === "Executive Producer",
     );
     if (dirEntry) {
       director = dirEntry.name;
@@ -261,7 +298,7 @@ export async function fetchDetails(
 
 // 3. Fetch trending movies from TMDB
 export async function fetchTrendingMovies(
-  timeWindow: "day" | "week" = "week"
+  timeWindow: "day" | "week" = "week",
 ): Promise<TrendingMovie[]> {
   const url = `https://api.themoviedb.org/3/trending/movie/${timeWindow}?api_key=${TMDB_API_KEY}&language=en-US`;
 
@@ -315,7 +352,7 @@ export async function fetchTrendingMovies(
 // Supports pagination for infinite scroll
 export async function fetchTrendingDetailed(
   page: number = 1,
-  count: number = 20
+  count: number = 20,
 ): Promise<{ items: TrendingMovieDetailed[]; hasMore: boolean }> {
   // Ensure genre mappings are loaded
   await loadGenres();
@@ -324,10 +361,10 @@ export async function fetchTrendingDetailed(
     // Fetch both trending movies and TV shows with pagination
     const [moviesRes, tvRes] = await Promise.all([
       fetch(
-        `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
+        `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`,
       ),
       fetch(
-        `https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
+        `https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`,
       ),
     ]);
 
@@ -429,7 +466,7 @@ export async function fetchTrendingDetailed(
             _rawDate: "", // For internal sorting
           };
         }
-      })
+      }),
     );
 
     // Filter and sort by release date
@@ -455,7 +492,7 @@ export async function fetchTrendingDetailed(
 
     // Remove the _rawDate helper property before returning (keep release_timestamp for client sorting)
     const cleanedItems = filteredItems.map(
-      ({ _rawDate, ...rest }) => rest
+      ({ _rawDate, ...rest }) => rest,
     ) as TrendingMovieDetailed[];
 
     return { items: cleanedItems, hasMore: hasMore && cleanedItems.length > 0 };

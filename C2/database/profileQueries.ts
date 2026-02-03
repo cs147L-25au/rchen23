@@ -189,18 +189,65 @@ export async function uploadProfilePicture(
   mimeType: string = "image/jpeg",
 ): Promise<string | null> {
   try {
+    console.log("📤 uploadProfilePicture: start", {
+      userId,
+      imageUri,
+      mimeType,
+    });
+    const bucketName = "RC_profile";
+    const { data: sessionData, error: sessionError } =
+      await db.auth.getSession();
+    if (sessionError) {
+      console.warn("⚠️ uploadProfilePicture: session error", sessionError);
+    }
+    console.log("🔎 uploadProfilePicture: session", {
+      hasSession: Boolean(sessionData?.session),
+      role: sessionData?.session?.user?.role,
+      sessionUserId: sessionData?.session?.user?.id,
+    });
+
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await db.auth.getUser();
+    if (authError) {
+      console.warn("⚠️ uploadProfilePicture: auth lookup error", authError);
+    }
+    console.log("🔎 uploadProfilePicture: auth user", {
+      authUserId: authUser?.id,
+      authRole: authUser?.role,
+      expectedUserId: userId,
+    });
+    if (!authUser?.id) {
+      console.warn("⚠️ uploadProfilePicture: no authenticated user");
+      return null;
+    }
+    if (authUser.id !== userId) {
+      console.warn("⚠️ uploadProfilePicture: userId mismatch", {
+        userId,
+        authUserId: authUser.id,
+      });
+    }
+    const effectiveUserId = authUser.id;
     // Generate a unique filename
     const fileExt = mimeType.split("/")[1] || "jpg";
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    const fileName = `${effectiveUserId}/${Date.now()}.${fileExt}`;
+    console.log("🔎 uploadProfilePicture: storage target", {
+      bucketName,
+      fileName,
+    });
 
-    // Fetch the image as a blob
+    // Fetch the image as arrayBuffer (blob() not available in RN)
     const response = await fetch(imageUri);
-    const blob = await response.blob();
+    if (!response.ok) {
+      throw new Error(`Image fetch failed: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
 
     // Upload to Supabase Storage
     const { data, error } = await db.storage
-      .from("profile-pictures")
-      .upload(fileName, blob, {
+      .from(bucketName)
+      .upload(fileName, arrayBuffer, {
         contentType: mimeType,
         upsert: true,
       });
@@ -212,19 +259,20 @@ export async function uploadProfilePicture(
 
     // Get the public URL
     const { data: urlData } = db.storage
-      .from("profile-pictures")
+      .from(bucketName)
       .getPublicUrl(data.path);
 
     const publicUrl = urlData.publicUrl;
+    const cacheBustedUrl = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}t=${Date.now()}`;
 
     // Update the profile with the new picture URL
-    await updateProfile(userId, { profile_pic: publicUrl });
+    await updateProfile(effectiveUserId, { profile_pic: cacheBustedUrl });
 
     console.log(
       "✅ uploadProfilePicture: Uploaded and updated profile:",
-      publicUrl,
+      cacheBustedUrl,
     );
-    return publicUrl;
+    return cacheBustedUrl;
   } catch (error: any) {
     console.error("❌ uploadProfilePicture failed:", error?.message || error);
     return null;

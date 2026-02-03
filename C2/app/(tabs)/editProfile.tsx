@@ -29,7 +29,7 @@ import {
 } from "../../database/profileQueries";
 import { getCurrentUserId } from "../../lib/ratingsDb";
 
-const DEFAULT_PROFILE_PIC =
+const DEFAULT_PROFILE_URL =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 
 type EditField = "name" | "username" | "birthday";
@@ -55,12 +55,16 @@ export default function EditProfileScreen() {
         return;
       }
       const data = await getProfileById(userId);
-      setProfile(data);
+      const cleaned =
+        data?.profile_pic === DEFAULT_PROFILE_URL
+          ? { ...data, profile_pic: null }
+          : data;
+      setProfile(cleaned);
       setFirstName(data?.first_name || "");
       setLastName(data?.last_name || "");
       setUsername(data?.username || "");
       setBirthday(data?.birthday || "");
-      setProfilePhoto(data?.profile_pic || null);
+      setProfilePhoto(cleaned?.profile_pic || null);
     } finally {
       setLoading(false);
     }
@@ -215,10 +219,11 @@ export default function EditProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.avatarSection}>
-          <Image
-            source={{ uri: profilePhoto || DEFAULT_PROFILE_PIC }}
-            style={styles.avatar}
-          />
+          {profilePhoto ? (
+            <Image source={{ uri: profilePhoto }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder} />
+          )}
           <TouchableOpacity onPress={handlePhotoOptions}>
             <Text style={styles.editPhotoText}>Edit profile photo</Text>
           </TouchableOpacity>

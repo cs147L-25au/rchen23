@@ -199,9 +199,7 @@ export async function signOut(): Promise<void> {
 
     // Clear stored data
     await clearStoredUserId();
-    if (userId) {
-      await clearOnboardingStatus(userId);
-    }
+    // Keep onboarding status so returning users don't repeat it
 
     console.log("✅ signOut: Successfully signed out");
   } catch (e) {

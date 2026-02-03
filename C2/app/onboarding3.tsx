@@ -14,26 +14,34 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import db from "@/database/db";
 import {
   getProfileById,
   updateProfile,
   uploadProfilePicture,
   UserProfile,
 } from "@/database/profileQueries";
-import { getAuthUserId, setOnboardingComplete } from "@/utils/auth";
+import {
+  getAuthUserId,
+  setOnboardingComplete,
+  storeUserId,
+} from "@/utils/auth";
 
 const ACCENT_RED = "#B3261E";
 
 export default function OnboardingProfilePhotoScreen() {
-  const params = useLocalSearchParams<{ userId?: string }>();
+  const params = useLocalSearchParams<{ userId?: string; email?: string }>();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const [usernameSaving, setUsernameSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -42,6 +50,55 @@ export default function OnboardingProfilePhotoScreen() {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  const normalizeUsername = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "")
+      .slice(0, 24);
+
+  const isUsernameAvailable = async (value: string, userId: string) => {
+    const cleaned = normalizeUsername(value);
+    if (!cleaned) return false;
+    const { data, error } = await db
+      .from("profiles")
+      .select("id")
+      .eq("username", cleaned)
+      .maybeSingle();
+    if (error) {
+      console.warn("Username check failed:", error.message);
+      return false;
+    }
+    return !data || data.id === userId;
+  };
+
+  const generateUsername = async () => {
+    if (usernameSaving) return;
+    const base =
+      profile?.first_name?.toLowerCase().replace(/[^a-z0-9]/g, "") || "user";
+    const adjectives = ["bright", "swift", "cool", "happy", "bold", "lucky"];
+    setUsernameSaving(true);
+    try {
+      const userId = await getAuthUserId({ userId: params.userId });
+      if (!userId) return;
+      for (let i = 0; i < 8; i += 1) {
+        const suffix = Math.floor(100 + Math.random() * 900);
+        const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+        const candidate = normalizeUsername(`${adj}_${base}${suffix}`);
+        const available = await isUsernameAvailable(candidate, userId);
+        if (available) {
+          setUsername(candidate);
+          return;
+        }
+      }
+      Alert.alert(
+        "Username Unavailable",
+        "Couldn't find an available username. Please try again.",
+      );
+    } finally {
+      setUsernameSaving(false);
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -53,6 +110,7 @@ export default function OnboardingProfilePhotoScreen() {
           if (profileData.profile_pic) {
             setProfilePic(profileData.profile_pic);
           }
+          setUsername(profileData.username || "");
         }
       }
     } catch (error) {
@@ -142,7 +200,20 @@ export default function OnboardingProfilePhotoScreen() {
     setSaving(true);
 
     try {
-      const userId = await getAuthUserId({ userId: params.userId });
+      const { data: sessionData } = await db.auth.getSession();
+      const sessionUserId = sessionData?.session?.user?.id;
+      if (!sessionUserId) {
+        Alert.alert(
+          "Sign in required",
+          "Please sign in again to finish onboarding.",
+        );
+        router.replace("/auth");
+        setSaving(false);
+        return;
+      }
+
+      const userId =
+        sessionUserId || (await getAuthUserId({ userId: params.userId }));
 
       if (!userId) {
         Alert.alert(
@@ -153,18 +224,49 @@ export default function OnboardingProfilePhotoScreen() {
         return;
       }
 
+      await storeUserId(userId);
+
+      // Ensure username is set + unique
+      let cleanedUsername = normalizeUsername(username);
+      if (!cleanedUsername) {
+        await generateUsername();
+        cleanedUsername = normalizeUsername(username);
+      }
+      if (!cleanedUsername) {
+        Alert.alert("Username Required", "Please choose a username.");
+        setSaving(false);
+        return;
+      }
+      const available = await isUsernameAvailable(cleanedUsername, userId);
+      if (!available) {
+        Alert.alert("Username Taken", "Please choose another username.");
+        setSaving(false);
+        return;
+      }
+      console.log("🧾 Saving username:", { userId, username: cleanedUsername });
+      await updateProfile(userId, { username: cleanedUsername });
+      console.log("✅ Username saved:", { userId, username: cleanedUsername });
+
       // Upload profile picture if selected and it's a local URI
       if (profilePic && profilePic.startsWith("file://")) {
-        console.log("📸 Uploading profile picture...");
+        console.log("📸 Uploading profile picture...", { userId });
         const uploadedUrl = await uploadProfilePicture(userId, profilePic);
         if (uploadedUrl) {
-          console.log("✅ Profile picture uploaded:", uploadedUrl);
+          console.log("✅ Profile picture uploaded:", {
+            userId,
+            url: uploadedUrl,
+          });
         } else {
           console.warn("⚠️ Profile picture upload failed, continuing...");
         }
       } else if (profilePic && !profilePic.startsWith("file://")) {
         // It's already a URL, just update the profile
+        console.log("🧾 Saving profile photo URL:", {
+          userId,
+          url: profilePic,
+        });
         await updateProfile(userId, { profile_pic: profilePic });
+        console.log("✅ Profile photo URL saved:", { userId, url: profilePic });
       }
 
       // Mark onboarding as complete (stored in AsyncStorage)
@@ -258,6 +360,31 @@ export default function OnboardingProfilePhotoScreen() {
           {profile?.email && (
             <Text style={styles.userEmail}>{profile.email}</Text>
           )}
+
+          <View style={styles.usernameRow}>
+            <Text style={styles.usernameLabel}>Username</Text>
+            <View style={styles.usernameInputRow}>
+              <Text style={styles.usernamePrefix}>@</Text>
+              <TextInput
+                value={username}
+                onChangeText={(value) => setUsername(normalizeUsername(value))}
+                placeholder="yourname"
+                placeholderTextColor="#aaa"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.usernameInput}
+              />
+            </View>
+            <Pressable
+              style={styles.usernameButton}
+              onPress={generateUsername}
+              disabled={usernameSaving}
+            >
+              <Text style={styles.usernameButtonText}>
+                {usernameSaving ? "Generating..." : "Generate username"}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <Text style={styles.description}>
@@ -449,6 +576,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     marginBottom: 4,
+  },
+  usernameRow: {
+    marginTop: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  usernameLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 6,
+  },
+  usernameInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#fafafa",
+  },
+  usernamePrefix: {
+    fontSize: 16,
+    color: "#888",
+    marginRight: 4,
+  },
+  usernameInput: {
+    flex: 1,
+    fontSize: 16,
+    color: "#111",
+  },
+  usernameButton: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: "#f0f0f0",
+  },
+  usernameButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
   },
   description: {
     fontSize: 16,

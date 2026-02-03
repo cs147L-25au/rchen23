@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useState } from "react";
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -15,7 +16,8 @@ const ACCENT_RED = "#B3261E";
 const { width, height } = Dimensions.get("window");
 
 export default function OnboardingWelcomeScreen() {
-  const params = useLocalSearchParams<{ userId?: string }>();
+  const params = useLocalSearchParams<{ userId?: string; email?: string }>();
+  const [verifyEmail] = useState(params.email ?? "");
 
   const handleGoBack = async () => {
     // Sign out and clear stored userId so user can see the signup form
@@ -28,10 +30,13 @@ export default function OnboardingWelcomeScreen() {
     if (params.userId) {
       router.push({
         pathname: "/onboarding2",
-        params: { userId: params.userId },
+        params: { userId: params.userId, email: params.email },
       });
     } else {
-      router.push("/onboarding2");
+      router.push({
+        pathname: "/onboarding2",
+        params: { email: params.email },
+      });
     }
   };
 

@@ -99,7 +99,7 @@ const FeedItem: React.FC<FeedItemProps> = ({
               <Image source={{ uri: profileImage }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitials}>{userInitials}</Text>
+                <Ionicons name="person" size={22} color="#9a9a9a" />
               </View>
             )}
           </View>
@@ -235,16 +235,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#e5e5e5",
+    backgroundColor: "#ededed",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#d0d0d0",
-  },
-  avatarInitials: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#555",
   },
   contentContainer: {
     flex: 1,

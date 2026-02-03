@@ -1,17 +1,62 @@
-import React from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
-const pfp = require("../assets/profile_pic.png");
+import db from "../database/db";
+import { getCurrentUserId } from "../lib/ratingsDb";
+
+const DEFAULT_PROFILE_URL =
+  "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 const app_name = "MyFlix";
 
 const Header = () => {
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+
+  const loadProfilePic = useCallback(async () => {
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        setProfilePic(null);
+        return;
+      }
+      const { data, error } = await db
+        .from("profiles")
+        .select("profile_pic")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.warn("Header profile fetch error:", error.message);
+        setProfilePic(null);
+        return;
+      }
+
+      const nextPic =
+        data?.profile_pic === DEFAULT_PROFILE_URL ? null : data?.profile_pic;
+      setProfilePic(nextPic ?? null);
+    } catch (err) {
+      console.warn("Header profile fetch failed:", err);
+      setProfilePic(null);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfilePic();
+    }, [loadProfilePic]),
+  );
+
   return (
     <View style={styles.headerContainer}>
       <View style={styles.nameSection}>
         <Text style={styles.appName}>{app_name}</Text>
       </View>
       <View style={styles.profileCircle}>
-        <Image style={styles.profileImage} source={pfp} />
+        {profilePic ? (
+          <Image style={styles.profileImage} source={{ uri: profilePic }} />
+        ) : (
+          <View style={styles.profilePlaceholder} />
+        )}
       </View>
     </View>
   );
@@ -58,6 +103,12 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 25,
     resizeMode: "cover",
+  },
+  profilePlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 25,
+    backgroundColor: "#e0e0e0",
   },
 });
 

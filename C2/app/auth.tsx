@@ -23,12 +23,8 @@ import {
 } from "react-native";
 
 import db from "@/database/db";
-import { createProfile } from "@/database/profileQueries";
-import {
-  clearStoredUserId,
-  isOnboardingComplete,
-  storeUserId,
-} from "@/utils/auth";
+import { createProfile, getProfileById } from "@/database/profileQueries";
+import { clearStoredUserId, storeUserId } from "@/utils/auth";
 
 const ACCENT_RED = "#B3261E";
 
@@ -47,6 +43,12 @@ export default function AuthScreen() {
   const [showEmailVerificationModal, setShowEmailVerificationModal] =
     useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationUserId, setVerificationUserId] = useState<string | null>(
+    null,
+  );
+  const [pendingSignupPassword, setPendingSignupPassword] = useState<
+    string | null
+  >(null);
 
   // Restore signup form if coming back from onboarding
   useEffect(() => {
@@ -68,6 +70,9 @@ export default function AuthScreen() {
 
     setLoading(true);
     try {
+      await db.auth.signOut();
+      await clearStoredUserId();
+
       const { data, error } = await db.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -78,22 +83,35 @@ export default function AuthScreen() {
         return;
       }
 
-      if (data.user) {
-        await storeUserId(data.user.id);
+      const {
+        data: { user: currentUser },
+      } = await db.auth.getUser();
+      const authedUser = currentUser ?? data.user;
 
-        // Check if onboarding is complete and navigate accordingly
-        const onboardingDone = await isOnboardingComplete(data.user.id);
+      if (authedUser) {
+        await storeUserId(authedUser.id);
 
-        if (onboardingDone) {
-          // User has completed onboarding, go to main app
-          router.replace("/(tabs)/feed");
-        } else {
-          // User needs to complete onboarding
-          router.replace({
-            pathname: "/onboarding1",
-            params: { userId: data.user.id },
+        const existingProfile = await getProfileById(authedUser.id);
+        if (!existingProfile) {
+          const meta = authedUser.user_metadata || {};
+          const first = (meta.first_name || "").trim();
+          const last = (meta.last_name || "").trim();
+          const display =
+            (meta.display_name || "").trim() ||
+            [first, last].filter(Boolean).join(" ") ||
+            authedUser.email?.split("@")[0] ||
+            "User";
+          await createProfile({
+            id: authedUser.id,
+            email: authedUser.email || email.trim(),
+            first_name: first || display,
+            last_name: last || "",
+            display_name: display,
           });
         }
+
+        // Signed-in users go straight to the app
+        router.replace("/(tabs)/feed");
       }
     } catch (err) {
       console.error("Unexpected sign in error", err);
@@ -128,6 +146,7 @@ export default function AuthScreen() {
 
     setLoading(true);
     try {
+      setPendingSignupPassword(password);
       // First, sign out any existing user to ensure clean signup
       await db.auth.signOut();
       await clearStoredUserId();
@@ -155,6 +174,13 @@ export default function AuthScreen() {
         await storeUserId(data.user.id);
 
         // Create the profile in the database with all fields
+        console.log("🧾 Creating profile:", {
+          id: data.user.id,
+          email: email.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          display_name: `${firstName.trim()} ${lastName.trim()}`,
+        });
         const profile = await createProfile({
           id: data.user.id,
           email: email.trim(),
@@ -165,6 +191,8 @@ export default function AuthScreen() {
 
         if (!profile) {
           console.warn("⚠️ Profile creation failed, but user was created");
+        } else {
+          console.log("✅ Profile created:", profile.id);
         }
 
         // Check if email confirmation is required
@@ -172,6 +200,7 @@ export default function AuthScreen() {
         if (data.session === null && data.user) {
           // Show email verification modal
           setVerificationEmail(email.trim());
+          setVerificationUserId(data.user.id);
           setShowEmailVerificationModal(true);
         } else {
           // No email confirmation required, proceed to onboarding
@@ -191,13 +220,41 @@ export default function AuthScreen() {
 
   const handleVerificationModalClose = () => {
     setShowEmailVerificationModal(false);
-    // Clear form and switch to login mode
-    setEmail(verificationEmail);
-    setPassword("");
-    setConfirmPassword("");
-    setFirstName("");
-    setLastName("");
-    setMode("login");
+    const attemptAutoSignIn = async () => {
+      if (!verificationEmail || !pendingSignupPassword) {
+        setMode("login");
+        setEmail(verificationEmail);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const { data, error } = await db.auth.signInWithPassword({
+          email: verificationEmail,
+          password: pendingSignupPassword,
+        });
+        if (error || !data.user) {
+          setMode("login");
+          setEmail(verificationEmail);
+          return;
+        }
+        await storeUserId(data.user.id);
+        router.replace({
+          pathname: "/onboarding1",
+          params: { userId: data.user.id, email: verificationEmail },
+        });
+      } finally {
+        setPendingSignupPassword(null);
+        setPassword("");
+        setConfirmPassword("");
+        setFirstName("");
+        setLastName("");
+        setMode("login");
+        setLoading(false);
+      }
+    };
+
+    attemptAutoSignIn();
   };
 
   const toggleMode = () => {
@@ -321,8 +378,10 @@ export default function AuthScreen() {
               placeholderTextColor="#999999"
               secureTextEntry
               autoCapitalize="none"
-              textContentType="none"
+              autoCorrect={false}
+              textContentType="oneTimeCode"
               autoComplete="off"
+              importantForAutofill="no"
               style={styles.input}
             />
 
@@ -335,8 +394,10 @@ export default function AuthScreen() {
                 placeholderTextColor="#999999"
                 secureTextEntry
                 autoCapitalize="none"
-                textContentType="none"
+                autoCorrect={false}
+                textContentType="oneTimeCode"
                 autoComplete="off"
+                importantForAutofill="no"
                 style={styles.input}
               />
             )}

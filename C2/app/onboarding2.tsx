@@ -7,7 +7,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -26,7 +25,7 @@ import { getAuthUserId } from "@/utils/auth";
 const ACCENT_RED = "#B3261E";
 
 export default function OnboardingBirthdayScreen() {
-  const params = useLocalSearchParams<{ userId?: string }>();
+  const params = useLocalSearchParams<{ userId?: string; email?: string }>();
 
   // Calculate max date (must be at least 13 years old)
   const maxDate = new Date();
@@ -74,8 +73,9 @@ export default function OnboardingBirthdayScreen() {
 
       // Save birthday to database
       try {
+        console.log("🧾 Saving birthday:", { userId, birthday: birthdayStr });
         await updateProfile(userId, { birthday: birthdayStr });
-        console.log("✅ Birthday saved:", birthdayStr);
+        console.log("✅ Birthday saved:", { userId, birthday: birthdayStr });
       } catch (error) {
         console.warn("⚠️ Failed to save birthday, continuing anyway:", error);
       }
@@ -84,7 +84,7 @@ export default function OnboardingBirthdayScreen() {
     // Navigate to next step
     router.push({
       pathname: "/onboarding3",
-      params: { userId: userId || "" },
+      params: { userId: userId || "", email: params.email },
     });
   };
 
@@ -93,10 +93,13 @@ export default function OnboardingBirthdayScreen() {
     if (params.userId) {
       router.push({
         pathname: "/onboarding3",
-        params: { userId: params.userId },
+        params: { userId: params.userId, email: params.email },
       });
     } else {
-      router.push("/onboarding3");
+      router.push({
+        pathname: "/onboarding3",
+        params: { email: params.email },
+      });
     }
   };
 

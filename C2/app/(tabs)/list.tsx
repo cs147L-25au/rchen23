@@ -83,13 +83,13 @@ export default function ListScreen() {
     try {
       setLoading(true);
 
-      if (activeTab === "Watchlist") {
-        const userId = await getCurrentUserId();
-        if (!userId) {
-          setItems([]);
-          return;
-        }
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        setItems([]);
+        return;
+      }
 
+      if (activeTab === "Watchlist") {
         const watchlist = await getUserWatchlist(userId);
         const ranked: RankedItem[] = (watchlist || []).map(
           (row: any, idx: number) => ({
@@ -121,6 +121,8 @@ export default function ListScreen() {
           "title, genres, score, category, category_rank, global_rank, title_type",
         )
         .order("global_rank", { ascending: true });
+
+      query = query.eq("user_id", userId);
 
       // Filter by title_type if not showing all
       if (titleTypeFilter) {
