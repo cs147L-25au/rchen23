@@ -64,51 +64,50 @@ export default function LeaderboardScreen() {
     const loadLeaderboard = async () => {
       setLoading(true);
       try {
+        const { data: allProfiles, error: profileError } = await db
+          .from("profiles")
+          .select("id, username, profile_pic, display_name");
+
+        if (profileError) {
+          console.error("Profiles fetch error:", profileError.message);
+          setItems([]);
+          return;
+        }
+
         if (genre === "All") {
           const { data, error } = await db
             .from("v_leaderboard_global")
-            .select("category, user_id, display_name, watched_count, rank");
+            .select("category, user_id, watched_count");
 
           if (error) {
             console.error("Leaderboard fetch error:", error.message);
-            setItems([]);
-            return;
           }
 
           const rows =
             (data as Array<{
               category: string;
               user_id: string;
-              display_name: string | null;
               watched_count: number | null;
-              rank: number | null;
             }>) || [];
 
-          const filtered = rows.filter((row) => row.category === category);
-          const userIds = [...new Set(filtered.map((row) => row.user_id))];
-          const { data: profiles } = await db
-            .from("profiles")
-            .select("id, username, profile_pic, display_name")
-            .in("id", userIds);
-
-          const profileMap = new Map(
-            (profiles || []).map((p: any) => [p.id, p]),
-          );
-
-          const nextItems = filtered
-            .sort((a, b) => (a.rank || 0) - (b.rank || 0))
-            .map((row, index) => {
-              const profile = profileMap.get(row.user_id);
-              return {
-                rank: row.rank || index + 1,
-                userId: row.user_id,
-                displayName:
-                  row.display_name || profile?.display_name || "User",
-                username: profile?.username || "",
-                count: row.watched_count || 0,
-                profilePic: profile?.profile_pic || null,
-              };
+          const counts = new Map<string, number>();
+          rows
+            .filter((row) => row.category === category)
+            .forEach((row) => {
+              counts.set(row.user_id, row.watched_count || 0);
             });
+
+          const nextItems = (allProfiles || [])
+            .map((profile: any) => ({
+              rank: 0,
+              userId: profile.id,
+              displayName: profile.display_name || "User",
+              username: profile.username || "",
+              count: counts.get(profile.id) || 0,
+              profilePic: profile.profile_pic || null,
+            }))
+            .sort((a, b) => b.count - a.count)
+            .map((item, index) => ({ ...item, rank: index + 1 }));
 
           setItems(nextItems);
           return;
@@ -132,26 +131,17 @@ export default function LeaderboardScreen() {
           counts.set(row.user_id, (counts.get(row.user_id) || 0) + 1);
         });
 
-        const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-        const userIds = sorted.map(([id]) => id);
-        const { data: profiles } = await db
-          .from("profiles")
-          .select("id, username, profile_pic, display_name")
-          .in("id", userIds);
-
-        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-
-        const nextItems = sorted.map(([id, count], index) => {
-          const profile = profileMap.get(id);
-          return {
-            rank: index + 1,
-            userId: id,
-            displayName: profile?.display_name || "User",
-            username: profile?.username || "",
-            count,
-            profilePic: profile?.profile_pic || null,
-          };
-        });
+        const nextItems = (allProfiles || [])
+          .map((profile: any) => ({
+            rank: 0,
+            userId: profile.id,
+            displayName: profile.display_name || "User",
+            username: profile.username || "",
+            count: counts.get(profile.id) || 0,
+            profilePic: profile.profile_pic || null,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .map((item, index) => ({ ...item, rank: index + 1 }));
 
         setItems(nextItems);
       } finally {
