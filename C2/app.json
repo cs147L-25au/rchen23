@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true
     },
+    "platforms": ["ios", "android"],
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -43,6 +44,18 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "28041967-1564-405c-b1cd-d3bd8fda7084"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/28041967-1564-405c-b1cd-d3bd8fda7084"
     }
   }
 }
