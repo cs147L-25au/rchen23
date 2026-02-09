@@ -37,7 +37,8 @@ import {
 import { getCurrentUserId } from "../../lib/ratingsDb";
 import { getUserWatchlist } from "../../lib/watchlistDb";
 
-const DEFAULT_PROFILE_URL =
+const DEFAULT_PROFILE_IMAGE = require("../../assets/anon_pfp.png");
+const DEFAULT_PROFILE_URL_REMOTE =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 
 type WatchlistItem = {
@@ -108,7 +109,7 @@ export default function SettingsScreen() {
 
       const profileData = await getProfileById(userId);
       const cleanedProfile =
-        profileData?.profile_pic === DEFAULT_PROFILE_URL
+        profileData?.profile_pic === DEFAULT_PROFILE_URL_REMOTE
           ? { ...profileData, profile_pic: null }
           : profileData;
       setProfile(cleanedProfile);
@@ -304,14 +305,14 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerTop}>
-            {profile?.profile_pic ? (
-              <Image
-                source={{ uri: profile.profile_pic }}
-                style={styles.profilePic}
-              />
-            ) : (
-              <View style={styles.profilePicPlaceholder} />
-            )}
+            <Image
+              source={
+                profile?.profile_pic
+                  ? { uri: profile.profile_pic }
+                  : DEFAULT_PROFILE_IMAGE
+              }
+              style={styles.profilePic}
+            />
             <Text style={styles.userName}>{userName}</Text>
             <Text style={styles.userHandle}>{userHandle}</Text>
           </View>
@@ -455,13 +456,6 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 40,
     marginBottom: 8,
-  },
-  profilePicPlaceholder: {
-    width: 110,
-    height: 110,
-    borderRadius: 40,
-    marginBottom: 8,
-    backgroundColor: "#ededed",
   },
   userName: {
     fontSize: 24,

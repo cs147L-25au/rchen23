@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import NavBar from "../../components/NavBar";
 
-const placeholder_pfp = require("../../assets/profile_pic.png");
+const placeholder_pfp = require("../../assets/anon_pfp.png");
 
 type CategoryKey = "movie" | "tv" | "documentary";
 

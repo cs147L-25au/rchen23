@@ -4,6 +4,8 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { formatScore } from "../lib/ratingsDb";
 
+const DEFAULT_PROFILE_URL = require("../assets/anon_pfp.png");
+
 export type ActionType = "ranked" | "bookmarked" | "unbookmarked";
 
 interface FeedItemProps {
@@ -95,13 +97,10 @@ const FeedItem: React.FC<FeedItemProps> = ({
         <View style={styles.mainRow}>
           {/* Left: Avatar */}
           <View style={styles.avatarContainer}>
-            {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={22} color="#9a9a9a" />
-              </View>
-            )}
+            <Image
+              source={profileImage ? { uri: profileImage } : DEFAULT_PROFILE_URL}
+              style={styles.avatar}
+            />
           </View>
 
           {/* Middle: Content */}
@@ -230,16 +229,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-  },
-  avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#ededed",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#d0d0d0",
   },
   contentContainer: {
     flex: 1,

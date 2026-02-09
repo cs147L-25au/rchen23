@@ -5,7 +5,8 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import db from "../database/db";
 import { getCurrentUserId } from "../lib/ratingsDb";
 
-const DEFAULT_PROFILE_URL =
+const DEFAULT_PROFILE_IMAGE = require("../assets/anon_pfp.png");
+const DEFAULT_PROFILE_URL_REMOTE =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 const app_name = "MyFlix";
 
@@ -32,7 +33,9 @@ const Header = () => {
       }
 
       const nextPic =
-        data?.profile_pic === DEFAULT_PROFILE_URL ? null : data?.profile_pic;
+        data?.profile_pic === DEFAULT_PROFILE_URL_REMOTE
+          ? null
+          : data?.profile_pic;
       setProfilePic(nextPic ?? null);
     } catch (err) {
       console.warn("Header profile fetch failed:", err);
@@ -52,11 +55,10 @@ const Header = () => {
         <Text style={styles.appName}>{app_name}</Text>
       </View>
       <View style={styles.profileCircle}>
-        {profilePic ? (
-          <Image style={styles.profileImage} source={{ uri: profilePic }} />
-        ) : (
-          <View style={styles.profilePlaceholder} />
-        )}
+        <Image
+          style={styles.profileImage}
+          source={profilePic ? { uri: profilePic } : DEFAULT_PROFILE_IMAGE}
+        />
       </View>
     </View>
   );
@@ -103,12 +105,6 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 25,
     resizeMode: "cover",
-  },
-  profilePlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 25,
-    backgroundColor: "#e0e0e0",
   },
 });
 
