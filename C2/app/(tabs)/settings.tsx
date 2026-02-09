@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 
+import db from "@/database/db";
 import { signOut } from "@/utils/auth";
 import NavBar from "../../components/NavBar";
 
@@ -72,10 +73,10 @@ export default function SettingsScreen() {
   const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userRank, setUserRank] = useState<number | null>(null);
 
   const userName = profile?.display_name || "User";
   const userHandle = profile?.username ? `@${profile.username}` : "@user";
-  const userRank = 1;
   const followers = 0;
   const following = 0;
   const watched = (() => {
@@ -104,7 +105,41 @@ export default function SettingsScreen() {
         setRecentEvents([]);
         setLikeCounts({});
         setLikedEvents(new Set());
+        setUserRank(null);
         return;
+      }
+
+      // Fetch user's leaderboard rank (based on total movie watched count)
+      try {
+        const { data: leaderboardData } = await db
+          .from("v_leaderboard_global")
+          .select("user_id, watched_count")
+          .eq("category", "movie");
+
+        if (leaderboardData) {
+          // Sort by watched_count descending
+          const sorted = leaderboardData
+            .map((row: { user_id: string; watched_count: number | null }) => ({
+              userId: row.user_id,
+              count: row.watched_count || 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+
+          // Assign ranks with tie handling (standard competition ranking)
+          let currentRank = 1;
+          const rankedItems = sorted.map((item, index) => {
+            if (index > 0 && item.count < sorted[index - 1].count) {
+              currentRank = index + 1; // Skip to position if not tied
+            }
+            return { ...item, rank: currentRank };
+          });
+
+          const userItem = rankedItems.find((item) => item.userId === userId);
+          setUserRank(userItem ? userItem.rank : null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch leaderboard rank:", err);
+        setUserRank(null);
       }
 
       const profileData = await getProfileById(userId);
@@ -328,7 +363,9 @@ export default function SettingsScreen() {
                 <Text style={styles.statLabel}>Following</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>#{userRank}</Text>
+                <Text style={styles.statNumber}>
+                  {userRank ? `#${userRank}` : "—"}
+                </Text>
                 <Text style={styles.statLabel}>Rank on MyFlix</Text>
               </View>
             </View>
@@ -388,7 +425,9 @@ export default function SettingsScreen() {
           <View style={styles.rankBox}>
             <FontAwesome5 name="trophy" size={32} color="#FFB800" />
             <Text style={styles.rankLabel}>Rank on MyFlix</Text>
-            <Text style={styles.rankNumber}>#{userRank}</Text>
+            <Text style={styles.rankNumber}>
+              {userRank ? `#${userRank}` : "—"}
+            </Text>
           </View>
 
           <View style={styles.streakBox}>

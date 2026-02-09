@@ -97,7 +97,7 @@ export default function LeaderboardScreen() {
               counts.set(row.user_id, row.watched_count || 0);
             });
 
-          const nextItems = (allProfiles || [])
+          const sorted = (allProfiles || [])
             .map((profile: any) => ({
               rank: 0,
               userId: profile.id,
@@ -106,8 +106,16 @@ export default function LeaderboardScreen() {
               count: counts.get(profile.id) || 0,
               profilePic: profile.profile_pic || null,
             }))
-            .sort((a, b) => b.count - a.count)
-            .map((item, index) => ({ ...item, rank: index + 1 }));
+            .sort((a, b) => b.count - a.count);
+
+          // Assign ranks with tie handling (standard competition ranking)
+          let currentRank = 1;
+          const nextItems = sorted.map((item, index) => {
+            if (index > 0 && item.count < sorted[index - 1].count) {
+              currentRank = index + 1; // Skip to position if not tied
+            }
+            return { ...item, rank: currentRank };
+          });
 
           setItems(nextItems);
           return;
@@ -131,7 +139,7 @@ export default function LeaderboardScreen() {
           counts.set(row.user_id, (counts.get(row.user_id) || 0) + 1);
         });
 
-        const nextItems = (allProfiles || [])
+        const sorted = (allProfiles || [])
           .map((profile: any) => ({
             rank: 0,
             userId: profile.id,
@@ -140,8 +148,16 @@ export default function LeaderboardScreen() {
             count: counts.get(profile.id) || 0,
             profilePic: profile.profile_pic || null,
           }))
-          .sort((a, b) => b.count - a.count)
-          .map((item, index) => ({ ...item, rank: index + 1 }));
+          .sort((a, b) => b.count - a.count);
+
+        // Assign ranks with tie handling (standard competition ranking)
+        let currentRank = 1;
+        const nextItems = sorted.map((item, index) => {
+          if (index > 0 && item.count < sorted[index - 1].count) {
+            currentRank = index + 1; // Skip to position if not tied
+          }
+          return { ...item, rank: currentRank };
+        });
 
         setItems(nextItems);
       } finally {
