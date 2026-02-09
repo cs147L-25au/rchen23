@@ -370,6 +370,12 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 40 },
   avatarSection: { alignItems: "center", paddingVertical: 16 },
   avatar: { width: 88, height: 88, borderRadius: 44 },
+  avatarPlaceholder: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: "#E0E0E0",
+  },
   editPhotoText: {
     marginTop: 10,
     fontSize: 14,
