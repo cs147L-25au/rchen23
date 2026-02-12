@@ -14,7 +14,7 @@ import NavBar from "../../components/NavBar";
 
 const placeholder_pfp = require("../../assets/anon_pfp.png");
 
-type CategoryKey = "movie" | "tv" | "documentary";
+type CategoryKey = "all" | "movie" | "tv" | "documentary";
 
 type LeaderItem = {
   rank: number;
@@ -26,6 +26,7 @@ type LeaderItem = {
 };
 
 const CATEGORY_TABS: { key: CategoryKey; label: string }[] = [
+  { key: "all", label: "All" },
   { key: "movie", label: "Movies" },
   { key: "tv", label: "TV Shows" },
   { key: "documentary", label: "Documentaries" },
@@ -54,7 +55,7 @@ const GENRES = [
 ];
 
 export default function LeaderboardScreen() {
-  const [category, setCategory] = useState<CategoryKey>("movie");
+  const [category, setCategory] = useState<CategoryKey>("all");
   const [genre, setGenre] = useState("All");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<LeaderItem[]>([]);
@@ -91,11 +92,21 @@ export default function LeaderboardScreen() {
             }>) || [];
 
           const counts = new Map<string, number>();
-          rows
-            .filter((row) => row.category === category)
-            .forEach((row) => {
-              counts.set(row.user_id, row.watched_count || 0);
+
+          if (category === "all") {
+            // Sum up all categories for each user
+            rows.forEach((row) => {
+              const current = counts.get(row.user_id) || 0;
+              counts.set(row.user_id, current + (row.watched_count || 0));
             });
+          } else {
+            // Filter by specific category
+            rows
+              .filter((row) => row.category === category)
+              .forEach((row) => {
+                counts.set(row.user_id, row.watched_count || 0);
+              });
+          }
 
           const sorted = (allProfiles || [])
             .map((profile: any) => ({
@@ -122,11 +133,17 @@ export default function LeaderboardScreen() {
         }
 
         // Genre filter: compute from v_user_ratings
-        const { data, error } = await db
+        let query = db
           .from("v_user_ratings")
           .select("user_id, title_type, genres")
-          .eq("title_type", category)
           .contains("genres", [genre]);
+
+        // Only filter by title_type if not "all"
+        if (category !== "all") {
+          query = query.eq("title_type", category);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.error("Genre leaderboard error:", error.message);

@@ -109,20 +109,28 @@ export default function SettingsScreen() {
         return;
       }
 
-      // Fetch user's leaderboard rank (based on total movie watched count)
+      // Fetch user's leaderboard rank (based on total watched count across all categories)
       try {
         const { data: leaderboardData } = await db
           .from("v_leaderboard_global")
-          .select("user_id, watched_count")
-          .eq("category", "movie");
+          .select("user_id, watched_count");
 
         if (leaderboardData) {
-          // Sort by watched_count descending
-          const sorted = leaderboardData
-            .map((row: { user_id: string; watched_count: number | null }) => ({
-              userId: row.user_id,
-              count: row.watched_count || 0,
-            }))
+          // Sum up all categories for each user
+          const userCounts = new Map<string, number>();
+          (
+            leaderboardData as Array<{
+              user_id: string;
+              watched_count: number | null;
+            }>
+          ).forEach((row) => {
+            const current = userCounts.get(row.user_id) || 0;
+            userCounts.set(row.user_id, current + (row.watched_count || 0));
+          });
+
+          // Convert to array and sort by count descending
+          const sorted = Array.from(userCounts.entries())
+            .map(([odUserId, count]) => ({ userId: odUserId, count }))
             .sort((a, b) => b.count - a.count);
 
           // Assign ranks with tie handling (standard competition ranking)
