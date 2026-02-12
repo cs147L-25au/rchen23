@@ -24,7 +24,7 @@ const Header = () => {
         .from("profiles")
         .select("profile_pic")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.warn("Header profile fetch error:", error.message);

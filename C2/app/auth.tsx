@@ -24,7 +24,13 @@ import {
 
 import db from "@/database/db";
 import { createProfile, getProfileById } from "@/database/profileQueries";
-import { clearStoredUserId, storeUserId } from "@/utils/auth";
+import {
+  clearPendingSignup,
+  clearStoredUserId,
+  getPendingSignup,
+  storePendingSignup,
+  storeUserId,
+} from "@/utils/auth";
 
 const ACCENT_RED = "#B3261E";
 
@@ -56,6 +62,52 @@ export default function AuthScreen() {
       setMode("signup");
     }
   }, [params.restoreForm]);
+
+  // Check for pending signup (user verified email and came back)
+  useEffect(() => {
+    const checkPendingSignup = async () => {
+      const pending = await getPendingSignup();
+      if (!pending) return;
+
+      console.log("🔄 Found pending signup, attempting auto sign-in...");
+      setLoading(true);
+
+      try {
+        const { data, error } = await db.auth.signInWithPassword({
+          email: pending.email,
+          password: pending.password,
+        });
+
+        if (error || !data.user) {
+          console.log("⚠️ Auto sign-in failed, user needs to sign in manually");
+          // Clear pending and show login with email pre-filled
+          await clearPendingSignup();
+          setMode("login");
+          setEmail(pending.email);
+          setLoading(false);
+          return;
+        }
+
+        // Success! Clear pending and go to onboarding
+        console.log("✅ Auto sign-in successful after email verification");
+        await clearPendingSignup();
+        await storeUserId(data.user.id);
+        router.replace({
+          pathname: "/onboarding1",
+          params: { userId: data.user.id, email: pending.email },
+        });
+      } catch (err) {
+        console.error("Auto sign-in error:", err);
+        await clearPendingSignup();
+        setMode("login");
+        setEmail(pending.email);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkPendingSignup();
+  }, []);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -165,11 +217,62 @@ export default function AuthScreen() {
       });
 
       if (error) {
-        Alert.alert("Sign Up Error", error.message);
+        // Check if the error is about an existing user
+        const errorMessage = error.message.toLowerCase();
+        if (
+          errorMessage.includes("already registered") ||
+          errorMessage.includes("already been registered") ||
+          errorMessage.includes("user already exists") ||
+          error.message.includes("User already registered")
+        ) {
+          Alert.alert(
+            "Account Exists",
+            "An account with this email already exists. Please sign in instead.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Sign In",
+                onPress: () => {
+                  setMode("login");
+                  // Keep the email so user doesn't have to retype
+                  setPassword("");
+                  setConfirmPassword("");
+                  setFirstName("");
+                  setLastName("");
+                },
+              },
+            ],
+          );
+        } else {
+          Alert.alert("Sign Up Error", error.message);
+        }
         return;
       }
 
       if (data.user) {
+        // Check if this is actually an existing user (Supabase sometimes returns user even if exists)
+        // An empty identities array indicates the user already exists
+        if (data.user.identities && data.user.identities.length === 0) {
+          Alert.alert(
+            "Account Exists",
+            "An account with this email already exists. Please sign in instead.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Sign In",
+                onPress: () => {
+                  setMode("login");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setFirstName("");
+                  setLastName("");
+                },
+              },
+            ],
+          );
+          return;
+        }
+
         // Store the user ID
         await storeUserId(data.user.id);
 
@@ -198,6 +301,12 @@ export default function AuthScreen() {
         // Check if email confirmation is required
         // If session is null but user exists, email confirmation is needed
         if (data.session === null && data.user) {
+          // Store pending signup credentials so we can auto sign-in after email verification
+          await storePendingSignup({
+            email: email.trim(),
+            password: password,
+            userId: data.user.id,
+          });
           // Show email verification modal
           setVerificationEmail(email.trim());
           setVerificationUserId(data.user.id);
@@ -221,7 +330,11 @@ export default function AuthScreen() {
   const handleVerificationModalClose = () => {
     setShowEmailVerificationModal(false);
     const attemptAutoSignIn = async () => {
-      if (!verificationEmail || !pendingSignupPassword) {
+      // Try to get stored credentials
+      const pending = await getPendingSignup();
+
+      if (!pending) {
+        // No stored credentials, fall back to login mode
         setMode("login");
         setEmail(verificationEmail);
         return;
@@ -230,19 +343,33 @@ export default function AuthScreen() {
       setLoading(true);
       try {
         const { data, error } = await db.auth.signInWithPassword({
-          email: verificationEmail,
-          password: pendingSignupPassword,
+          email: pending.email,
+          password: pending.password,
         });
+
         if (error || !data.user) {
+          // Sign-in failed (probably email not verified yet)
+          // Keep credentials stored for when they verify
           setMode("login");
-          setEmail(verificationEmail);
+          setEmail(pending.email);
+          Alert.alert(
+            "Email Not Verified",
+            "Please verify your email first, then sign in.",
+          );
           return;
         }
+
+        // Success! Clear pending and go to onboarding
+        await clearPendingSignup();
         await storeUserId(data.user.id);
         router.replace({
           pathname: "/onboarding1",
-          params: { userId: data.user.id, email: verificationEmail },
+          params: { userId: data.user.id, email: pending.email },
         });
+      } catch (err) {
+        console.error("Auto sign-in error:", err);
+        setMode("login");
+        setEmail(pending.email);
       } finally {
         setPendingSignupPassword(null);
         setPassword("");

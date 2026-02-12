@@ -7,6 +7,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -176,11 +177,12 @@ export default function OnboardingBirthdayScreen() {
                   <DateTimePicker
                     value={birthday || maxDate}
                     mode="date"
-                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    display="inline"
                     onChange={handleDateChange}
                     maximumDate={maxDate}
                     minimumDate={minDate}
-                    style={styles.datePicker}
+                    accentColor={ACCENT_RED}
+                    themeVariant="light"
                   />
                 </View>
               )}
@@ -254,12 +256,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 15,
     alignItems: "center",
   },
   iconContainer: {
-    marginBottom: 32,
-    padding: 24,
+    marginBottom: 20,
+    padding: 20,
     backgroundColor: "#FFF5F5",
     borderRadius: 100,
   },
@@ -274,7 +276,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     textAlign: "center",
-    marginBottom: 40,
+    marginBottom: 25,
     lineHeight: 24,
     paddingHorizontal: 20,
   },
@@ -298,13 +300,9 @@ const styles = StyleSheet.create({
     color: "#999",
   },
   datePickerContainer: {
-    marginTop: 20,
+    marginTop: 5,
     width: "100%",
     alignItems: "center",
-  },
-  datePicker: {
-    width: "100%",
-    height: 200,
   },
   footerContainer: {
     paddingHorizontal: 24,

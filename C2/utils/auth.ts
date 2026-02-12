@@ -11,6 +11,9 @@ const STORED_USER_ID_KEY = "@myflix_stored_user_id";
 // Key for tracking if user has completed onboarding
 const ONBOARDING_COMPLETE_KEY = "@myflix_onboarding_complete";
 
+// Key for storing pending signup credentials (for email verification flow)
+const PENDING_SIGNUP_KEY = "@myflix_pending_signup";
+
 /**
  * Store the user ID after signup for later retrieval
  * This is necessary because tab navigation doesn't preserve params
@@ -199,11 +202,83 @@ export async function signOut(): Promise<void> {
 
     // Clear stored data
     await clearStoredUserId();
+    await clearPendingSignup();
     // Keep onboarding status so returning users don't repeat it
 
     console.log("✅ signOut: Successfully signed out");
   } catch (e) {
     console.error("❌ signOut: Error during sign out:", e);
     throw e;
+  }
+}
+
+/**
+ * Store pending signup credentials for email verification flow
+ * These are stored temporarily so we can auto sign-in after email verification
+ */
+export interface PendingSignup {
+  email: string;
+  password: string;
+  userId: string;
+  timestamp: number;
+}
+
+export async function storePendingSignup(
+  data: Omit<PendingSignup, "timestamp">,
+): Promise<void> {
+  try {
+    const pending: PendingSignup = {
+      ...data,
+      timestamp: Date.now(),
+    };
+    await AsyncStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify(pending));
+    console.log(
+      "✅ storePendingSignup: Stored pending signup for:",
+      data.email,
+    );
+  } catch (e) {
+    console.error("❌ storePendingSignup: Failed to store:", e);
+  }
+}
+
+/**
+ * Get pending signup credentials (if they exist and aren't expired)
+ * Credentials expire after 1 hour for security
+ */
+export async function getPendingSignup(): Promise<PendingSignup | null> {
+  try {
+    const stored = await AsyncStorage.getItem(PENDING_SIGNUP_KEY);
+    if (!stored) return null;
+
+    const pending: PendingSignup = JSON.parse(stored);
+
+    // Check if expired (1 hour = 3600000ms)
+    const ONE_HOUR = 60 * 60 * 1000;
+    if (Date.now() - pending.timestamp > ONE_HOUR) {
+      console.log("⚠️ getPendingSignup: Credentials expired, clearing...");
+      await clearPendingSignup();
+      return null;
+    }
+
+    console.log(
+      "✅ getPendingSignup: Retrieved pending signup for:",
+      pending.email,
+    );
+    return pending;
+  } catch (e) {
+    console.error("❌ getPendingSignup: Failed to get:", e);
+    return null;
+  }
+}
+
+/**
+ * Clear pending signup credentials
+ */
+export async function clearPendingSignup(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
+    console.log("✅ clearPendingSignup: Cleared pending signup");
+  } catch (e) {
+    console.error("❌ clearPendingSignup: Failed to clear:", e);
   }
 }

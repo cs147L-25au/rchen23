@@ -76,7 +76,7 @@ export async function createProfile(
         bookmarked_count: 0,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       // If duplicate key error, try to get the existing profile
@@ -114,15 +114,16 @@ export async function getProfileById(
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      if (error.code === "PGRST116") {
-        // No rows returned - profile doesn't exist
-        console.log("⚠️ getProfileById: No profile found for:", userId);
-        return null;
-      }
-      throw error;
+      console.error("❌ getProfileById error:", error);
+      return null;
+    }
+
+    if (!data) {
+      console.log("⚠️ getProfileById: No profile found for:", userId);
+      return null;
     }
 
     return data as UserProfile;
@@ -145,11 +146,16 @@ export async function updateProfile(
       .update(updates)
       .eq("id", userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("❌ updateProfile error:", error);
       throw error;
+    }
+
+    if (!data) {
+      console.warn("⚠️ updateProfile: No profile found to update for:", userId);
+      return null;
     }
 
     console.log("✅ updateProfile: Updated profile for user:", userId);
