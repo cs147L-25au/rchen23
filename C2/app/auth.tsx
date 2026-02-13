@@ -617,7 +617,10 @@ export default function AuthScreen() {
 
                   <Text style={styles.modalInstructions}>
                     Please click the link in your email to verify your account,
-                    then come back and finish your profile.
+                    then come back and finish your profile. You may see a “form
+                    not submitted” or access error page after clicking the link
+                    — that’s expected. Your account will still be verified
+                    automatically.
                   </Text>
 
                   <TouchableOpacity
