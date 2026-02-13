@@ -50,6 +50,7 @@ type ProfileData = {
   weekly_streak: number | null;
   followers_count: number | null;
   following_count: number | null;
+  rank: number | null;
 };
 
 type WatchlistItem = {
@@ -99,11 +100,11 @@ const UserProfileScreen: React.FC = () => {
         const current = await getCurrentUserId();
         setCurrentUserId(current);
 
-        // Fetch profile
+        // Fetch profile (including rank which is auto-updated by Supabase trigger)
         const { data, error } = await db
           .from("profiles")
           .select(
-            "id, display_name, username, profile_pic, first_name, last_name, weekly_streak, followers_count, following_count",
+            "id, display_name, username, profile_pic, first_name, last_name, weekly_streak, followers_count, following_count, rank",
           )
           .eq("id", userId)
           .maybeSingle();
@@ -150,56 +151,10 @@ const UserProfileScreen: React.FC = () => {
           setRecentEvents([]);
         }
 
-        // Fetch user's rank - include all users even with 0 watched
-        try {
-          // Get all profiles
-          const { data: allProfiles } = await db.from("profiles").select("id");
-
-          // Get leaderboard data
-          const { data: leaderboardData } = await db
-            .from("v_leaderboard_global")
-            .select("user_id, watched_count");
-
-          if (allProfiles) {
-            // Build counts map from leaderboard data
-            const userCounts = new Map<string, number>();
-
-            // Initialize all users with 0
-            (allProfiles as Array<{ id: string }>).forEach((p) => {
-              userCounts.set(p.id, 0);
-            });
-
-            // Add watched counts from leaderboard
-            if (leaderboardData) {
-              (
-                leaderboardData as Array<{
-                  user_id: string;
-                  watched_count: number | null;
-                }>
-              ).forEach((row) => {
-                const current = userCounts.get(row.user_id) || 0;
-                userCounts.set(row.user_id, current + (row.watched_count || 0));
-              });
-            }
-
-            const sorted = Array.from(userCounts.entries())
-              .map(([odUserId, count]) => ({ odUserId, count }))
-              .sort((a, b) => b.count - a.count);
-
-            let currentRank = 1;
-            const rankedItems = sorted.map((item, index) => {
-              if (index > 0 && item.count < sorted[index - 1].count) {
-                currentRank = index + 1;
-              }
-              return { odUserId: item.odUserId, rank: currentRank };
-            });
-
-            const userItem = rankedItems.find(
-              (item) => item.odUserId === userId,
-            );
-            setUserRank(userItem ? userItem.rank : null);
-          }
-        } catch {
+        // Use stored rank from profile (auto-updated by Supabase trigger)
+        if (data?.rank) {
+          setUserRank(data.rank);
+        } else {
           setUserRank(null);
         }
       } catch (err) {

@@ -112,48 +112,24 @@ export default function SettingsScreen() {
         return;
       }
 
-      // Fetch user's leaderboard rank (based on total watched count across all categories)
-      try {
-        const { data: leaderboardData } = await db
-          .from("v_leaderboard_global")
-          .select("user_id, watched_count");
-
-        if (leaderboardData) {
-          // Sum up all categories for each user
-          const userCounts = new Map<string, number>();
-          (
-            leaderboardData as Array<{
-              user_id: string;
-              watched_count: number | null;
-            }>
-          ).forEach((row) => {
-            const current = userCounts.get(row.user_id) || 0;
-            userCounts.set(row.user_id, current + (row.watched_count || 0));
-          });
-
-          // Convert to array and sort by count descending
-          const sorted = Array.from(userCounts.entries())
-            .map(([odUserId, count]) => ({ userId: odUserId, count }))
-            .sort((a, b) => b.count - a.count);
-
-          // Assign ranks with tie handling (standard competition ranking)
-          let currentRank = 1;
-          const rankedItems = sorted.map((item, index) => {
-            if (index > 0 && item.count < sorted[index - 1].count) {
-              currentRank = index + 1; // Skip to position if not tied
-            }
-            return { ...item, rank: currentRank };
-          });
-
-          const userItem = rankedItems.find((item) => item.userId === userId);
-          setUserRank(userItem ? userItem.rank : null);
-        }
-      } catch (err) {
-        console.error("Failed to fetch leaderboard rank:", err);
-        setUserRank(null);
-      }
-
       const profileData = await getProfileById(userId);
+
+      // Get rank from profile (stored in Supabase, auto-updated by trigger)
+      if (profileData?.rank) {
+        setUserRank(profileData.rank);
+      } else {
+        // Fallback: fetch rank directly from profiles table
+        try {
+          const { data: rankData } = await db
+            .from("profiles")
+            .select("rank")
+            .eq("id", userId)
+            .maybeSingle();
+          setUserRank(rankData?.rank ?? null);
+        } catch {
+          setUserRank(null);
+        }
+      }
       const cleanedProfile =
         profileData?.profile_pic === DEFAULT_PROFILE_URL_REMOTE
           ? { ...profileData, profile_pic: null }

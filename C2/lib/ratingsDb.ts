@@ -140,15 +140,24 @@ export async function ensureTitleExists(input: TitleInput): Promise<string> {
 /**
  * Fetch all ratings for a user, grouped by category.
  * Sorted by category_rank ascending within each category.
+ * Optionally filter by title_type to only compare same types (TV vs TV, Movie vs Movie).
  */
 export async function fetchUserRatingsByCategory(
   userId: string,
+  titleType?: TitleType,
 ): Promise<{ good: RatingRow[]; alright: RatingRow[]; bad: RatingRow[] }> {
-  const { data, error } = await db
+  let query = db
     .from("v_user_ratings")
     .select("*")
     .eq("user_id", userId)
     .order("category_rank", { ascending: true });
+
+  // Filter by title_type if provided (so TV shows only compare against TV shows, etc.)
+  if (titleType) {
+    query = query.eq("title_type", titleType);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching user ratings:", error);

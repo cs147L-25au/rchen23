@@ -242,8 +242,9 @@ const RatingModal: React.FC<RatingModalProps> = ({
         release_year: tmdbData.release_year,
       });
 
-      // Step 2: Fetch current ratings by category
-      const ratings = await fetchUserRatingsByCategory(userId);
+      // Step 2: Fetch current ratings by category AND title type
+      // (TV shows only compare against TV shows, movies against movies, etc.)
+      const ratings = await fetchUserRatingsByCategory(userId, titleType);
       const categoryList = ratings[category];
 
       // Calculate estimated comparisons

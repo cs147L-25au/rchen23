@@ -13,6 +13,7 @@ export interface UserProfile {
   last_name: string | null;
   email: string | null;
   user_rank: number | null;
+  rank: number | null; // Stored rank from Supabase (auto-updated by trigger)
   weekly_streak: number | null;
   followers_count: number | null;
   following_count: number | null;
