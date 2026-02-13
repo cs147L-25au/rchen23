@@ -617,7 +617,7 @@ export default function AuthScreen() {
 
                   <Text style={styles.modalInstructions}>
                     Please click the link in your email to verify your account,
-                    then come back and sign in.
+                    then come back and finish your profile.
                   </Text>
 
                   <TouchableOpacity
