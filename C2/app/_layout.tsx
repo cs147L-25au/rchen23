@@ -30,6 +30,9 @@ export default function RootLayout() {
 
         {/* Main tab navigator */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+        {/* User profile screen */}
+        <Stack.Screen name="user" options={{ headerShown: false }} />
       </Stack>
 
       <StatusBar style="auto" />

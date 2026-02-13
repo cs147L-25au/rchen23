@@ -30,6 +30,7 @@ import {
   getUserRatings,
   RatingPost,
 } from "../../database/queries";
+import { getFollowersCount, getFollowingCount } from "../../lib/friendsDb";
 import {
   getLikesForEvent,
   getLikeStateForEvents,
@@ -74,11 +75,13 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userRank, setUserRank] = useState<number | null>(null);
+  const [followersCount, setFollowersCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
 
   const userName = profile?.display_name || "User";
   const userHandle = profile?.username ? `@${profile.username}` : "@user";
-  const followers = 0;
-  const following = 0;
+  const followers = followersCount;
+  const following = followingCount;
   const watched = (() => {
     const uniqueTitles = new Set(userRatings.map((r) => r.title_id));
     return uniqueTitles.size;
@@ -156,6 +159,12 @@ export default function SettingsScreen() {
           ? { ...profileData, profile_pic: null }
           : profileData;
       setProfile(cleanedProfile);
+
+      // Fetch follower/following counts
+      const fCount = await getFollowersCount(userId);
+      const fgCount = await getFollowingCount(userId);
+      setFollowersCount(fCount);
+      setFollowingCount(fgCount);
 
       const bookmarks = await getUserWatchlist(userId);
       setUserBookmarks(bookmarks as WatchlistItem[]);
