@@ -149,12 +149,22 @@ export const getAllRatings = async (): Promise<RatingPost[]> => {
 };
 
 // Fetch feed from v_feed view (includes ratings + bookmarks)
-export const getFeedEvents = async (): Promise<FeedEvent[]> => {
+// Excludes the current user's own events (they see those in Recent Activity instead)
+export const getFeedEvents = async (
+  excludeUserId?: string | null,
+): Promise<FeedEvent[]> => {
   try {
-    const { data, error } = await db
+    let query = db
       .from("v_feed")
       .select("*")
       .order("created_at", { ascending: false });
+
+    // Exclude the current user's own events from the main feed
+    if (excludeUserId) {
+      query = query.neq("user_id", excludeUserId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching feed:", error.message);

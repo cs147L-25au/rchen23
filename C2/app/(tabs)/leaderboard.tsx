@@ -94,13 +94,14 @@ export default function LeaderboardScreen() {
           const counts = new Map<string, number>();
 
           if (category === "all") {
-            // Sum up all categories for each user
-            rows.forEach((row) => {
-              const current = counts.get(row.user_id) || 0;
-              counts.set(row.user_id, current + (row.watched_count || 0));
-            });
+            // Use the "overall" category which already has the total
+            rows
+              .filter((row) => row.category === "overall")
+              .forEach((row) => {
+                counts.set(row.user_id, row.watched_count || 0);
+              });
           } else {
-            // Filter by specific category
+            // Filter by specific category (movie, tv, documentary)
             rows
               .filter((row) => row.category === category)
               .forEach((row) => {
@@ -331,14 +332,16 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 2,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#F7F7F7",
   },
   tabActive: {
     backgroundColor: "#fff",
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#666",
     fontWeight: "600",
   },

@@ -33,13 +33,33 @@ export default function AppIndex() {
         const currentUserId = session.user.id;
         setUserId(currentUserId);
 
+        // Check if user has a profile in the database
+        const { data: profile } = await db
+          .from("profiles")
+          .select("id, first_name")
+          .eq("id", currentUserId)
+          .maybeSingle();
+
+        // If no profile exists, this is a stale session - sign out and go to auth
+        if (!profile) {
+          await db.auth.signOut();
+          setAppState("unauthenticated");
+          return;
+        }
+
         // Check if onboarding is complete (using AsyncStorage)
         const onboardingDone = await isOnboardingComplete(currentUserId);
 
         if (onboardingDone) {
           setAppState("authenticated");
         } else {
-          setAppState("needs_onboarding");
+          // Profile exists but onboarding not marked complete
+          // Check if profile has required fields (first_name) - if so, mark as complete
+          if (profile.first_name) {
+            setAppState("authenticated");
+          } else {
+            setAppState("needs_onboarding");
+          }
         }
       } catch (error) {
         console.error("Error checking auth state:", error);

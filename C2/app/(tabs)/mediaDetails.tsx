@@ -304,9 +304,12 @@ const MediaDetailScreen: React.FC = () => {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Check watchlist status on load
+  // ---- Rating State ----
+  const [hasRated, setHasRated] = useState(false);
+
+  // Check watchlist and rating status on load
   useEffect(() => {
-    const checkWatchlistStatus = async () => {
+    const checkStatuses = async () => {
       if (!id || !(mediaType === "movie" || mediaType === "tv")) return;
 
       try {
@@ -314,19 +317,31 @@ const MediaDetailScreen: React.FC = () => {
         setCurrentUserId(userId);
 
         if (userId) {
+          // Check watchlist status
           const result = await isInWatchlistByTmdb(
             userId,
             parseInt(id, 10),
             mediaType as "movie" | "tv",
           );
           setInWatchlist(result.inWatchlist);
+
+          // Check if user has rated this title
+          const { data: ratingData } = await db
+            .from("v_user_ratings")
+            .select("rating_id")
+            .eq("user_id", userId)
+            .eq("tmdb_id", parseInt(id, 10))
+            .eq("tmdb_media_type", mediaType)
+            .maybeSingle();
+
+          setHasRated(!!ratingData);
         }
       } catch (err) {
-        console.error("Failed to check watchlist status:", err);
+        console.error("Failed to check statuses:", err);
       }
     };
 
-    checkWatchlistStatus();
+    checkStatuses();
   }, [id, mediaType]);
 
   // Toggle watchlist handler
@@ -403,6 +418,9 @@ const MediaDetailScreen: React.FC = () => {
       : null;
 
   const handleRatingSuccess = () => {
+    // Mark as rated
+    setHasRated(true);
+
     // Optionally refresh comments
     const loadComments = async () => {
       try {
@@ -480,11 +498,20 @@ const MediaDetailScreen: React.FC = () => {
               {/* Plus + Bookmark buttons */}
               <View style={styles.actionRow}>
                 <Pressable
-                  style={styles.actionChip}
+                  style={[
+                    styles.actionChip,
+                    hasRated && styles.actionChipActive,
+                  ]}
                   onPress={() => setRatingModalVisible(true)}
                 >
-                  <Feather name="plus" size={16} color="#fff" />
-                  <Text style={styles.actionChipText}>Rate</Text>
+                  <Feather
+                    name={hasRated ? "check" : "plus"}
+                    size={16}
+                    color="#fff"
+                  />
+                  <Text style={styles.actionChipText}>
+                    {hasRated ? "Rated" : "Rate"}
+                  </Text>
                 </Pressable>
 
                 <Pressable

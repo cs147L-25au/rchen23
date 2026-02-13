@@ -87,16 +87,31 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadFeed(currentUserId);
-    }, [currentUserId]),
+      // Always get fresh user ID to ensure exclusion works
+      const refresh = async () => {
+        const userId = await getCurrentUserId();
+        if (userId) {
+          setCurrentUserId(userId);
+          await loadFeed(userId);
+        }
+      };
+      refresh();
+    }, []),
   );
 
-  const loadFeed = async (userIdOverride?: string | null) => {
+  const loadFeed = async (excludeUserId?: string | null) => {
     try {
       setLoading(true);
       setError(null);
 
-      const data = await getFeedEvents();
+      // Exclude current user's own events from the feed (they see them in Recent Activity)
+      // Always fetch fresh user ID if not provided
+      let userToExclude = excludeUserId;
+      if (!userToExclude) {
+        userToExclude = await getCurrentUserId();
+      }
+
+      const data = await getFeedEvents(userToExclude);
       const userIds = [...new Set(data.map((item) => item.user_id))];
       if (userIds.length > 0) {
         const { data: profiles, error: profilesError } = await db
@@ -130,7 +145,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
       }
 
       const eventIds = data.map((item) => item.event_id);
-      const activeUserId = userIdOverride ?? currentUserId;
+      const activeUserId = excludeUserId ?? currentUserId;
       if (activeUserId) {
         const likeState = await getLikeStateForEvents(activeUserId, eventIds);
         setLikeCounts(likeState.likeCounts);
@@ -265,20 +280,15 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
     }
 
     try {
-      // Optimistic UI update
-      const isCurrentlyBookmarked = bookmarked.has(item.event_id);
-      const alreadyBookmarkedForTitle = feedItems.some(
+      // Check if this title is currently bookmarked
+      const isCurrentlyBookmarked = feedItems.some(
         (feedItem) =>
           feedItem.tmdb_id === item.tmdb_id &&
           feedItem.tmdb_media_type === item.tmdb_media_type &&
           bookmarked.has(feedItem.event_id),
       );
 
-      if (alreadyBookmarkedForTitle) {
-        return;
-      }
-
-      // Update all events with the same title
+      // Optimistic UI update - toggle all events with the same title
       setBookmarked((prev) => {
         const newSet = new Set(prev);
         feedItems.forEach((feedItem) => {
@@ -306,7 +316,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
         poster_path: item.poster_path,
       });
 
-      // Refresh feed to show the new bookmark event
+      // Refresh feed after a short delay
       setTimeout(() => loadFeed(), 500);
     } catch (error) {
       console.error("Bookmark error:", error);

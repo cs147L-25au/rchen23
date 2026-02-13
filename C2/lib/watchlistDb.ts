@@ -30,7 +30,7 @@ export interface WatchlistInput {
  */
 export async function isInWatchlist(
   userId: string,
-  titleId: string
+  titleId: string,
 ): Promise<boolean> {
   const { data, error } = await db
     .from("watchlist")
@@ -53,7 +53,7 @@ export async function isInWatchlist(
 export async function isInWatchlistByTmdb(
   userId: string,
   tmdbId: number,
-  tmdbMediaType: "movie" | "tv"
+  tmdbMediaType: "movie" | "tv",
 ): Promise<{ inWatchlist: boolean; titleId: string | null }> {
   // First find the title_id
   const { data: title } = await db
@@ -77,7 +77,7 @@ export async function isInWatchlistByTmdb(
  */
 export async function addToWatchlist(
   userId: string,
-  titleId: string
+  titleId: string,
 ): Promise<WatchlistRow> {
   // Insert into watchlist
   const { data: watchlistRow, error: watchlistError } = await db
@@ -121,7 +121,7 @@ export async function addToWatchlist(
   } catch (feedError) {
     console.error(
       "Error creating feed event (may be handled by trigger):",
-      feedError
+      feedError,
     );
     // Don't throw - watchlist was added successfully
   }
@@ -131,20 +131,12 @@ export async function addToWatchlist(
 
 /**
  * Remove a title from the user's watchlist
- * Also creates a feed_events entry for the removal
+ * Also removes the corresponding feed event from recent activity
  */
 export async function removeFromWatchlist(
   userId: string,
-  titleId: string
+  titleId: string,
 ): Promise<void> {
-  // Get the watchlist row first (for feed event reference)
-  const { data: existing } = await db
-    .from("watchlist")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("title_id", titleId)
-    .maybeSingle();
-
   // Delete from watchlist
   const { error: deleteError } = await db
     .from("watchlist")
@@ -157,16 +149,16 @@ export async function removeFromWatchlist(
     throw deleteError;
   }
 
-  // Create feed event for bookmark_removed
-  const { error: feedError } = await db.from("feed_events").insert({
-    user_id: userId,
-    title_id: titleId,
-    event_type: "bookmark_removed",
-    watchlist_id: existing?.id || null,
-  });
+  // Remove the "bookmark_added" feed event from recent activity
+  const { error: feedError } = await db
+    .from("feed_events")
+    .delete()
+    .eq("user_id", userId)
+    .eq("title_id", titleId)
+    .eq("event_type", "bookmark_added");
 
   if (feedError) {
-    console.error("Error creating feed event for removal:", feedError);
+    console.error("Error removing feed event:", feedError);
     // Don't throw - watchlist was removed successfully
   }
 }
@@ -177,7 +169,7 @@ export async function removeFromWatchlist(
  */
 export async function toggleWatchlist(
   userId: string,
-  titleId: string
+  titleId: string,
 ): Promise<{ inWatchlist: boolean; watchlistId?: string }> {
   const currentlyInWatchlist = await isInWatchlist(userId, titleId);
 
@@ -194,7 +186,7 @@ export async function toggleWatchlist(
  * Toggle watchlist by TMDB ID (creates title if needed)
  */
 export async function toggleWatchlistByTmdb(
-  input: WatchlistInput
+  input: WatchlistInput,
 ): Promise<{ inWatchlist: boolean; titleId: string; watchlistId?: string }> {
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -238,7 +230,7 @@ export async function getUserWatchlist(userId: string): Promise<any[]> {
         poster_path,
         release_year
       )
-    `
+    `,
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
