@@ -371,14 +371,42 @@ export default function SettingsScreen() {
 
           <View style={styles.headerBottom}>
             <View style={styles.statsRow}>
-              <View style={styles.statItem}>
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() =>
+                  currentUserId &&
+                  router.push({
+                    pathname: "/followList",
+                    params: {
+                      userId: currentUserId,
+                      type: "followers",
+                      userName: userName,
+                    },
+                  })
+                }
+                activeOpacity={0.7}
+              >
                 <Text style={styles.statNumber}>{followers}</Text>
                 <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              <View style={styles.statItem}>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() =>
+                  currentUserId &&
+                  router.push({
+                    pathname: "/followList",
+                    params: {
+                      userId: currentUserId,
+                      type: "following",
+                      userName: userName,
+                    },
+                  })
+                }
+                activeOpacity={0.7}
+              >
                 <Text style={styles.statNumber}>{following}</Text>
                 <Text style={styles.statLabel}>Following</Text>
-              </View>
+              </TouchableOpacity>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
                   {userRank ? `#${userRank}` : "—"}

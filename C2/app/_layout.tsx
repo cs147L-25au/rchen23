@@ -33,6 +33,9 @@ export default function RootLayout() {
 
         {/* User profile screen */}
         <Stack.Screen name="user" options={{ headerShown: false }} />
+
+        {/* Follow list screen */}
+        <Stack.Screen name="followList" options={{ headerShown: false }} />
       </Stack>
 
       <StatusBar style="auto" />
