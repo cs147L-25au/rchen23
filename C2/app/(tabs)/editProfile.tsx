@@ -31,6 +31,7 @@ import { getCurrentUserId } from "../../lib/ratingsDb";
 
 const DEFAULT_PROFILE_URL =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
+const DEFAULT_PROFILE_IMAGE = require("../../assets/anon_pfp.png");
 
 type EditField = "name" | "username" | "birthday";
 
@@ -219,11 +220,12 @@ export default function EditProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.avatarSection}>
-          {profilePhoto ? (
-            <Image source={{ uri: profilePhoto }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder} />
-          )}
+          <Image
+            source={
+              profilePhoto ? { uri: profilePhoto } : DEFAULT_PROFILE_IMAGE
+            }
+            style={styles.avatar}
+          />
           <TouchableOpacity onPress={handlePhotoOptions}>
             <Text style={styles.editPhotoText}>Edit profile photo</Text>
           </TouchableOpacity>

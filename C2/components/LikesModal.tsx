@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 
+const DEFAULT_PROFILE_PIC = require("../assets/anon_pfp.png");
+
 export type LikeUser = {
   id: string;
   displayName: string;
@@ -42,14 +44,14 @@ const LikesModal: React.FC<LikesModalProps> = ({ visible, likes, onClose }) => {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <View style={styles.row}>
-                  {item.profilePic ? (
-                    <Image
-                      source={{ uri: item.profilePic }}
-                      style={styles.avatar}
-                    />
-                  ) : (
-                    <View style={styles.avatarPlaceholder} />
-                  )}
+                  <Image
+                    source={
+                      item.profilePic && item.profilePic.trim()
+                        ? { uri: item.profilePic }
+                        : DEFAULT_PROFILE_PIC
+                    }
+                    style={styles.avatar}
+                  />
                   <Text style={styles.nameText}>{item.displayName}</Text>
                 </View>
               )}

@@ -246,7 +246,11 @@ export default function LeaderboardScreen() {
       <Text style={styles.rank}>{item.rank}</Text>
 
       <Image
-        source={item.profilePic ? { uri: item.profilePic } : placeholder_pfp}
+        source={
+          item.profilePic && item.profilePic.trim()
+            ? { uri: item.profilePic }
+            : placeholder_pfp
+        }
         style={styles.avatar}
       />
 

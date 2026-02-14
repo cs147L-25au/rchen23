@@ -98,7 +98,11 @@ const FeedItem: React.FC<FeedItemProps> = ({
           {/* Left: Avatar */}
           <View style={styles.avatarContainer}>
             <Image
-              source={profileImage ? { uri: profileImage } : DEFAULT_PROFILE_URL}
+              source={
+                profileImage && profileImage.trim()
+                  ? { uri: profileImage }
+                  : DEFAULT_PROFILE_URL
+              }
               style={styles.avatar}
             />
           </View>

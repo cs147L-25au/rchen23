@@ -1,6 +1,8 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
+const DEFAULT_PROFILE_IMAGE = require("../assets/anon_pfp.png");
+
 type MemberRowProfile = {
   id: string;
   displayName: string;
@@ -39,13 +41,14 @@ const MemberRow: React.FC<MemberRowProps> = ({
   return (
     <View style={styles.row}>
       <Pressable style={styles.info} onPress={onPress}>
-        {profile.profilePic ? (
-          <Image source={{ uri: profile.profilePic }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-        )}
+        <Image
+          source={
+            profile.profilePic && profile.profilePic.trim()
+              ? { uri: profile.profilePic }
+              : DEFAULT_PROFILE_IMAGE
+          }
+          style={styles.avatar}
+        />
         <View style={styles.meta}>
           <Text style={styles.name}>{profile.displayName || "User"}</Text>
           {profile.username ? (
