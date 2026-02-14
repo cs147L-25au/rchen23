@@ -1,4 +1,5 @@
 import db from "@/database/db";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
@@ -222,7 +223,11 @@ export default function LeaderboardScreen() {
           {CATEGORY_TABS.map((tab) => (
             <Pressable
               key={tab.key}
-              style={[styles.tab, category === tab.key && styles.tabActive]}
+              style={[
+                styles.tab,
+                tab.key === "documentary" && styles.tabWide,
+                category === tab.key && styles.tabActive,
+              ]}
               onPress={() => setCategory(tab.key)}
             >
               <Text
@@ -242,7 +247,7 @@ export default function LeaderboardScreen() {
           onPress={() => setGenreModalVisible(true)}
         >
           <Text style={styles.genreDropdownText}>{genre}</Text>
-          <Text style={styles.genreChevron}>⌄</Text>
+          <Ionicons name="chevron-down" size={16} color="#666" />
         </Pressable>
 
         <Text style={styles.subtitle}>{subtitle}</Text>
@@ -330,18 +335,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tab: {
-    flex: 1,
+    flex: 0.85,
     paddingVertical: 10,
     paddingHorizontal: 2,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F7F7F7",
   },
+  tabWide: {
+    flex: 1.15,
+  },
   tabActive: {
     backgroundColor: "#fff",
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#666",
     fontWeight: "600",
   },
@@ -351,14 +359,14 @@ const styles = StyleSheet.create({
   genreDropdown: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 3,
     borderBottomWidth: 1,
     borderBottomColor: "#E6E6E6",
     paddingVertical: 8,
     marginBottom: 8,
   },
   genreDropdownText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     color: "#000",
   },

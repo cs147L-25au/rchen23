@@ -12,8 +12,10 @@ export interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
-  user_rank: number | null;
-  rank: number | null; // Stored rank from Supabase (auto-updated by trigger)
+  rank: number | null; // Overall rank (auto-updated by trigger)
+  movie_rank: number | null;
+  tv_rank: number | null;
+  documentary_rank: number | null;
   weekly_streak: number | null;
   followers_count: number | null;
   following_count: number | null;
@@ -70,7 +72,6 @@ export async function createProfile(
         last_name: input.last_name,
         display_name: displayName,
         username: input.username || null,
-        user_rank: 0,
         weekly_streak: 0,
         followers_count: 0,
         following_count: 0,
