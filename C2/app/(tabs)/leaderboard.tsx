@@ -1,4 +1,5 @@
 import db from "@/database/db";
+import { getFollowers, getFollowing } from "@/lib/friendsDb";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -16,6 +17,7 @@ import NavBar from "../../components/NavBar";
 const placeholder_pfp = require("../../assets/anon_pfp.png");
 
 type CategoryKey = "all" | "movie" | "tv" | "documentary";
+type ScopeKey = "all" | "followers" | "following";
 
 type LeaderItem = {
   rank: number;
@@ -33,8 +35,14 @@ const CATEGORY_TABS: { key: CategoryKey; label: string }[] = [
   { key: "documentary", label: "Documentaries" },
 ];
 
+const SCOPE_OPTIONS: { key: ScopeKey; label: string }[] = [
+  { key: "all", label: "Everyone" },
+  { key: "followers", label: "Your Followers" },
+  { key: "following", label: "People You Follow" },
+];
+
 const GENRES = [
-  "All",
+  "All Genres",
   "Action",
   "Adventure",
   "Animation",
@@ -57,10 +65,22 @@ const GENRES = [
 
 export default function LeaderboardScreen() {
   const [category, setCategory] = useState<CategoryKey>("all");
-  const [genre, setGenre] = useState("All");
+  const [scope, setScope] = useState<ScopeKey>("all");
+  const [genre, setGenre] = useState("All Genres");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<LeaderItem[]>([]);
+  const [scopeModalVisible, setScopeModalVisible] = useState(false);
   const [genreModalVisible, setGenreModalVisible] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Load current user ID
+  useEffect(() => {
+    const loadUserId = async () => {
+      const { data } = await db.auth.getSession();
+      setCurrentUserId(data.session?.user?.id || null);
+    };
+    loadUserId();
+  }, []);
 
   useEffect(() => {
     const loadLeaderboard = async () => {
@@ -76,7 +96,32 @@ export default function LeaderboardScreen() {
           return;
         }
 
-        if (genre === "All") {
+        // Filter profiles based on scope
+        let filteredProfileIds: Set<string> | null = null;
+
+        if (scope !== "all" && currentUserId) {
+          filteredProfileIds = new Set<string>();
+          filteredProfileIds.add(currentUserId); // Always include self
+
+          if (scope === "followers") {
+            // Get users who follow the current user
+            const followers = await getFollowers(currentUserId);
+            followers.forEach((f) => filteredProfileIds!.add(f.id));
+          } else if (scope === "following") {
+            // Get users the current user follows
+            const following = await getFollowing(currentUserId);
+            following.forEach((f) => filteredProfileIds!.add(f.id));
+          }
+        }
+
+        // Filter profiles by scope
+        const scopedProfiles = filteredProfileIds
+          ? (allProfiles || []).filter((p: any) =>
+              filteredProfileIds!.has(p.id),
+            )
+          : allProfiles || [];
+
+        if (genre === "All Genres") {
           const { data, error } = await db
             .from("v_leaderboard_global")
             .select("category, user_id, watched_count");
@@ -110,7 +155,7 @@ export default function LeaderboardScreen() {
               });
           }
 
-          const sorted = (allProfiles || [])
+          const sorted = scopedProfiles
             .map((profile: any) => ({
               rank: 0,
               userId: profile.id,
@@ -158,7 +203,7 @@ export default function LeaderboardScreen() {
           counts.set(row.user_id, (counts.get(row.user_id) || 0) + 1);
         });
 
-        const sorted = (allProfiles || [])
+        const sorted = scopedProfiles
           .map((profile: any) => ({
             rank: 0,
             userId: profile.id,
@@ -185,14 +230,16 @@ export default function LeaderboardScreen() {
     };
 
     loadLeaderboard();
-  }, [category, genre]);
+  }, [category, genre, scope, currentUserId]);
 
   const subtitle = useMemo(() => {
-    if (genre === "All") {
+    if (genre === "All Genres") {
       return "Number of places on your been list";
     }
     return `${genre} watched count`;
   }, [genre]);
+
+  const scopeLabel = SCOPE_OPTIONS.find((s) => s.key === scope)?.label || "All";
 
   const renderRow = ({ item }: { item: LeaderItem }) => (
     <View style={styles.row}>
@@ -242,13 +289,23 @@ export default function LeaderboardScreen() {
           ))}
         </View>
 
-        <Pressable
-          style={styles.genreDropdown}
-          onPress={() => setGenreModalVisible(true)}
-        >
-          <Text style={styles.genreDropdownText}>{genre}</Text>
-          <Ionicons name="chevron-down" size={16} color="#666" />
-        </Pressable>
+        <View style={styles.dropdownRow}>
+          <Pressable
+            style={styles.scopeDropdown}
+            onPress={() => setScopeModalVisible(true)}
+          >
+            <Text style={styles.dropdownText}>{scopeLabel}</Text>
+            <Ionicons name="chevron-down" size={16} color="#666" />
+          </Pressable>
+
+          <Pressable
+            style={styles.genreDropdown}
+            onPress={() => setGenreModalVisible(true)}
+          >
+            <Text style={styles.dropdownText}>{genre}</Text>
+            <Ionicons name="chevron-down" size={16} color="#666" />
+          </Pressable>
+        </View>
 
         <Text style={styles.subtitle}>{subtitle}</Text>
 
@@ -265,6 +322,45 @@ export default function LeaderboardScreen() {
 
       <NavBar />
 
+      {/* Scope Modal */}
+      <Modal
+        visible={scopeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setScopeModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setScopeModalVisible(false)}
+        >
+          <Pressable style={styles.modalContent} onPress={() => null}>
+            <Text style={styles.modalTitle}>Select Scope</Text>
+            <ScrollView style={styles.modalList} showsVerticalScrollIndicator>
+              {SCOPE_OPTIONS.map((s) => (
+                <Pressable
+                  key={s.key}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setScope(s.key);
+                    setScopeModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      scope === s.key && styles.modalOptionSelected,
+                    ]}
+                  >
+                    {s.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Genre Modal */}
       <Modal
         visible={genreModalVisible}
         transparent
@@ -356,23 +452,29 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: "#000",
   },
-  genreDropdown: {
+  dropdownRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    justifyContent: "space-between",
     borderBottomWidth: 1,
     borderBottomColor: "#E6E6E6",
     paddingVertical: 8,
     marginBottom: 8,
   },
-  genreDropdownText: {
-    fontSize: 18,
+  scopeDropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  genreDropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  dropdownText: {
+    fontSize: 16,
     fontWeight: "600",
     color: "#000",
-  },
-  genreChevron: {
-    fontSize: 16,
-    color: "#666",
   },
   listContainer: {
     paddingBottom: 100,
