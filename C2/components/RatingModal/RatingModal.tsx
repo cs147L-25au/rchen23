@@ -32,8 +32,14 @@ import {
   upsertRatingAtRank,
 } from "../../lib/ratingsDb";
 import CategoryPicker from "./CategoryPicker";
-import TitleTypePicker from "./TitleTypePicker";
 import WatchWithPicker from "./WatchWithPicker";
+
+// Helper to get display label and icon for title type
+const TITLE_TYPE_INFO: Record<TitleType, { label: string; icon: string }> = {
+  movie: { label: "Movie", icon: "film-outline" },
+  tv: { label: "TV Shows", icon: "tv-outline" },
+  documentary: { label: "Documentaries", icon: "document-text-outline" },
+};
 
 // ============ Types ============
 
@@ -117,9 +123,18 @@ const RatingModal: React.FC<RatingModalProps> = ({
     if (!wasVisibleRef.current && visible && tmdbData) {
       resetForm();
 
-      // Infer title type from TMDB data
-      let nextTitleType: TitleType =
-        tmdbData.tmdb_media_type === "tv" ? "tv" : "movie";
+      // Auto-detect title type from TMDB data
+      let nextTitleType: TitleType;
+      if (tmdbData.tmdb_media_type === "tv") {
+        nextTitleType = "tv";
+      } else if (
+        tmdbData.genres.some((g) => g.toLowerCase() === "documentary")
+      ) {
+        // Movie with "Documentary" in genres → documentary
+        nextTitleType = "documentary";
+      } else {
+        nextTitleType = "movie";
+      }
 
       // If updating existing rating, pre-fill form
       if (currentRating) {
@@ -560,8 +575,20 @@ const RatingModal: React.FC<RatingModalProps> = ({
           {flowStep === "input" && (
             <>
               <ScrollView style={styles.content} bounces={false}>
-                {/* Title Type Picker */}
-                <TitleTypePicker selected={titleType} onSelect={setTitleType} />
+                {/* Title Type Display (auto-detected) */}
+                <View style={styles.titleTypeDisplay}>
+                  <Text style={styles.titleTypeLabel}>Add to my list of</Text>
+                  <View style={styles.titleTypeBadge}>
+                    <Ionicons
+                      name={TITLE_TYPE_INFO[titleType].icon as any}
+                      size={18}
+                      color="#1a535c"
+                    />
+                    <Text style={styles.titleTypeBadgeText}>
+                      {TITLE_TYPE_INFO[titleType].label}
+                    </Text>
+                  </View>
+                </View>
 
                 {/* Category Picker (Good/Alright/Bad) */}
                 <CategoryPicker selected={category} onSelect={setCategory} />
@@ -924,6 +951,34 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#B3261E",
     marginTop: 2,
+  },
+  titleTypeDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#f5f5f5",
+    gap: 12,
+  },
+  titleTypeLabel: {
+    fontSize: 14,
+    color: "#666",
+  },
+  titleTypeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#1a535c",
+    gap: 6,
+  },
+  titleTypeBadgeText: {
+    fontSize: 14,
+    color: "#1a535c",
+    fontWeight: "500",
   },
   divider: {
     height: 1,
