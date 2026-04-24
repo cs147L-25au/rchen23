@@ -64,6 +64,10 @@ export interface TMDBPersonCredit {
   first_air_date?: string;
   poster_path?: string | null;
   popularity?: number;
+  genre_ids?: number[];
+  overview?: string;
+  vote_average?: number;
+  vote_count?: number;
 }
 
 export interface TMDBPersonDetails {
@@ -108,8 +112,8 @@ export function getPosterUrl(
   return `https://image.tmdb.org/t/p/w342${path}`;
 }
 
-// Load genre mappings from TMDB
-async function loadGenres(): Promise<void> {
+// Load genre mappings from TMDB (exported for screens that need genre names on credits)
+export async function loadGenres(): Promise<void> {
   if (genresLoaded) return;
 
   try {

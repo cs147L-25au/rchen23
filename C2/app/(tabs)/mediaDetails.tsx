@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -37,6 +37,23 @@ type CastMember = {
 
 const ACCENT_RED = "#B3261E";
 const TMDB_API_KEY = "b6a79cf2e43d2d321e6bba3ca5b02c63";
+const TMDB_DOCUMENTARY_GENRE_ID = 99;
+
+function pushPersonFromTitle(
+  router: ReturnType<typeof useRouter>,
+  personId: number,
+  title: string,
+  kind: "movie" | "tv" | "documentary",
+) {
+  router.push({
+    pathname: "/person/[personId]",
+    params: {
+      personId: String(personId),
+      fromTitle: title,
+      fromKind: kind,
+    },
+  });
+}
 
 // Make sure a profile row exists for the current user
 async function ensureProfile() {
@@ -149,6 +166,21 @@ const MediaDetailScreen: React.FC = () => {
     fetchDetailsAndRating();
   }, [id, mediaType]);
 
+  const fromKindForPersonNav = useMemo((): "movie" | "tv" | "documentary" => {
+    if (mediaType === "tv") return "tv";
+    if (
+      mediaType === "movie" &&
+      details &&
+      Array.isArray((details as any).genres) &&
+      (details as any).genres.some(
+        (g: { id: number }) => g.id === TMDB_DOCUMENTARY_GENRE_ID,
+      )
+    ) {
+      return "documentary";
+    }
+    return "movie";
+  }, [mediaType, details]);
+
   // Build the meta line dynamically
   let metaLine = "";
   let genresLine = "";
@@ -196,7 +228,12 @@ const MediaDetailScreen: React.FC = () => {
 
   // ---- Top cast + director/creator state ----
   const [topCast, setTopCast] = useState<CastMember[]>([]);
-  const [primaryCredits, setPrimaryCredits] = useState<string | null>(null);
+  const [primaryCreditLabel, setPrimaryCreditLabel] = useState<string | null>(
+    null,
+  );
+  const [primaryCreditPeople, setPrimaryCreditPeople] = useState<
+    { id: number; name: string }[]
+  >([]);
   const [castLoading, setCastLoading] = useState(false);
 
   useEffect(() => {
@@ -221,40 +258,40 @@ const MediaDetailScreen: React.FC = () => {
 
         // CREW -> director(s) or creator(s)
         const crew = json.crew ?? [];
-        let line: string | null = null;
 
         if (mediaType === "movie") {
           const directors = crew.filter((m: any) => m.job === "Director");
-          if (directors.length === 1) {
-            line = `Directed by ${directors[0].name}`;
-          } else if (directors.length > 1) {
-            const names = directors.map((d: any) => d.name);
-            line =
-              names.length <= 2
-                ? `Directed by ${names.join(" & ")}`
-                : `Directed by ${names.slice(0, 2).join(", ")} & others`;
+          if (directors.length > 0) {
+            setPrimaryCreditLabel("Directed by");
+            setPrimaryCreditPeople(
+              directors.map((d: any) => ({ id: d.id, name: d.name })),
+            );
+          } else {
+            setPrimaryCreditLabel(null);
+            setPrimaryCreditPeople([]);
           }
-        } else if (mediaType === "tv") {
+        } else {
           const creators = crew.filter(
             (m: any) =>
               m.job === "Creator" ||
               m.job === "Developed by" ||
               m.job === "Executive Producer",
           );
-          if (creators.length === 1) {
-            line = `Created by ${creators[0].name}`;
-          } else if (creators.length > 1) {
-            const names = creators.map((c: any) => c.name);
-            line =
-              names.length <= 2
-                ? `Created by ${names.join(" & ")}`
-                : `Created by ${names.slice(0, 2).join(", ")} & others`;
+          if (creators.length > 0) {
+            setPrimaryCreditLabel("Created by");
+            setPrimaryCreditPeople(
+              creators.map((c: any) => ({ id: c.id, name: c.name })),
+            );
+          } else {
+            setPrimaryCreditLabel(null);
+            setPrimaryCreditPeople([]);
           }
         }
-
-        setPrimaryCredits(line);
       } catch (err) {
         console.error("Failed to fetch credits", err);
+        setTopCast([]);
+        setPrimaryCreditLabel(null);
+        setPrimaryCreditPeople([]);
       } finally {
         setCastLoading(false);
       }
@@ -463,39 +500,73 @@ const MediaDetailScreen: React.FC = () => {
               </View>
             )}
 
-            <View style={styles.heroMeta}>
-              <Text style={styles.title}>{displayTitle}</Text>
-              {displayType.length > 0 && (
-                <Text style={styles.type}>{displayType}</Text>
+            <View style={styles.heroMetaColumn}>
+              {/* Title + media type */}
+              <View style={styles.heroTitleBlock}>
+                <Text style={styles.title}>{displayTitle}</Text>
+                {displayType.length > 0 && (
+                  <Text style={styles.type}>{displayType}</Text>
+                )}
+              </View>
+
+              {/* Director / Creator — label column + flex names so wraps align under first name */}
+              {primaryCreditLabel && primaryCreditPeople.length > 0 && (
+                <View style={styles.creditLabelRow}>
+                  <Text style={styles.creditLabelFixed} numberOfLines={1}>
+                    {primaryCreditLabel}
+                  </Text>
+                  <View style={styles.creditNamesFlex}>
+                    <Text style={styles.creditNamesText}>
+                      {primaryCreditPeople.map((p, i) => (
+                        <React.Fragment key={p.id}>
+                          {i > 0 ? (
+                            <Text style={styles.creditNameComma}>, </Text>
+                          ) : null}
+                          <Text
+                            onPress={() =>
+                              pushPersonFromTitle(
+                                router,
+                                p.id,
+                                displayTitle,
+                                fromKindForPersonNav,
+                              )
+                            }
+                            style={styles.creditLink}
+                          >
+                            {p.name}
+                          </Text>
+                        </React.Fragment>
+                      ))}
+                    </Text>
+                  </View>
+                </View>
               )}
 
-              {/* Director / Creator line from credits */}
-              {primaryCredits && (
-                <Text style={styles.creditLine}>{primaryCredits}</Text>
-              )}
-
+              {/* TMDB rating */}
               {showRating && (
-                <>
+                <View style={styles.ratingBlock}>
                   <View style={styles.ratingRow}>
                     <Text style={styles.ratingNumber}>{ratingText}</Text>
                     <Text style={styles.ratingLabel}> / 10 • TMDB rating</Text>
                   </View>
-                  {voteCountText && (
+                  {voteCountText ? (
                     <Text style={styles.voteCountText}>
                       Based on {voteCountText} votes
                     </Text>
-                  )}
-                </>
+                  ) : null}
+                </View>
               )}
 
-              <Text style={styles.metaSmall}>
-                {genresLine.length > 0 ? genresLine : "Genres unavailable"}
-              </Text>
-              {metaLine.length > 0 && (
-                <Text style={styles.metaSmall}>{metaLine}</Text>
-              )}
+              {/* Genres + year / runtime / certification */}
+              <View style={styles.heroMetaBlock}>
+                <Text style={styles.metaSmall}>
+                  {genresLine.length > 0 ? genresLine : "Genres unavailable"}
+                </Text>
+                {metaLine.length > 0 ? (
+                  <Text style={styles.metaSmall}>{metaLine}</Text>
+                ) : null}
+              </View>
 
-              {/* Plus + Bookmark buttons */}
               <View style={styles.actionRow}>
                 <Pressable
                   style={[
@@ -568,7 +639,18 @@ const MediaDetailScreen: React.FC = () => {
             <ActivityIndicator />
           ) : topCast.length > 0 ? (
             topCast.map((member) => (
-              <View key={member.id} style={styles.castRow}>
+              <Pressable
+                key={member.id}
+                style={styles.castRow}
+                onPress={() =>
+                  pushPersonFromTitle(
+                    router,
+                    member.id,
+                    displayTitle,
+                    fromKindForPersonNav,
+                  )
+                }
+              >
                 {renderCastImage(member)}
                 <View style={styles.castTextCol}>
                   <Text style={styles.castName}>{member.name}</Text>
@@ -576,7 +658,7 @@ const MediaDetailScreen: React.FC = () => {
                     <Text style={styles.castCharacter}>{member.character}</Text>
                   ) : null}
                 </View>
-              </View>
+              </Pressable>
             ))
           ) : (
             <Text style={styles.sectionBody}>
@@ -680,25 +762,27 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: "#ffffff",
     borderRadius: 12,
-    padding: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: "#e0e0e0",
   },
   heroRow: {
     flexDirection: "row",
+    alignItems: "flex-start",
   },
   posterLarge: {
     width: 120,
     height: 180,
     borderRadius: 8,
-    marginRight: 16,
+    marginRight: 14,
   },
   noPosterLarge: {
     width: 120,
     height: 180,
     borderRadius: 8,
-    marginRight: 16,
+    marginRight: 14,
     backgroundColor: "#f0f0f0",
     justifyContent: "center",
     alignItems: "center",
@@ -707,62 +791,104 @@ const styles = StyleSheet.create({
     color: "#777",
     fontFamily: "DM Sans",
   },
-  heroMeta: {
+  /** Major sections: title, credits, rating, meta, actions — uniform 12px rhythm */
+  heroMetaColumn: {
     flex: 1,
-    justifyContent: "flex-start",
+    gap: 12,
+    minWidth: 0,
+  },
+  heroTitleBlock: {
+    gap: 4,
   },
   title: {
     fontSize: 22,
     fontWeight: "700",
     color: "#000",
-    marginBottom: 4,
     fontFamily: "DM Sans",
+    lineHeight: 28,
   },
   type: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 2,
+    fontFamily: "DM Sans",
+    lineHeight: 20,
+  },
+  /** Director line: nowrap label + flex:1 names (wrapped lines align with names) */
+  creditLabelRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
+  creditLabelFixed: {
+    flexShrink: 0,
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#555",
     fontFamily: "DM Sans",
   },
-  creditLine: {
+  creditNamesFlex: {
+    flex: 1,
+    minWidth: 0,
+  },
+  creditNamesText: {
     fontSize: 13,
+    lineHeight: 20,
     color: "#555",
-    marginBottom: 6,
     fontFamily: "DM Sans",
+  },
+  creditNameComma: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#555",
+    fontFamily: "DM Sans",
+  },
+  creditLink: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: ACCENT_RED,
+    fontWeight: "600",
+    fontFamily: "DM Sans",
+  },
+  ratingBlock: {
+    gap: 4,
   },
   ratingRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    marginBottom: 2,
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
   },
   ratingNumber: {
     fontSize: 24,
     fontWeight: "700",
     color: ACCENT_RED,
     fontFamily: "DM Sans",
+    lineHeight: 28,
   },
   ratingLabel: {
     fontSize: 13,
     color: "#555",
-    marginLeft: 4,
     fontFamily: "DM Sans",
+    lineHeight: 20,
   },
   voteCountText: {
     fontSize: 12,
     color: "#555",
-    marginBottom: 8,
     fontFamily: "DM Sans",
+    lineHeight: 16,
+  },
+  heroMetaBlock: {
+    gap: 4,
   },
   metaSmall: {
     fontSize: 12,
     color: "#777",
-    marginTop: 4,
     fontFamily: "DM Sans",
+    lineHeight: 18,
   },
 
   actionRow: {
     flexDirection: "row",
-    marginTop: 10,
     gap: 8,
   },
   actionChip: {

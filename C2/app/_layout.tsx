@@ -36,6 +36,9 @@ export default function RootLayout() {
 
         {/* Follow list screen */}
         <Stack.Screen name="followList" options={{ headerShown: false }} />
+
+        {/* Actor / director filmography */}
+        <Stack.Screen name="person" options={{ headerShown: false }} />
       </Stack>
 
       <StatusBar style="auto" />
