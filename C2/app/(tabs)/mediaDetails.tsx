@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -37,20 +37,16 @@ type CastMember = {
 
 const ACCENT_RED = "#B3261E";
 const TMDB_API_KEY = "b6a79cf2e43d2d321e6bba3ca5b02c63";
-const TMDB_DOCUMENTARY_GENRE_ID = 99;
-
 function pushPersonFromTitle(
   router: ReturnType<typeof useRouter>,
   personId: number,
   title: string,
-  kind: "movie" | "tv" | "documentary",
 ) {
   router.push({
     pathname: "/person/[personId]",
     params: {
       personId: String(personId),
       fromTitle: title,
-      fromKind: kind,
     },
   });
 }
@@ -165,21 +161,6 @@ const MediaDetailScreen: React.FC = () => {
 
     fetchDetailsAndRating();
   }, [id, mediaType]);
-
-  const fromKindForPersonNav = useMemo((): "movie" | "tv" | "documentary" => {
-    if (mediaType === "tv") return "tv";
-    if (
-      mediaType === "movie" &&
-      details &&
-      Array.isArray((details as any).genres) &&
-      (details as any).genres.some(
-        (g: { id: number }) => g.id === TMDB_DOCUMENTARY_GENRE_ID,
-      )
-    ) {
-      return "documentary";
-    }
-    return "movie";
-  }, [mediaType, details]);
 
   // Build the meta line dynamically
   let metaLine = "";
@@ -528,7 +509,6 @@ const MediaDetailScreen: React.FC = () => {
                                 router,
                                 p.id,
                                 displayTitle,
-                                fromKindForPersonNav,
                               )
                             }
                             style={styles.creditLink}
@@ -647,7 +627,6 @@ const MediaDetailScreen: React.FC = () => {
                     router,
                     member.id,
                     displayTitle,
-                    fromKindForPersonNav,
                   )
                 }
               >

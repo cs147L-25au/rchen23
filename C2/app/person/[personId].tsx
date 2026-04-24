@@ -136,13 +136,9 @@ function paramStr(v: string | string[] | undefined): string | undefined {
 }
 
 /** Label when returning to a title from media details; search uses no params → "Back to Search". */
-function personBackLabel(fromTitle?: string, fromKind?: string): string {
+function personBackLabel(fromTitle?: string): string {
   const title = fromTitle?.trim();
   if (!title) return "Back to Search";
-  const k = fromKind?.toLowerCase();
-  if (k === "tv") return `Back to ${title} · TV show`;
-  if (k === "documentary") return `Back to ${title} · Documentary`;
-  if (k === "movie") return `Back to ${title} · Movie`;
   return `Back to ${title}`;
 }
 
@@ -151,19 +147,13 @@ const PersonScreen: React.FC = () => {
   const params = useLocalSearchParams<{
     personId?: string | string[];
     fromTitle?: string | string[];
-    fromKind?: string | string[];
   }>();
   const globalParams = useGlobalSearchParams<{
     fromTitle?: string | string[];
-    fromKind?: string | string[];
   }>();
   const personId = paramStr(params.personId);
   const fromTitle = paramStr(params.fromTitle ?? globalParams.fromTitle);
-  const fromKind = paramStr(params.fromKind ?? globalParams.fromKind);
-  const backLabel = useMemo(
-    () => personBackLabel(fromTitle, fromKind),
-    [fromTitle, fromKind],
-  );
+  const backLabel = useMemo(() => personBackLabel(fromTitle), [fromTitle]);
   const [loading, setLoading] = useState(true);
   const [personName, setPersonName] = useState("Person");
   const [profilePath, setProfilePath] = useState<string | null>(null);
