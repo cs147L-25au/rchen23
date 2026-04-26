@@ -279,7 +279,7 @@ export default function ListScreen() {
       <View
         style={[styles.contentBelowTabs, { paddingTop: headerFixedHeight }]}
       >
-        {/* Sort row */}
+        {/* Sort rows */}
         <Pressable
           style={styles.sortRow}
           onPress={() => setShowSortModal(true)}
