@@ -31,6 +31,7 @@ import {
   RatingPost,
 } from "../../database/queries";
 import { getFollowersCount, getFollowingCount } from "../../lib/friendsDb";
+import { getCommentCountsByEventIds } from "../../lib/commentsDb";
 import {
   getLikesForEvent,
   getLikeStateForEvents,
@@ -69,6 +70,9 @@ export default function SettingsScreen() {
   const [recentEvents, setRecentEvents] = useState<FeedEvent[]>([]);
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
+    {},
+  );
   const [likesModalVisible, setLikesModalVisible] = useState(false);
   const [likesModalLoading, setLikesModalLoading] = useState(false);
   const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
@@ -107,6 +111,7 @@ export default function SettingsScreen() {
         setUserBookmarks([]);
         setRecentEvents([]);
         setLikeCounts({});
+        setCommentCounts({});
         setLikedEvents(new Set());
         setUserRank(null);
         return;
@@ -152,6 +157,8 @@ export default function SettingsScreen() {
       setRecentEvents(filteredEvents);
 
       const eventIds = filteredEvents.map((event) => event.event_id);
+      const cCounts = await getCommentCountsByEventIds(eventIds);
+      setCommentCounts(cCounts);
       const likeState = await getLikeStateForEvents(userId, eventIds);
       setLikeCounts(likeState.likeCounts);
       setLikedEvents(likeState.likedEventIds);
@@ -259,6 +266,13 @@ export default function SettingsScreen() {
     }
   };
 
+  const openComments = (item: FeedEvent) => {
+    router.push({
+      pathname: "/postComments/[eventId]",
+      params: { eventId: item.event_id, title: item.title },
+    });
+  };
+
   const handleLikesPress = async (eventId: string) => {
     try {
       setLikesModalVisible(true);
@@ -304,12 +318,12 @@ export default function SettingsScreen() {
         timestamp={formatDate(item.created_at || "")}
         description={item.review_body || ""}
         likeCount={likeCounts[item.event_id] || 0}
-        commentCount={0}
+        commentCount={commentCounts[item.event_id] ?? 0}
         isLiked={likedEvents.has(item.event_id)}
         isBookmarked={actionType === "bookmarked"}
         onLike={() => handleLike(item.event_id)}
         onLikesPress={() => handleLikesPress(item.event_id)}
-        onComment={() => {}}
+        onComment={() => openComments(item)}
         onShare={() => {}}
         onAddToList={() => {}}
         onBookmark={() => {}}

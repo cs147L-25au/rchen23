@@ -35,6 +35,7 @@ import {
   isFollowing,
   unfollowUser,
 } from "../../lib/friendsDb";
+import { getCommentCountsByEventIds } from "../../lib/commentsDb";
 import { getCurrentUserId } from "../../lib/ratingsDb";
 import { getUserWatchlist } from "../../lib/watchlistDb";
 
@@ -89,6 +90,9 @@ const UserProfileScreen: React.FC = () => {
 
   // Recent activity
   const [recentEvents, setRecentEvents] = useState<FeedEvent[]>([]);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
+    {},
+  );
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -147,8 +151,12 @@ const UserProfileScreen: React.FC = () => {
             (event) => event.action_type !== "unbookmarked",
           );
           setRecentEvents(filteredEvents);
+          const eids = filteredEvents.map((e) => e.event_id);
+          const cMap = await getCommentCountsByEventIds(eids);
+          setCommentCounts(cMap);
         } catch {
           setRecentEvents([]);
+          setCommentCounts({});
         }
 
         // Use stored rank from profile (auto-updated by Supabase trigger)
@@ -204,6 +212,13 @@ const UserProfileScreen: React.FC = () => {
   const wantToWatch = userBookmarks.length;
   const currentStreak = profile?.weekly_streak ?? 0;
 
+  const openComments = (item: FeedEvent) => {
+    router.push({
+      pathname: "/postComments/[eventId]",
+      params: { eventId: item.event_id, title: item.title },
+    });
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -243,12 +258,12 @@ const UserProfileScreen: React.FC = () => {
         timestamp={formatDate(item.created_at || "")}
         description={item.review_body || ""}
         likeCount={0}
-        commentCount={0}
+        commentCount={commentCounts[item.event_id] ?? 0}
         isLiked={false}
         isBookmarked={actionType === "bookmarked"}
         onLike={() => {}}
         onLikesPress={() => {}}
-        onComment={() => {}}
+        onComment={() => openComments(item)}
         onShare={() => {}}
         onAddToList={() => {}}
         onBookmark={() => {}}

@@ -146,7 +146,6 @@ const FeedItem: React.FC<FeedItemProps> = ({
         </View>
       </Pressable>
 
-      {/* Likes count */}
       {likeCount > 0 ? (
         <Pressable onPress={onLikesPress} style={styles.likesPressable}>
           <Text style={styles.likesCount}>
@@ -154,11 +153,20 @@ const FeedItem: React.FC<FeedItemProps> = ({
           </Text>
         </Pressable>
       ) : (
-        <Text style={styles.likesCountSpacer}>0 likes</Text>
+        // Reserves the same vertical space as the "N like(s)" line so card height matches posts with a visible count.
+        <View style={styles.likeCountPlaceholder} />
       )}
 
-      {/* Action buttons row */}
-      <View style={styles.actionsRow}>
+      {commentCount > 0 ? (
+        <Pressable onPress={onComment} style={styles.commentsLinePressable}>
+          <Text style={styles.commentsCountLine}>
+            {commentCount} {commentCount === 1 ? "comment" : "comments"}
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {/* Action buttons row — fixed offset under the like/placeholder so it matches 0- vs 1+ like(s) rows */}
+      <View style={[styles.actionsRow, styles.actionsRowAfterLikeBlock]}>
         <View style={styles.leftActions}>
           {/* Like */}
           <Pressable onPress={onLike} style={styles.actionButton}>
@@ -215,12 +223,14 @@ const styles = StyleSheet.create({
   container: {
     borderBottomWidth: 1,
     borderBottomColor: "#e5e5e5",
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     backgroundColor: "#fff",
   },
   card: {
     flexDirection: "row",
+    // Extra space between the header (avatar + copy) and the like row / heart so the icon sits lower in the card.
+    paddingBottom: 10,
   },
   mainRow: {
     flexDirection: "row",
@@ -288,26 +298,39 @@ const styles = StyleSheet.create({
   },
   likesCount: {
     fontSize: 13,
+    lineHeight: 18,
     color: "#333",
     fontWeight: "500",
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: 4,
+    marginBottom: 0,
   },
-  likesCountSpacer: {
-    fontSize: 13,
-    color: "transparent",
-    fontWeight: "500",
-    marginTop: 8,
-    marginBottom: 4,
+  /** Matches likesCount: marginTop 4 + lineHeight 18 (invisible; keeps row height in sync when count is 0). */
+  likeCountPlaceholder: {
+    marginTop: 4,
+    height: 18,
+    alignSelf: "stretch",
   },
   likesPressable: {
     alignSelf: "flex-start",
+  },
+  commentsLinePressable: {
+    alignSelf: "flex-start",
+  },
+  commentsCountLine: {
+    fontSize: 13,
+    color: "#1a535c",
+    fontWeight: "500",
+    marginTop: 2,
+    marginBottom: 2,
   },
   actionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 8,
+  },
+  /** +2pt tighter under the like label than the previous 4, per design (closer to the heart) */
+  actionsRowAfterLikeBlock: {
+    marginTop: 2,
   },
   leftActions: {
     flexDirection: "row",
@@ -325,7 +348,8 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 12,
     color: "#999",
-    marginTop: 8,
+    // Mirror the gap above the icon row (actionsRow marginTop) so space above and below the actions feels even.
+    marginTop: 4,
   },
 });
 

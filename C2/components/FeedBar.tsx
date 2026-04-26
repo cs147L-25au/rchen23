@@ -12,7 +12,9 @@ import {
 
 import db from "../database/db";
 import { FeedEvent, getFeedEvents } from "../database/queries";
+import { getCommentCountsByEventIds } from "../lib/commentsDb";
 import {
+  getLikeCountsForEventIds,
   getLikeStateForEvents,
   getLikesForEvent,
   toggleLikeForEvent,
@@ -69,6 +71,9 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
+    {},
+  );
   const [likesModalVisible, setLikesModalVisible] = useState(false);
   const [likesModalLoading, setLikesModalLoading] = useState(false);
   const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
@@ -145,13 +150,17 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
       }
 
       const eventIds = data.map((item) => item.event_id);
+      const commentCountMap = await getCommentCountsByEventIds(eventIds);
+      setCommentCounts(commentCountMap);
+
       const activeUserId = excludeUserId ?? currentUserId;
       if (activeUserId) {
         const likeState = await getLikeStateForEvents(activeUserId, eventIds);
         setLikeCounts(likeState.likeCounts);
         setLiked(likeState.likedEventIds);
       } else {
-        setLikeCounts({});
+        const countMap = await getLikeCountsForEventIds(eventIds);
+        setLikeCounts(countMap);
         setLiked(new Set());
       }
 
@@ -326,6 +335,13 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
     }
   };
 
+  const openComments = (item: FeedEvent) => {
+    router.push({
+      pathname: "/postComments/[eventId]",
+      params: { eventId: item.event_id, title: item.title },
+    });
+  };
+
   const handleItemPress = (item: FeedEvent) => {
     router.push({
       pathname: "/(tabs)/mediaDetails",
@@ -351,14 +367,12 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
         timestamp={formatTimestamp(item.created_at)}
         description={item.review_body || undefined}
         likeCount={likeCounts[item.event_id] || 0}
-        commentCount={0}
+        commentCount={commentCounts[item.event_id] ?? 0}
         isLiked={liked.has(item.event_id)}
         isBookmarked={bookmarked.has(item.event_id)}
         onLike={() => handleLike(item.event_id)}
         onLikesPress={() => handleLikesPress(item.event_id)}
-        onComment={() => {
-          /* TODO: Open comments */
-        }}
+        onComment={() => openComments(item)}
         onShare={() => {
           /* TODO: Share */
         }}

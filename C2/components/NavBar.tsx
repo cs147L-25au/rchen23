@@ -3,6 +3,9 @@ import { router, usePathname, type Href } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+/** Reserve this much space at the bottom; bar is `position: absolute` and overlays content. */
+export const NAVBAR_HEIGHT = 88;
+
 const NavBar = () => {
   const pathname = usePathname();
 
@@ -134,7 +137,7 @@ const styles = StyleSheet.create({
     borderColor: "#cbcbcb",
     borderTopWidth: 1,
     width: "100%",
-    height: 88,
+    height: NAVBAR_HEIGHT,
     position: "absolute",
     bottom: 0,
     left: 0,

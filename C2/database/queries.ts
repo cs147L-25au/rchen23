@@ -181,6 +181,32 @@ export const getFeedEvents = async (
   }
 };
 
+/** One feed row for a specific activity id (e.g. post / comments screen header). */
+export const getFeedEventByEventId = async (
+  eventId: string,
+): Promise<FeedEvent | null> => {
+  try {
+    const { data, error } = await db
+      .from("v_feed")
+      .select("*")
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching feed event by id:", error.message);
+      return null;
+    }
+    if (!data) return null;
+    const event = data as FeedEvent;
+    const counts = await fetchUserTypeCounts([event.user_id]);
+    const [masked] = maskScoresForFeedEvents([event], counts);
+    return masked ?? null;
+  } catch (e) {
+    console.error("getFeedEventByEventId:", e);
+    return null;
+  }
+};
+
 // Fetch feed events for a specific user
 export const getUserFeedEvents = async (
   userId: string,

@@ -101,15 +101,38 @@ export interface TrendingMovieDetailed extends TrendingMovie {
   release_timestamp: number; // For accurate sorting
 }
 
-// helper to build image URL
+// helper to build image URL (TMDB `poster_path` is usually `"/xx.jpg"`)
 export function getPosterUrl(
   posterPath?: string | null,
   profilePath?: string | null,
+  /** e.g. w342, w500 — w500 is nicer for in-app poster cards */
+  tmdbSize: string = "w342",
 ): string | null {
   const path = posterPath ?? profilePath ?? null;
   if (!path) return null;
-  // w342 is good for detail, not too huge
-  return `https://image.tmdb.org/t/p/w342${path}`;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const seg = path.startsWith("/") ? path : `/${path}`;
+  return `https://image.tmdb.org/t/p/${tmdbSize}${seg}`;
+}
+
+/**
+ * When DB rows lack `poster_path` but `tmdb_id` is known (e.g. v_feed), fetch from TMDB.
+ */
+export async function fetchTmdbPosterPath(
+  tmdbId: number,
+  mediaType: "movie" | "tv",
+): Promise<string | null> {
+  const base =
+    mediaType === "tv"
+      ? `https://api.themoviedb.org/3/tv/${tmdbId}`
+      : `https://api.themoviedb.org/3/movie/${tmdbId}`;
+  const res = await fetch(`${base}?api_key=${TMDB_API_KEY}`);
+  if (!res.ok) return null;
+  const data = (await res.json()) as { poster_path?: string | null };
+  const p = data.poster_path;
+  return typeof p === "string" && p.length > 0 ? p : null;
 }
 
 // Load genre mappings from TMDB (exported for screens that need genre names on credits)

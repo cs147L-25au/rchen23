@@ -7,6 +7,8 @@ export type FeedPostRow = {
   id: string;
   event_id: string;
   like_count: number;
+  /** Present after migration; total comments + replies on this feed post. */
+  comment_count?: number;
   created_at?: string;
 };
 
@@ -23,7 +25,7 @@ export async function getFeedPostsByEventIds(
 
   const { data, error } = await db
     .from("feed_posts")
-    .select("id, event_id, like_count, created_at")
+    .select("id, event_id, like_count, comment_count, created_at")
     .in("event_id", eventIds);
 
   if (error) {
@@ -32,6 +34,48 @@ export async function getFeedPostsByEventIds(
   }
 
   return data || [];
+}
+
+/**
+ * Real like totals from feed_post_likes. Prefer this over feed_posts.like_count in the
+ * UI: the denormalized column can drift; feed_post_likes is the source of truth.
+ */
+export async function getLikeCountByPostIds(
+  postIds: string[]
+): Promise<Record<string, number>> {
+  if (postIds.length === 0) return {};
+
+  const { data, error } = await db
+    .from("feed_post_likes")
+    .select("post_id")
+    .in("post_id", postIds);
+
+  if (error) {
+    console.error("Error counting feed_post_likes:", error);
+    throw error;
+  }
+
+  const counts: Record<string, number> = {};
+  for (const row of data || []) {
+    const id = (row as FeedPostLikeRow).post_id;
+    counts[id] = (counts[id] || 0) + 1;
+  }
+  return counts;
+}
+
+/** Like count per event_id, derived from feed_post_likes (not feed_posts.like_count). */
+export async function getLikeCountsForEventIds(
+  eventIds: string[]
+): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  if (eventIds.length === 0) return out;
+
+  const posts = await getFeedPostsByEventIds(eventIds);
+  const byPost = await getLikeCountByPostIds(posts.map((p) => p.id));
+  posts.forEach((p) => {
+    out[p.event_id] = byPost[p.id] ?? 0;
+  });
+  return out;
 }
 
 export async function getLikeStateForEvents(
@@ -56,7 +100,7 @@ export async function getLikeStateForEvents(
   posts.forEach((post) => {
     postIdByEventId[post.event_id] = post.id;
     eventIdByPostId[post.id] = post.event_id;
-    likeCounts[post.event_id] = post.like_count || 0;
+    likeCounts[post.event_id] = 0;
   });
 
   const postIds = posts.map((post) => post.id);
@@ -64,10 +108,10 @@ export async function getLikeStateForEvents(
     return { likeCounts, likedEventIds, postIdByEventId };
   }
 
-  const { data: likes, error } = await db
+  // One query: true counts (not feed_posts.like_count) + which posts this user liked
+  const { data: likeRows, error } = await db
     .from("feed_post_likes")
-    .select("post_id")
-    .eq("user_id", userId)
+    .select("post_id, user_id")
     .in("post_id", postIds);
 
   if (error) {
@@ -75,18 +119,23 @@ export async function getLikeStateForEvents(
     throw error;
   }
 
-  (likes || []).forEach((like: FeedPostLikeRow) => {
+  for (const row of likeRows || []) {
+    const like = row as FeedPostLikeRow;
     const eventId = eventIdByPostId[like.post_id];
-    if (eventId) likedEventIds.add(eventId);
-  });
+    if (!eventId) continue;
+    likeCounts[eventId] = (likeCounts[eventId] ?? 0) + 1;
+    if (like.user_id === userId) {
+      likedEventIds.add(eventId);
+    }
+  }
 
   return { likeCounts, likedEventIds, postIdByEventId };
 }
 
-async function ensureFeedPost(eventId: string): Promise<FeedPostRow> {
+export async function ensureFeedPost(eventId: string): Promise<FeedPostRow> {
   const { data: existing, error: selectError } = await db
     .from("feed_posts")
-    .select("id, event_id, like_count, created_at")
+    .select("id, event_id, like_count, comment_count, created_at")
     .eq("event_id", eventId)
     .maybeSingle();
 
@@ -99,8 +148,8 @@ async function ensureFeedPost(eventId: string): Promise<FeedPostRow> {
 
   const { data: inserted, error: insertError } = await db
     .from("feed_posts")
-    .insert({ event_id: eventId, like_count: 0 })
-    .select("id, event_id, like_count, created_at")
+    .insert({ event_id: eventId, like_count: 0, comment_count: 0 })
+    .select("id, event_id, like_count, comment_count, created_at")
     .single();
 
   if (insertError) {

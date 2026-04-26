@@ -39,6 +39,9 @@ export default function RootLayout() {
 
         {/* Actor / director filmography */}
         <Stack.Screen name="person" options={{ headerShown: false }} />
+
+        {/* Feed post comments thread */}
+        <Stack.Screen name="postComments" options={{ headerShown: false }} />
       </Stack>
 
       <StatusBar style="auto" />
