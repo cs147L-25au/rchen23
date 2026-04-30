@@ -1,26 +1,25 @@
-// app/onboarding1.tsx
-// Onboarding Step 1: Welcome screen
-
 import { Ionicons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import db from "@/database/db";
 import { clearStoredUserId } from "@/utils/auth";
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
-const ACCENT_RED = "#B3261E";
 const { width, height } = Dimensions.get("window");
 
 export default function OnboardingWelcomeScreen() {
   const params = useLocalSearchParams<{ userId?: string; email?: string }>();
   const [verifyEmail] = useState(params.email ?? "");
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const handleGoBack = async () => {
-    // Sign out and clear stored userId so user can see the signup form
     await clearStoredUserId();
     await db.auth.signOut();
     router.replace("/auth?restoreForm=true");
@@ -42,9 +41,8 @@ export default function OnboardingWelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
 
-      {/* Header with back button */}
       <View style={styles.headerContainer}>
         <Pressable
           style={styles.backButton}
@@ -52,7 +50,7 @@ export default function OnboardingWelcomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back to sign in"
         >
-          <Ionicons name="chevron-back" size={24} color="#000" />
+          <Ionicons name="chevron-back" size={24} color={t.textPrimary} />
         </Pressable>
 
         <View style={styles.titleContainer}>
@@ -64,13 +62,12 @@ export default function OnboardingWelcomeScreen() {
         <View style={styles.backButtonPlaceholder} />
       </View>
 
-      {/* Main content */}
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <MaterialCommunityIcons
             name="movie-open-star-outline"
             size={120}
-            color={ACCENT_RED}
+            color={t.primary}
           />
         </View>
 
@@ -78,7 +75,7 @@ export default function OnboardingWelcomeScreen() {
 
         <View style={styles.featuresContainer}>
           <View style={styles.featureRow}>
-            <MaterialCommunityIcons name="star" size={24} color={ACCENT_RED} />
+            <MaterialCommunityIcons name="star" size={24} color={t.primary} />
             <Text style={styles.featureText}>
               Rate and track your favorite movies
             </Text>
@@ -87,7 +84,7 @@ export default function OnboardingWelcomeScreen() {
             <MaterialCommunityIcons
               name="account-group"
               size={24}
-              color={ACCENT_RED}
+              color={t.primary}
             />
             <Text style={styles.featureText}>
               Share recommendations with friends
@@ -97,14 +94,13 @@ export default function OnboardingWelcomeScreen() {
             <MaterialCommunityIcons
               name="trophy"
               size={24}
-              color={ACCENT_RED}
+              color={t.primary}
             />
             <Text style={styles.featureText}>Climb the leaderboards</Text>
           </View>
         </View>
       </View>
 
-      {/* Footer with next button */}
       <View style={styles.footerContainer}>
         <Text style={styles.stepIndicator}>Step 1 of 3</Text>
         <Pressable
@@ -121,103 +117,104 @@ export default function OnboardingWelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  backButton: {
-    padding: 8,
-    width: 40,
-  },
-  backButtonPlaceholder: {
-    width: 40,
-  },
-  titleContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#000",
-    textAlign: "center",
-  },
-  titleAccent: {
-    color: ACCENT_RED,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  iconContainer: {
-    marginBottom: 32,
-    padding: 24,
-    backgroundColor: "#FFF5F5",
-    borderRadius: 100,
-  },
-  heading: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    textAlign: "center",
-    marginBottom: 40,
-  },
-  featuresContainer: {
-    width: "100%",
-    gap: 20,
-  },
-  featureRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-  },
-  featureText: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "500",
-  },
-  footerContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 12,
-    alignItems: "center",
-  },
-  stepIndicator: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
-  },
-  nextButton: {
-    backgroundColor: ACCENT_RED,
-    borderRadius: 999,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    width: "100%",
-  },
-  nextButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    headerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: 12,
+      paddingHorizontal: 20,
+      paddingBottom: 8,
+    },
+    backButton: {
+      padding: 8,
+      width: 40,
+    },
+    backButtonPlaceholder: {
+      width: 40,
+    },
+    titleContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.textPrimary,
+      textAlign: "center",
+    },
+    titleAccent: {
+      color: t.primary,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    iconContainer: {
+      marginBottom: 32,
+      padding: 24,
+      backgroundColor: t.primarySubtle,
+      borderRadius: 100,
+    },
+    heading: {
+      fontSize: 28,
+      fontWeight: "700",
+      color: t.textPrimary,
+      textAlign: "center",
+      marginBottom: 40,
+    },
+    featuresContainer: {
+      width: "100%",
+      gap: 20,
+    },
+    featureRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      backgroundColor: t.card,
+      borderRadius: 12,
+    },
+    featureText: {
+      flex: 1,
+      fontSize: 16,
+      color: t.textSecondary,
+      fontWeight: "500",
+    },
+    footerContainer: {
+      paddingHorizontal: 24,
+      paddingBottom: 24,
+      paddingTop: 12,
+      alignItems: "center",
+    },
+    stepIndicator: {
+      fontSize: 14,
+      color: t.textMuted,
+      marginBottom: 16,
+    },
+    nextButton: {
+      backgroundColor: t.primary,
+      borderRadius: 999,
+      paddingVertical: 16,
+      paddingHorizontal: 32,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      width: "100%",
+    },
+    nextButtonText: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: "#fff",
+    },
+  });

@@ -4,7 +4,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import {
   Image,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -19,6 +20,8 @@ import {
 
 import db from "@/database/db";
 import { signOut } from "@/utils/auth";
+import { useAppTheme } from "@/contexts/ThemeContext";
+import { ThemeColors } from "@/constants/theme";
 import NavBar from "../../components/NavBar";
 
 import FeedItem, { ActionType } from "../../components/FeedItem";
@@ -63,6 +66,8 @@ type WatchlistItem = {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { colors: t, mode, toggleTheme } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userRatings, setUserRatings] = useState<RatingPost[]>([]);
@@ -70,9 +75,7 @@ export default function SettingsScreen() {
   const [recentEvents, setRecentEvents] = useState<FeedEvent[]>([]);
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
-    {},
-  );
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [likesModalVisible, setLikesModalVisible] = useState(false);
   const [likesModalLoading, setLikesModalLoading] = useState(false);
   const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
@@ -119,11 +122,9 @@ export default function SettingsScreen() {
 
       const profileData = await getProfileById(userId);
 
-      // Get rank from profile (stored in Supabase, auto-updated by trigger)
       if (profileData?.rank) {
         setUserRank(profileData.rank);
       } else {
-        // Fallback: fetch rank directly from profiles table
         try {
           const { data: rankData } = await db
             .from("profiles")
@@ -141,7 +142,6 @@ export default function SettingsScreen() {
           : profileData;
       setProfile(cleanedProfile);
 
-      // Fetch follower/following counts
       const fCount = await getFollowersCount(userId);
       const fgCount = await getFollowingCount(userId);
       setFollowersCount(fCount);
@@ -186,7 +186,6 @@ export default function SettingsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Use the signOut utility which clears all stored auth data
               await signOut();
             } catch (err) {
               console.error("Failed to sign out", err);
@@ -199,7 +198,6 @@ export default function SettingsScreen() {
     );
   };
 
-  // SAME formatDate as FeedBar
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -225,19 +223,13 @@ export default function SettingsScreen() {
 
     setLikedEvents((prev) => {
       const next = new Set(prev);
-      if (isCurrentlyLiked) {
-        next.delete(eventId);
-      } else {
-        next.add(eventId);
-      }
+      if (isCurrentlyLiked) next.delete(eventId);
+      else next.add(eventId);
       return next;
     });
     setLikeCounts((counts) => ({
       ...counts,
-      [eventId]: Math.max(
-        0,
-        (counts[eventId] || 0) + (isCurrentlyLiked ? -1 : 1),
-      ),
+      [eventId]: Math.max(0, (counts[eventId] || 0) + (isCurrentlyLiked ? -1 : 1)),
     }));
 
     try {
@@ -247,17 +239,11 @@ export default function SettingsScreen() {
         isLiked: isCurrentlyLiked,
         currentLikeCount: likeCounts[eventId] || 0,
       });
-      setLikeCounts((counts) => ({
-        ...counts,
-        [eventId]: result.likeCount,
-      }));
+      setLikeCounts((counts) => ({ ...counts, [eventId]: result.likeCount }));
       setLikedEvents((prev) => {
         const next = new Set(prev);
-        if (result.isLiked) {
-          next.add(eventId);
-        } else {
-          next.delete(eventId);
-        }
+        if (result.isLiked) next.add(eventId);
+        else next.delete(eventId);
         return next;
       });
     } catch (error) {
@@ -294,7 +280,6 @@ export default function SettingsScreen() {
   };
 
   const renderRecentItem = ({ item }: { item: FeedEvent }) => {
-    // Get user initials from userName
     const userInitials = userName
       .split(" ")
       .map((n) => n[0])
@@ -304,6 +289,18 @@ export default function SettingsScreen() {
     const actionType = item.action_type as ActionType;
     const isRanked = actionType === "ranked";
     const rightActionVariant = isRanked ? "watched" : "bookmarked";
+
+    const handleMediaPress = () => {
+      router.push({
+        pathname: "/(tabs)/mediaDetails",
+        params: {
+          id: String(item.tmdb_id),
+          title: item.title,
+          mediaType: item.tmdb_media_type,
+          posterPath: item.poster_path || "",
+        },
+      });
+    };
 
     return (
       <FeedItem
@@ -327,6 +324,7 @@ export default function SettingsScreen() {
         onShare={() => {}}
         onAddToList={() => {}}
         onBookmark={() => {}}
+        onPress={handleMediaPress}
         rightActionVariant={rightActionVariant}
       />
     );
@@ -343,7 +341,7 @@ export default function SettingsScreen() {
             style={styles.logoutButton}
             onPress={handleLogoutPress}
           >
-            <MaterialIcons name="logout" size={22} color="#000" />
+            <MaterialIcons name="logout" size={22} color={t.textPrimary} />
           </TouchableOpacity>
 
           <View style={styles.headerTop}>
@@ -419,14 +417,14 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ---------------- STATS LIST (UNCHANGED) ---------------- */}
+        {/* Stats list */}
         <View style={styles.statsLinesContainer}>
           <TouchableOpacity
             style={styles.statLine}
             onPress={() => router.push("/(tabs)/list")}
           >
             <View style={styles.statLineLeft}>
-              <MaterialIcons name="movie" size={24} color="#000" />
+              <MaterialIcons name="movie" size={24} color={t.textPrimary} />
               <Text style={styles.statLineLabel}>Watched</Text>
             </View>
             <View style={styles.statLineRight}>
@@ -445,7 +443,7 @@ export default function SettingsScreen() {
             }
           >
             <View style={styles.statLineLeft}>
-              <FontAwesome name="bookmark" size={24} color="#000" />
+              <FontAwesome name="bookmark" size={24} color={t.textPrimary} />
               <Text style={styles.statLineLabel}>Watchlist</Text>
             </View>
             <View style={styles.statLineRight}>
@@ -455,7 +453,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ---------------- RANK & STREAK BOXES (UNCHANGED) ---------------- */}
+        {/* Rank & streak boxes */}
         <View style={styles.rankStreakContainer}>
           <View style={styles.rankBox}>
             <FontAwesome5 name="trophy" size={32} color="#FFB800" />
@@ -472,12 +470,32 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ---------------- NEW FEED-STYLE RECENT ACTIVITY ---------------- */}
+        {/* Appearance toggle */}
+        <View style={styles.appearanceContainer}>
+          <View style={styles.appearanceRow}>
+            <MaterialIcons
+              name={mode === "dark" ? "dark-mode" : "light-mode"}
+              size={22}
+              color={t.textPrimary}
+            />
+            <Text style={styles.appearanceLabel}>
+              {mode === "dark" ? "Dark Mode" : "Light Mode"}
+            </Text>
+            <Switch
+              value={mode === "dark"}
+              onValueChange={toggleTheme}
+              trackColor={{ false: t.border, true: t.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+
+        {/* Recent Activity */}
         <View style={styles.recentActivityContainer}>
           <Text style={styles.recentActivityTitle}>Recent Activity</Text>
 
           {loading ? (
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color={t.primary} />
           ) : recentEvents.length === 0 ? (
             <Text style={styles.noActivityText}>No recent activity</Text>
           ) : (
@@ -486,7 +504,7 @@ export default function SettingsScreen() {
               renderItem={renderRecentItem}
               keyExtractor={(p) => p.event_id}
               contentContainerStyle={{ gap: 12 }}
-              scrollEnabled={false} // let outer scroll handle it
+              scrollEnabled={false}
             />
           )}
         </View>
@@ -504,189 +522,208 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  // ✂️ unchanged from your existing file
-  page: { flex: 1, backgroundColor: "#fff" },
-  headerContainer: {
-    backgroundColor: "#fff",
-    paddingTop: "20%",
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    alignItems: "center",
-  },
-  logoutButton: {
-    position: "absolute",
-    top: 50,
-    right: 16,
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.04)",
-  },
-  headerTop: { alignItems: "center", marginBottom: 8 },
-  headerBottom: { alignItems: "center" },
-  profilePic: {
-    width: 110,
-    height: 110,
-    borderRadius: 40,
-    marginBottom: 8,
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  userHandle: {
-    fontSize: 14,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginBottom: 8,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    paddingVertical: 6,
-    marginBottom: 6,
-  },
-  statItem: { alignItems: "center" },
-  statNumber: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  statLabel: {
-    fontSize: 11,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginTop: 4,
-  },
-  buttonContainer: { flexDirection: "row", gap: 12 },
-  editButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 20,
-  },
-  editButtonText: {
-    fontSize: 13,
-    color: "#000",
-    fontFamily: "DM Sans",
-    fontWeight: "500",
-  },
-  shareButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 20,
-  },
-  shareButtonText: {
-    fontSize: 13,
-    color: "#000",
-    fontFamily: "DM Sans",
-    fontWeight: "500",
-  },
-
-  statsLinesContainer: { paddingHorizontal: 16 },
-  statLine: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  statLineLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  statLineLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  statLineRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  statLineNumber: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  arrow: { fontSize: 20, color: "#999" },
-
-  rankStreakContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 12,
-  },
-  rankBox: {
-    flex: 1,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 20,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  streakBox: {
-    flex: 1,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 20,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  rankLabel: {
-    fontSize: 12,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  streakLabel: {
-    fontSize: 12,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  rankNumber: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  streakNumber: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-
-  recentActivityContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  recentActivityTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-    marginBottom: 12,
-  },
-  noActivityText: {
-    fontSize: 14,
-    color: "#999",
-    fontFamily: "DM Sans",
-    textAlign: "center",
-    paddingVertical: "5%",
-  },
-  bottomPadding: { height: "30%" },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    page: { flex: 1, backgroundColor: t.background },
+    headerContainer: {
+      backgroundColor: t.surface,
+      paddingTop: "20%",
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+      alignItems: "center",
+    },
+    logoutButton: {
+      position: "absolute",
+      top: 50,
+      right: 16,
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: t.card,
+    },
+    headerTop: { alignItems: "center", marginBottom: 8 },
+    headerBottom: { alignItems: "center" },
+    profilePic: {
+      width: 110,
+      height: 110,
+      borderRadius: 40,
+      marginBottom: 8,
+    },
+    userName: {
+      fontSize: 24,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    userHandle: {
+      fontSize: 14,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginBottom: 8,
+    },
+    statsRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      width: "100%",
+      paddingVertical: 6,
+      marginBottom: 6,
+    },
+    statItem: { alignItems: "center" },
+    statNumber: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    statLabel: {
+      fontSize: 11,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginTop: 4,
+    },
+    buttonContainer: { flexDirection: "row", gap: 12 },
+    editButton: {
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 20,
+    },
+    editButtonText: {
+      fontSize: 13,
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+      fontWeight: "500",
+    },
+    shareButton: {
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 20,
+    },
+    shareButtonText: {
+      fontSize: 13,
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+      fontWeight: "500",
+    },
+    statsLinesContainer: { paddingHorizontal: 16 },
+    statLine: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    statLineLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    statLineLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    statLineRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+    statLineNumber: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    arrow: { fontSize: 20, color: t.textMuted },
+    rankStreakContainer: {
+      flexDirection: "row",
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      gap: 12,
+    },
+    rankBox: {
+      flex: 1,
+      backgroundColor: t.card,
+      borderRadius: 12,
+      padding: 20,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    streakBox: {
+      flex: 1,
+      backgroundColor: t.card,
+      borderRadius: 12,
+      padding: 20,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    rankLabel: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    streakLabel: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    rankNumber: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    streakNumber: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    appearanceContainer: {
+      marginHorizontal: 16,
+      marginVertical: 8,
+      backgroundColor: t.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+      paddingHorizontal: 12,
+    },
+    appearanceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 14,
+      gap: 12,
+    },
+    appearanceLabel: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: "500",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    recentActivityContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      borderTopWidth: 1,
+      borderTopColor: t.divider,
+    },
+    recentActivityTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+      marginBottom: 12,
+    },
+    noActivityText: {
+      fontSize: 14,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      textAlign: "center",
+      paddingVertical: "5%",
+    },
+    bottomPadding: { height: "30%" },
+  });

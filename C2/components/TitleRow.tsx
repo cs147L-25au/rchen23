@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { TMDBMediaResult, getGenreNames, getPosterUrl } from "../TMDB";
+
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 type TitleRowProps = {
   item: TMDBMediaResult;
@@ -15,6 +18,9 @@ const formatReleaseDate = (dateStr?: string): string => {
 };
 
 const TitleRow: React.FC<TitleRowProps> = ({ item, onPress }) => {
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const displayTitle = item.title ?? item.name ?? "(no title)";
   const posterUri = getPosterUrl(item.poster_path, item.profile_path);
 
@@ -51,56 +57,58 @@ const TitleRow: React.FC<TitleRowProps> = ({ item, onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#efefef",
-    gap: 12,
-  },
-  poster: {
-    width: 52,
-    height: 78,
-    borderRadius: 6,
-    backgroundColor: "#d9d9d9",
-  },
-  noPoster: {
-    width: 52,
-    height: 78,
-    borderRadius: 6,
-    backgroundColor: "#d9d9d9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noPosterText: {
-    fontSize: 10,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  metaCol: {
-    flexShrink: 1,
-    justifyContent: "center",
-  },
-  titleText: {
-    fontSize: 15,
-    color: "#000000",
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-  },
-  metaText: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
-    fontFamily: "DM Sans",
-  },
-  genreText: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-    fontFamily: "DM Sans",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      gap: 12,
+      backgroundColor: t.surface,
+    },
+    poster: {
+      width: 52,
+      height: 78,
+      borderRadius: 6,
+      backgroundColor: t.posterPlaceholder,
+    },
+    noPoster: {
+      width: 52,
+      height: 78,
+      borderRadius: 6,
+      backgroundColor: t.posterPlaceholder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    noPosterText: {
+      fontSize: 10,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    metaCol: {
+      flexShrink: 1,
+      justifyContent: "center",
+    },
+    titleText: {
+      fontSize: 15,
+      color: t.textPrimary,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+    },
+    metaText: {
+      fontSize: 12,
+      color: t.textSecondary,
+      marginTop: 4,
+      fontFamily: "DM Sans",
+    },
+    genreText: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 2,
+      fontFamily: "DM Sans",
+    },
+  });
 
 export default TitleRow;

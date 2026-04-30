@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { TMDBMediaResult, getPosterUrl } from "../TMDB";
+
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 type PersonRowProps = {
   item: TMDBMediaResult;
@@ -11,22 +14,17 @@ const getPersonRole = (item: TMDBMediaResult): string => {
   const department = item.known_for_department?.toLowerCase();
   const gender = item.gender;
 
-  if (department === "directing") {
-    return "Director";
-  }
-  if (department === "acting") {
-    return gender === 1 ? "Actress" : "Actor";
-  }
-  if (department === "writing") {
-    return "Writer";
-  }
-  if (department === "production") {
-    return "Producer";
-  }
+  if (department === "directing") return "Director";
+  if (department === "acting") return gender === 1 ? "Actress" : "Actor";
+  if (department === "writing") return "Writer";
+  if (department === "production") return "Producer";
   return "Person";
 };
 
 const PersonRow: React.FC<PersonRowProps> = ({ item, onPress }) => {
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const displayName = item.name ?? item.title ?? "(no name)";
   const profileUri = getPosterUrl(undefined, item.profile_path);
 
@@ -47,49 +45,51 @@ const PersonRow: React.FC<PersonRowProps> = ({ item, onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#efefef",
-    gap: 12,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#d9d9d9",
-  },
-  avatarFallback: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#d9d9d9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 10,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  metaCol: {
-    justifyContent: "center",
-  },
-  nameText: {
-    fontSize: 15,
-    color: "#000000",
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-  },
-  roleText: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
-    fontFamily: "DM Sans",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      gap: 12,
+      backgroundColor: t.surface,
+    },
+    avatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: t.avatarFallback,
+    },
+    avatarFallback: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: t.avatarFallback,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: {
+      fontSize: 10,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    metaCol: {
+      justifyContent: "center",
+    },
+    nameText: {
+      fontSize: 15,
+      color: t.textPrimary,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+    },
+    roleText: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 4,
+      fontFamily: "DM Sans",
+    },
+  });
 
 export default PersonRow;

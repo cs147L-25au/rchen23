@@ -1,6 +1,6 @@
 // components/RatingModal/WatchWithPicker.tsx
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -13,6 +13,8 @@ import {
 } from "react-native";
 
 import { createFriend, fetchFriends, Friend } from "../../lib/ratingsDb";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 interface WatchWithPickerProps {
   userId: string;
@@ -25,6 +27,9 @@ const WatchWithPicker: React.FC<WatchWithPickerProps> = ({
   selectedFriendIds,
   onSelect,
 }) => {
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +136,7 @@ const WatchWithPicker: React.FC<WatchWithPickerProps> = ({
                     <Ionicons
                       name="checkmark-circle"
                       size={24}
-                      color="#1a535c"
+                      color={t.primary}
                     />
                   )}
                 </Pressable>
@@ -179,107 +184,109 @@ const WatchWithPicker: React.FC<WatchWithPickerProps> = ({
 
 export default WatchWithPicker;
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    gap: 12,
-  },
-  rowContent: {
-    flex: 1,
-  },
-  rowLabel: {
-    fontSize: 15,
-    color: "#000",
-  },
-  chipsScroll: {
-    marginTop: 8,
-  },
-  chip: {
-    backgroundColor: "#e0e0e0",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  chipText: {
-    fontSize: 13,
-    color: "#333",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#fff",
-    marginTop: 100,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-  },
-  friendsList: {
-    flex: 1,
-    padding: 16,
-  },
-  friendRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  friendName: {
-    fontSize: 16,
-    color: "#000",
-  },
-  addFriendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 16,
-    gap: 12,
-  },
-  addFriendInput: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-  },
-  addButton: {
-    backgroundColor: "#1a535c",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  doneButton: {
-    backgroundColor: "#1a535c",
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  doneButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      gap: 12,
+    },
+    rowContent: {
+      flex: 1,
+    },
+    rowLabel: {
+      fontSize: 15,
+      color: t.textPrimary,
+    },
+    chipsScroll: {
+      marginTop: 8,
+    },
+    chip: {
+      backgroundColor: t.card,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      marginRight: 8,
+    },
+    chipText: {
+      fontSize: 13,
+      color: t.textSecondary,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: t.background,
+      marginTop: 100,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+    },
+    friendsList: {
+      flex: 1,
+      padding: 16,
+    },
+    friendRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    friendName: {
+      fontSize: 16,
+      color: t.textPrimary,
+    },
+    addFriendRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 16,
+      gap: 12,
+    },
+    addFriendInput: {
+      flex: 1,
+      backgroundColor: t.inputBackground,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 14,
+      color: t.textPrimary,
+    },
+    addButton: {
+      backgroundColor: t.primary,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    addButtonDisabled: {
+      backgroundColor: t.textMuted,
+    },
+    doneButton: {
+      backgroundColor: t.primary,
+      margin: 16,
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    doneButtonText: {
+      color: "#fff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

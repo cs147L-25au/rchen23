@@ -1,6 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,8 @@ import {
 } from "../lib/likesDb";
 import { getCurrentUserId } from "../lib/ratingsDb";
 import { isInWatchlistByTmdb, toggleWatchlistByTmdb } from "../lib/watchlistDb";
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 import FeedItem, { ActionType } from "./FeedItem";
 import LikesModal, { LikeUser } from "./LikesModal";
 
@@ -62,6 +64,8 @@ type FeedBarProps = {
 
 const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
   const router = useRouter();
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [feedItems, setFeedItems] = useState<FeedEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -297,6 +301,9 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
           bookmarked.has(feedItem.event_id),
       );
 
+      // Store previous state for rollback
+      const previousBookmarked = new Set(bookmarked);
+
       // Optimistic UI update - toggle all events with the same title
       setBookmarked((prev) => {
         const newSet = new Set(prev);
@@ -325,12 +332,12 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
         poster_path: item.poster_path,
       });
 
-      // Refresh feed after a short delay
-      setTimeout(() => loadFeed(), 500);
+      // Don't refetch the entire feed - just update the UI state
+      // The optimistic update already reflects the change
     } catch (error) {
       console.error("Bookmark error:", error);
       // Revert optimistic update on error
-      loadFeed();
+      setBookmarked(previousBookmarked);
       Alert.alert("Error", "Failed to update watchlist");
     }
   };
@@ -349,6 +356,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
         id: item.tmdb_id.toString(),
         mediaType: item.tmdb_media_type,
         title: item.title,
+        posterPath: item.poster_path || "",
       },
     });
   };
@@ -388,7 +396,7 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#1a535c" />
+        <ActivityIndicator size="large" color={t.primary} />
       </View>
     );
   }
@@ -435,42 +443,43 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#fff",
-  },
-  listContent: {
-    paddingBottom: 100,
-  },
-  listContentNoScroll: {
-    paddingBottom: 0,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#e74c3c",
-    textAlign: "center",
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 8,
-  },
-  separator: {
-    height: 0,
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: t.background,
+    },
+    listContent: {
+      paddingBottom: 100,
+    },
+    listContentNoScroll: {
+      paddingBottom: 0,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 20,
+    },
+    errorText: {
+      fontSize: 16,
+      color: "#e74c3c",
+      textAlign: "center",
+    },
+    emptyText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+      textAlign: "center",
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: t.textMuted,
+      textAlign: "center",
+      marginTop: 8,
+    },
+    separator: {
+      height: 0,
+    },
+  });
 
 export default FeedBar;

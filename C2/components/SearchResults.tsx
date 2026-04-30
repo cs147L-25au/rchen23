@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   FlatList,
   Image,
@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 import { TMDBMediaResult, getGenreNames, getPosterUrl } from "../TMDB";
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 interface SearchResultsProps {
   results: TMDBMediaResult[];
@@ -43,6 +45,8 @@ function formatReleaseDate(dateStr?: string): string {
 
 const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
   const router = useRouter();
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const handlePress = (item: TMDBMediaResult) => {
     const displayTitle = item.title ?? item.name ?? "(no title)";
@@ -129,72 +133,73 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    width: "100%",
-    paddingHorizontal: "3%",
-    paddingTop: "0%",
-    paddingBottom: "18.5%",
-  },
-  list: {
-    width: "100%",
-    paddingHorizontal: "3%",
-  },
-  resultRow: {
-    flexDirection: "row",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    gap: 12,
-  },
-  poster: {
-    width: 60,
-    height: 90,
-    borderRadius: 6,
-    backgroundColor: "#d9d9d9",
-  },
-  noPoster: {
-    width: 60,
-    height: 90,
-    borderRadius: 6,
-    backgroundColor: "#d9d9d9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noPosterText: {
-    fontSize: 10,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  metaCol: {
-    flexShrink: 1,
-    justifyContent: "center",
-  },
-  titleText: {
-    fontSize: 16,
-    color: "#000000",
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-  },
-  typeText: {
-    fontSize: 13,
-    color: "#666565ff",
-    marginTop: 4,
-    fontFamily: "DM Sans",
-  },
-  genreText: {
-    fontSize: 12,
-    color: "#444",
-    marginTop: 2,
-    fontFamily: "DM Sans",
-  },
-  dateText: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-    fontFamily: "DM Sans",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    wrapper: {
+      flex: 1,
+      width: "100%",
+      paddingHorizontal: "3%",
+      paddingTop: "0%",
+      paddingBottom: "18.5%",
+    },
+    list: {
+      width: "100%",
+      paddingHorizontal: "3%",
+    },
+    resultRow: {
+      flexDirection: "row",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+      gap: 12,
+    },
+    poster: {
+      width: 60,
+      height: 90,
+      borderRadius: 6,
+      backgroundColor: t.posterPlaceholder,
+    },
+    noPoster: {
+      width: 60,
+      height: 90,
+      borderRadius: 6,
+      backgroundColor: t.posterPlaceholder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    noPosterText: {
+      fontSize: 10,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+    },
+    metaCol: {
+      flexShrink: 1,
+      justifyContent: "center",
+    },
+    titleText: {
+      fontSize: 16,
+      color: t.textPrimary,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+    },
+    typeText: {
+      fontSize: 13,
+      color: t.textSecondary,
+      marginTop: 4,
+      fontFamily: "DM Sans",
+    },
+    genreText: {
+      fontSize: 12,
+      color: t.textSecondary,
+      marginTop: 2,
+      fontFamily: "DM Sans",
+    },
+    dateText: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 2,
+      fontFamily: "DM Sans",
+    },
+  });
 
 export default SearchResults;

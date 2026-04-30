@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   FlatList,
   Image,
@@ -9,6 +9,9 @@ import {
   Text,
   View,
 } from "react-native";
+
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 const DEFAULT_PROFILE_PIC = require("../assets/anon_pfp.png");
 
@@ -25,7 +28,10 @@ type LikesModalProps = {
 };
 
 const LikesModal: React.FC<LikesModalProps> = ({ visible, likes, onClose }) => {
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const isEmpty = likes.length === 0;
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.backdrop}>
@@ -33,7 +39,7 @@ const LikesModal: React.FC<LikesModalProps> = ({ visible, likes, onClose }) => {
           <View style={styles.headerRow}>
             <Text style={styles.title}>Likes</Text>
             <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={20} color="#555" />
+              <Ionicons name="close" size={20} color={t.textSecondary} />
             </Pressable>
           </View>
           {isEmpty ? (
@@ -64,73 +70,67 @@ const LikesModal: React.FC<LikesModalProps> = ({ visible, likes, onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  card: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 8,
-    maxHeight: "60%",
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000",
-  },
-  closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#f2f2f2",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  listContent: {
-    paddingBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: "#666",
-    paddingVertical: 12,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
-  },
-  avatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e5e5e5",
-    marginRight: 12,
-  },
-  nameText: {
-    fontSize: 15,
-    color: "#000",
-    fontWeight: "500",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 24,
+    },
+    card: {
+      width: "100%",
+      backgroundColor: t.modalBackground,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 8,
+      maxHeight: "60%",
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 8,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: t.textPrimary,
+    },
+    closeButton: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: t.closeButton,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    listContent: {
+      paddingBottom: 8,
+    },
+    emptyText: {
+      fontSize: 14,
+      color: t.textMuted,
+      paddingVertical: 12,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 10,
+    },
+    avatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      marginRight: 12,
+    },
+    nameText: {
+      fontSize: 15,
+      color: t.textPrimary,
+      fontWeight: "500",
+    },
+  });
 
 export default LikesModal;

@@ -21,6 +21,8 @@ import NavBar from "../../components/NavBar";
 import PersonRow from "../../components/PersonRow";
 import SegmentedTabs from "../../components/SegmentedTabs";
 import TitleRow from "../../components/TitleRow";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 import db from "../../database/db";
 import { followUser, getFollowingIds, unfollowUser } from "../../lib/friendsDb";
@@ -46,6 +48,9 @@ const TABS: { key: TabKey; label: string }[] = [
 
 const SearchScreen: React.FC = () => {
   const router = useRouter();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const [activeTab, setActiveTab] = useState<TabKey>("titles");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -67,9 +72,7 @@ const SearchScreen: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      console.log("[Search] init");
       const userId = await getCurrentUserId();
-      console.log("[Search] current user id", userId);
       setCurrentUserId(userId);
     };
     init();
@@ -85,7 +88,6 @@ const SearchScreen: React.FC = () => {
   useEffect(() => {
     if (activeTab !== "titles") return;
     if (!debouncedQuery) {
-      console.log("[Search] titles query cleared");
       setTitleResults([]);
       setTitleLoading(false);
       return;
@@ -94,7 +96,6 @@ const SearchScreen: React.FC = () => {
     let cancelled = false;
     const fetchTitles = async () => {
       try {
-        console.log("[Search] searching titles", debouncedQuery);
         setTitleLoading(true);
         const results = await searchTMDB(debouncedQuery);
         if (cancelled) return;
@@ -111,15 +112,12 @@ const SearchScreen: React.FC = () => {
     };
 
     fetchTitles();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeTab, debouncedQuery]);
 
   useEffect(() => {
     if (activeTab !== "members") return;
     if (!debouncedQuery) {
-      console.log("[Search] members query cleared");
       setMemberResults([]);
       setMemberLoading(false);
       return;
@@ -128,7 +126,6 @@ const SearchScreen: React.FC = () => {
     let cancelled = false;
     const fetchMembers = async () => {
       try {
-        console.log("[Search] searching members", debouncedQuery);
         setMemberLoading(true);
         const pattern = `%${debouncedQuery}%`;
         const { data, error } = await db
@@ -164,7 +161,6 @@ const SearchScreen: React.FC = () => {
           });
 
         if (cancelled) return;
-        console.log("[Search] members results", cleaned.length);
         setMemberResults(cleaned);
 
         if (currentUserId && cleaned.length > 0) {
@@ -185,9 +181,7 @@ const SearchScreen: React.FC = () => {
     };
 
     fetchMembers();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeTab, debouncedQuery, currentUserId]);
 
   useEffect(() => {
@@ -197,12 +191,10 @@ const SearchScreen: React.FC = () => {
     let cancelled = false;
     const loadRecentsAndSuggested = async () => {
       try {
-        console.log("[Search] loading recents");
         const stored = await AsyncStorage.getItem(RECENT_MEMBERS_KEY);
         const parsed = stored ? (JSON.parse(stored) as MemberProfile[]) : [];
         if (!cancelled) setRecentMembers(parsed || []);
 
-        console.log("[Search] fetching suggested members");
         setSuggestedLoading(true);
         const { data, error } = await db
           .from("profiles")
@@ -237,7 +229,6 @@ const SearchScreen: React.FC = () => {
           });
 
         if (cancelled) return;
-        console.log("[Search] suggested members", suggested.length);
         setSuggestedMembers(suggested);
 
         if (currentUserId) {
@@ -260,16 +251,13 @@ const SearchScreen: React.FC = () => {
     };
 
     loadRecentsAndSuggested();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeTab, debouncedQuery, currentUserId]);
 
   const saveRecentMember = async (member: MemberProfile) => {
     try {
       const existing = recentMembers.filter((row) => row.id !== member.id);
       const next = [member, ...existing].slice(0, MAX_RECENTS);
-      console.log("[Search] save recent member", member.id);
       setRecentMembers(next);
       await AsyncStorage.setItem(RECENT_MEMBERS_KEY, JSON.stringify(next));
     } catch (err) {
@@ -310,7 +298,6 @@ const SearchScreen: React.FC = () => {
     }
     if (followLoadingIds.has(userId)) return;
 
-    console.log("[Search] toggle follow", userId);
     setFollowLoadingIds((prev) => new Set([...prev, userId]));
     const isFollowing = followingIds.has(userId);
     const success = isFollowing
@@ -382,7 +369,7 @@ const SearchScreen: React.FC = () => {
               ? "Search movie, TV show, actor, director..."
               : "Search name or handle"
           }
-          placeholderTextColor="#999999"
+          placeholderTextColor={t.placeholder}
           value={query}
           onChangeText={setQuery}
         />
@@ -391,7 +378,7 @@ const SearchScreen: React.FC = () => {
       {activeTab === "titles" && (
         <View style={styles.content}>
           {titleLoading ? (
-            <ActivityIndicator style={styles.loader} />
+            <ActivityIndicator style={styles.loader} color={t.primary} />
           ) : debouncedQuery.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Search titles and people</Text>
@@ -423,7 +410,7 @@ const SearchScreen: React.FC = () => {
       {activeTab === "members" && (
         <View style={styles.content}>
           {memberLoading ? (
-            <ActivityIndicator style={styles.loader} />
+            <ActivityIndicator style={styles.loader} color={t.primary} />
           ) : debouncedQuery.length === 0 ? (
             <View style={styles.stubContainer}>
               <Text style={styles.stubHeader}>Recents</Text>
@@ -458,7 +445,7 @@ const SearchScreen: React.FC = () => {
                 <Text style={styles.stubAction}>See all</Text>
               </View>
               {suggestedLoading ? (
-                <ActivityIndicator style={styles.loader} />
+                <ActivityIndicator style={styles.loader} color={t.primary} />
               ) : (
                 <FlatList
                   data={suggestedMembers}
@@ -488,10 +475,7 @@ const SearchScreen: React.FC = () => {
                           {item.displayName}
                         </Text>
                         {item.username ? (
-                          <Text
-                            style={styles.suggestedHandle}
-                            numberOfLines={1}
-                          >
+                          <Text style={styles.suggestedHandle} numberOfLines={1}>
                             {item.username}
                           </Text>
                         ) : null}
@@ -551,203 +535,207 @@ const SearchScreen: React.FC = () => {
       )}
 
       <NavBar />
-      <StatusBar style="auto" />
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
     </View>
   );
 };
 
 export default SearchScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    width: "100%",
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#ffffff",
-  },
-  searchInput: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: "#000000",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    height: 40,
-    fontFamily: "DM Sans",
-  },
-  content: {
-    flex: 1,
-  },
-  loader: {
-    marginTop: 20,
-  },
-  sectionHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 6,
-  },
-  sectionHeaderText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#444",
-    fontFamily: "DM Sans",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  listContent: {
-    paddingBottom: 120,
-  },
-  emptyState: {
-    paddingHorizontal: 20,
-    paddingTop: 32,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111",
-    fontFamily: "DM Sans",
-  },
-  emptySubtitle: {
-    marginTop: 6,
-    fontSize: 13,
-    color: "#777",
-    fontFamily: "DM Sans",
-  },
-  stubContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  stubHeader: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#444",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    fontFamily: "DM Sans",
-  },
-  stubAction: {
-    fontSize: 12,
-    color: "#0f4c5c",
-    fontFamily: "DM Sans",
-  },
-  recentsRow: {
-    flexDirection: "row",
-    gap: 12,
-    paddingVertical: 14,
-  },
-  recentAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#ededed",
-  },
-  recentAvatarWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    overflow: "hidden",
-    backgroundColor: "#ededed",
-  },
-  recentAvatarImage: {
-    width: "100%",
-    height: "100%",
-  },
-  recentAvatarFallback: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#dcdcdc",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  recentAvatarText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#666",
-    fontFamily: "DM Sans",
-  },
-  suggestedHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  suggestedCardRow: {
-    flexDirection: "row",
-    gap: 12,
-    paddingVertical: 14,
-    paddingRight: 16,
-  },
-  suggestedCard: {
-    width: 160,
-    minHeight: 150,
-    borderRadius: 12,
-    backgroundColor: "#f7f7f7",
-    padding: 12,
-    justifyContent: "flex-start",
-  },
-  suggestedPressArea: {
-    flexGrow: 1,
-  },
-  suggestedAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#e0e0e0",
-    marginBottom: 8,
-  },
-  suggestedAvatarFallback: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#e0e0e0",
-    marginBottom: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  suggestedAvatarText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#666",
-    fontFamily: "DM Sans",
-  },
-  suggestedName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111",
-    fontFamily: "DM Sans",
-  },
-  suggestedHandle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "#777",
-    fontFamily: "DM Sans",
-  },
-  suggestedFollowButton: {
-    marginTop: 10,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "#0f4c5c",
-    backgroundColor: "#0f4c5c",
-  },
-  suggestedFollowingButton: {
-    backgroundColor: "#f0f0f0",
-    borderColor: "#d6d6d6",
-  },
-  suggestedFollowText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
-    fontFamily: "DM Sans",
-  },
-  suggestedFollowingText: {
-    color: "#555",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.background,
+      width: "100%",
+    },
+    searchContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: t.surface,
+    },
+    searchInput: {
+      backgroundColor: t.inputBackground,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      fontSize: 14,
+      color: t.textPrimary,
+      borderWidth: 1,
+      borderColor: t.inputBorder,
+      height: 40,
+      fontFamily: "DM Sans",
+    },
+    content: {
+      flex: 1,
+    },
+    loader: {
+      marginTop: 20,
+    },
+    sectionHeader: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 6,
+      backgroundColor: t.background,
+    },
+    sectionHeaderText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+    },
+    listContent: {
+      paddingBottom: 120,
+    },
+    emptyState: {
+      paddingHorizontal: 20,
+      paddingTop: 32,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    emptySubtitle: {
+      marginTop: 6,
+      fontSize: 13,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    stubContainer: {
+      paddingHorizontal: 16,
+      paddingTop: 10,
+    },
+    stubHeader: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+      fontFamily: "DM Sans",
+    },
+    stubAction: {
+      fontSize: 12,
+      color: t.primary,
+      fontFamily: "DM Sans",
+    },
+    recentsRow: {
+      flexDirection: "row",
+      gap: 12,
+      paddingVertical: 14,
+    },
+    recentAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: t.avatarFallback,
+    },
+    recentAvatarWrapper: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      overflow: "hidden",
+      backgroundColor: t.avatarFallback,
+    },
+    recentAvatarImage: {
+      width: "100%",
+      height: "100%",
+    },
+    recentAvatarFallback: {
+      width: "100%",
+      height: "100%",
+      backgroundColor: t.avatarFallback,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    recentAvatarText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+    },
+    suggestedHeaderRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 10,
+    },
+    suggestedCardRow: {
+      flexDirection: "row",
+      gap: 12,
+      paddingVertical: 14,
+      paddingRight: 16,
+    },
+    suggestedCard: {
+      width: 160,
+      minHeight: 150,
+      borderRadius: 12,
+      backgroundColor: t.card,
+      padding: 12,
+      justifyContent: "flex-start",
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    suggestedPressArea: {
+      flexGrow: 1,
+    },
+    suggestedAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: t.avatarFallback,
+      marginBottom: 8,
+    },
+    suggestedAvatarFallback: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: t.avatarFallback,
+      marginBottom: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    suggestedAvatarText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+    },
+    suggestedName: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    suggestedHandle: {
+      marginTop: 2,
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    suggestedFollowButton: {
+      marginTop: 10,
+      borderRadius: 16,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      alignSelf: "flex-start",
+      borderWidth: 1,
+      borderColor: t.followButton,
+      backgroundColor: t.followButton,
+    },
+    suggestedFollowingButton: {
+      backgroundColor: t.followingButton,
+      borderColor: t.border,
+    },
+    suggestedFollowText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#FFFFFF",
+      fontFamily: "DM Sans",
+    },
+    suggestedFollowingText: {
+      color: t.followingButtonText,
+    },
+  });

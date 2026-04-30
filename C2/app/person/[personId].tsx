@@ -25,8 +25,9 @@ import {
   loadGenres,
   TMDBPersonCredit,
 } from "../../TMDB";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
-/** TMDB genre id for Documentary (movies). */
 const DOCUMENTARY_GENRE_ID = 99;
 
 type FilmographyEntry = {
@@ -109,8 +110,8 @@ function mergePersonCredits(
 function creditDateMs(entry: FilmographyEntry): number {
   const d = entry.release_date ?? entry.first_air_date ?? "";
   if (!d) return 0;
-  const t = new Date(d).getTime();
-  return isNaN(t) ? 0 : t;
+  const ts = new Date(d).getTime();
+  return isNaN(ts) ? 0 : ts;
 }
 
 function sortFilmographyNewestFirst(list: FilmographyEntry[]): FilmographyEntry[] {
@@ -135,7 +136,6 @@ function paramStr(v: string | string[] | undefined): string | undefined {
   return typeof s === "string" && s.length > 0 ? s : undefined;
 }
 
-/** Label when returning to a title from media details; search uses no params → "Back to Search". */
 function personBackLabel(fromTitle?: string): string {
   const title = fromTitle?.trim();
   if (!title) return "Back to Search";
@@ -144,6 +144,9 @@ function personBackLabel(fromTitle?: string): string {
 
 const PersonScreen: React.FC = () => {
   const router = useRouter();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const params = useLocalSearchParams<{
     personId?: string | string[];
     fromTitle?: string | string[];
@@ -288,7 +291,7 @@ const PersonScreen: React.FC = () => {
       </Pressable>
 
       {loading ? (
-        <ActivityIndicator style={styles.loader} />
+        <ActivityIndicator style={styles.loader} color={t.primary} />
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -300,7 +303,7 @@ const PersonScreen: React.FC = () => {
             hitSlop={10}
           >
             <View style={styles.backIconWrap}>
-              <Ionicons name="chevron-back" size={20} color="#666" />
+              <Ionicons name="chevron-back" size={20} color={t.textMuted} />
             </View>
             <Text style={styles.backText} numberOfLines={3}>
               {backLabel}
@@ -363,190 +366,191 @@ const PersonScreen: React.FC = () => {
       )}
 
       <NavBar />
-      <StatusBar style="auto" />
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
     </View>
   );
 };
 
 export default PersonScreen;
 
-const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 120,
-    paddingTop: 12,
-  },
-  loader: {
-    marginTop: 24,
-  },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  backIconWrap: {
-    marginTop: 2,
-    marginRight: 4,
-  },
-  backText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#666666",
-    fontFamily: "DM Sans",
-    lineHeight: 20,
-  },
-  heroCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  heroRow: {
-    flexDirection: "row",
-  },
-  posterLarge: {
-    width: 120,
-    height: 180,
-    borderRadius: 8,
-    marginRight: 16,
-    backgroundColor: "#f0f0f0",
-  },
-  noPosterLarge: {
-    width: 120,
-    height: 180,
-    borderRadius: 8,
-    marginRight: 16,
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  noPosterText: {
-    color: "#777",
-    fontFamily: "DM Sans",
-  },
-  heroMeta: {
-    flex: 1,
-    justifyContent: "flex-start",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#000",
-    marginBottom: 4,
-    fontFamily: "DM Sans",
-  },
-  type: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 2,
-    fontFamily: "DM Sans",
-  },
-  section: {
-    marginBottom: 18,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 6,
-    fontFamily: "DM Sans",
-  },
-  sectionBody: {
-    fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
-    fontFamily: "DM Sans",
-  },
-  castHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    justifyContent: "space-between",
-  },
-  castHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  castAccentBar: {
-    width: 3,
-    height: 18,
-    borderRadius: 2,
-    backgroundColor: "#f5c518",
-  },
-  subSection: {
-    marginBottom: 12,
-  },
-  subSectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#444",
-    marginTop: 8,
-    marginBottom: 6,
-    fontFamily: "DM Sans",
-  },
-  filmRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#efefef",
-  },
-  filmPoster: {
-    width: 52,
-    height: 78,
-    borderRadius: 6,
-    backgroundColor: "#d9d9d9",
-  },
-  filmPosterFallback: {
-    width: 52,
-    height: 78,
-    borderRadius: 6,
-    backgroundColor: "#d9d9d9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filmPosterFallbackText: {
-    fontSize: 9,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  filmMeta: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  filmTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111",
-    fontFamily: "DM Sans",
-  },
-  filmRole: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#666",
-    fontFamily: "DM Sans",
-  },
-  filmMetaSmall: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "#888",
-    fontFamily: "DM Sans",
-  },
-  filmGenres: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "#888",
-    fontFamily: "DM Sans",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    page: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: 16,
+      paddingBottom: 120,
+      paddingTop: 12,
+    },
+    loader: {
+      marginTop: 24,
+    },
+    backRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 12,
+    },
+    backIconWrap: {
+      marginTop: 2,
+      marginRight: 4,
+    },
+    backText: {
+      flex: 1,
+      fontSize: 14,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      lineHeight: 20,
+    },
+    heroCard: {
+      backgroundColor: t.card,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    heroRow: {
+      flexDirection: "row",
+    },
+    posterLarge: {
+      width: 120,
+      height: 180,
+      borderRadius: 8,
+      marginRight: 16,
+      backgroundColor: t.posterPlaceholder,
+    },
+    noPosterLarge: {
+      width: 120,
+      height: 180,
+      borderRadius: 8,
+      marginRight: 16,
+      backgroundColor: t.posterPlaceholder,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    noPosterText: {
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    heroMeta: {
+      flex: 1,
+      justifyContent: "flex-start",
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: t.textPrimary,
+      marginBottom: 4,
+      fontFamily: "DM Sans",
+    },
+    type: {
+      fontSize: 14,
+      color: t.textMuted,
+      marginBottom: 2,
+      fontFamily: "DM Sans",
+    },
+    section: {
+      marginBottom: 18,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      marginBottom: 6,
+      fontFamily: "DM Sans",
+    },
+    sectionBody: {
+      fontSize: 14,
+      color: t.textSecondary,
+      lineHeight: 20,
+      fontFamily: "DM Sans",
+    },
+    castHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
+      justifyContent: "space-between",
+    },
+    castHeaderLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    castAccentBar: {
+      width: 3,
+      height: 18,
+      borderRadius: 2,
+      backgroundColor: "#f5c518",
+    },
+    subSection: {
+      marginBottom: 12,
+    },
+    subSectionTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.textSecondary,
+      marginTop: 8,
+      marginBottom: 6,
+      fontFamily: "DM Sans",
+    },
+    filmRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    filmPoster: {
+      width: 52,
+      height: 78,
+      borderRadius: 6,
+      backgroundColor: t.posterPlaceholder,
+    },
+    filmPosterFallback: {
+      width: 52,
+      height: 78,
+      borderRadius: 6,
+      backgroundColor: t.posterPlaceholder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    filmPosterFallbackText: {
+      fontSize: 9,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    filmMeta: {
+      flex: 1,
+      justifyContent: "center",
+    },
+    filmTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    filmRole: {
+      marginTop: 4,
+      fontSize: 12,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+    },
+    filmMetaSmall: {
+      marginTop: 2,
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    filmGenres: {
+      marginTop: 2,
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+  });

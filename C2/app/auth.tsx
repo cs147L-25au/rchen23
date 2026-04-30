@@ -1,11 +1,9 @@
 // app/auth.tsx
-// Authentication screen with login and signup functionality
-
 import { Ionicons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,15 +29,17 @@ import {
   storePendingSignup,
   storeUserId,
 } from "@/utils/auth";
-
-const ACCENT_RED = "#B3261E";
+import { useAppTheme } from "@/contexts/ThemeContext";
+import { ThemeColors } from "@/constants/theme";
 
 type AuthMode = "login" | "signup";
 
 export default function AuthScreen() {
   const params = useLocalSearchParams<{ restoreForm?: string }>();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -49,21 +49,15 @@ export default function AuthScreen() {
   const [showEmailVerificationModal, setShowEmailVerificationModal] =
     useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
-  const [verificationUserId, setVerificationUserId] = useState<string | null>(
-    null,
-  );
-  const [pendingSignupPassword, setPendingSignupPassword] = useState<
-    string | null
-  >(null);
+  const [verificationUserId, setVerificationUserId] = useState<string | null>(null);
+  const [pendingSignupPassword, setPendingSignupPassword] = useState<string | null>(null);
 
-  // Restore signup form if coming back from onboarding
   useEffect(() => {
     if (params.restoreForm === "true") {
-      setMode("signup");
+      setAuthMode("signup");
     }
   }, [params.restoreForm]);
 
-  // Check for pending signup (user verified email and came back)
   useEffect(() => {
     const checkPendingSignup = async () => {
       const pending = await getPendingSignup();
@@ -80,15 +74,13 @@ export default function AuthScreen() {
 
         if (error || !data.user) {
           console.log("⚠️ Auto sign-in failed, user needs to sign in manually");
-          // Clear pending and show login with email pre-filled
           await clearPendingSignup();
-          setMode("login");
+          setAuthMode("login");
           setEmail(pending.email);
           setLoading(false);
           return;
         }
 
-        // Success! Clear pending and go to onboarding
         console.log("✅ Auto sign-in successful after email verification");
         await clearPendingSignup();
         await storeUserId(data.user.id);
@@ -99,7 +91,7 @@ export default function AuthScreen() {
       } catch (err) {
         console.error("Auto sign-in error:", err);
         await clearPendingSignup();
-        setMode("login");
+        setAuthMode("login");
         setEmail(pending.email);
       } finally {
         setLoading(false);
@@ -162,7 +154,6 @@ export default function AuthScreen() {
           });
         }
 
-        // Signed-in users go straight to the app
         router.replace("/(tabs)/feed");
       }
     } catch (err) {
@@ -174,7 +165,6 @@ export default function AuthScreen() {
   };
 
   const signUpWithEmail = async () => {
-    // Validation
     if (!firstName.trim()) {
       Alert.alert("Missing Information", "Please enter your first name.");
       return;
@@ -199,11 +189,9 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       setPendingSignupPassword(password);
-      // First, sign out any existing user to ensure clean signup
       await db.auth.signOut();
       await clearStoredUserId();
 
-      // Create the auth user
       const { data, error } = await db.auth.signUp({
         email: email.trim(),
         password,
@@ -217,7 +205,6 @@ export default function AuthScreen() {
       });
 
       if (error) {
-        // Check if the error is about an existing user
         const errorMessage = error.message.toLowerCase();
         if (
           errorMessage.includes("already registered") ||
@@ -233,8 +220,7 @@ export default function AuthScreen() {
               {
                 text: "Sign In",
                 onPress: () => {
-                  setMode("login");
-                  // Keep the email so user doesn't have to retype
+                  setAuthMode("login");
                   setPassword("");
                   setConfirmPassword("");
                   setFirstName("");
@@ -250,8 +236,6 @@ export default function AuthScreen() {
       }
 
       if (data.user) {
-        // Check if this is actually an existing user (Supabase sometimes returns user even if exists)
-        // An empty identities array indicates the user already exists
         if (data.user.identities && data.user.identities.length === 0) {
           Alert.alert(
             "Account Exists",
@@ -261,7 +245,7 @@ export default function AuthScreen() {
               {
                 text: "Sign In",
                 onPress: () => {
-                  setMode("login");
+                  setAuthMode("login");
                   setPassword("");
                   setConfirmPassword("");
                   setFirstName("");
@@ -273,10 +257,8 @@ export default function AuthScreen() {
           return;
         }
 
-        // Store the user ID
         await storeUserId(data.user.id);
 
-        // Create the profile in the database with all fields
         console.log("🧾 Creating profile:", {
           id: data.user.id,
           email: email.trim(),
@@ -298,21 +280,16 @@ export default function AuthScreen() {
           console.log("✅ Profile created:", profile.id);
         }
 
-        // Check if email confirmation is required
-        // If session is null but user exists, email confirmation is needed
         if (data.session === null && data.user) {
-          // Store pending signup credentials so we can auto sign-in after email verification
           await storePendingSignup({
             email: email.trim(),
             password: password,
             userId: data.user.id,
           });
-          // Show email verification modal
           setVerificationEmail(email.trim());
           setVerificationUserId(data.user.id);
           setShowEmailVerificationModal(true);
         } else {
-          // No email confirmation required, proceed to onboarding
           router.replace({
             pathname: "/onboarding1",
             params: { userId: data.user.id },
@@ -330,12 +307,10 @@ export default function AuthScreen() {
   const handleVerificationModalClose = () => {
     setShowEmailVerificationModal(false);
     const attemptAutoSignIn = async () => {
-      // Try to get stored credentials
       const pending = await getPendingSignup();
 
       if (!pending) {
-        // No stored credentials, fall back to login mode
-        setMode("login");
+        setAuthMode("login");
         setEmail(verificationEmail);
         return;
       }
@@ -348,9 +323,7 @@ export default function AuthScreen() {
         });
 
         if (error || !data.user) {
-          // Sign-in failed (probably email not verified yet)
-          // Keep credentials stored for when they verify
-          setMode("login");
+          setAuthMode("login");
           setEmail(pending.email);
           Alert.alert(
             "Email Not Verified",
@@ -359,7 +332,6 @@ export default function AuthScreen() {
           return;
         }
 
-        // Success! Clear pending and go to onboarding
         await clearPendingSignup();
         await storeUserId(data.user.id);
         router.replace({
@@ -368,7 +340,7 @@ export default function AuthScreen() {
         });
       } catch (err) {
         console.error("Auto sign-in error:", err);
-        setMode("login");
+        setAuthMode("login");
         setEmail(pending.email);
       } finally {
         setPendingSignupPassword(null);
@@ -376,7 +348,7 @@ export default function AuthScreen() {
         setConfirmPassword("");
         setFirstName("");
         setLastName("");
-        setMode("login");
+        setAuthMode("login");
         setLoading(false);
       }
     };
@@ -385,8 +357,7 @@ export default function AuthScreen() {
   };
 
   const toggleMode = () => {
-    setMode(mode === "login" ? "signup" : "login");
-    // Clear form fields when switching
+    setAuthMode(authMode === "login" ? "signup" : "login");
     setPassword("");
     setConfirmPassword("");
   };
@@ -408,7 +379,7 @@ export default function AuthScreen() {
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <StatusBar style="dark" />
+        <StatusBar style={mode === "dark" ? "light" : "dark"} />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -416,29 +387,27 @@ export default function AuthScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.inner}>
-            {/* Logo / branding */}
             <View style={styles.splash}>
               <MaterialCommunityIcons
                 size={64}
                 name="movie-open-outline"
-                color={ACCENT_RED}
+                color={t.primary}
               />
               <Text style={styles.splashText}>MyFlix</Text>
             </View>
 
-            {/* Mode toggle */}
             <View style={styles.modeToggle}>
               <TouchableOpacity
                 style={[
                   styles.modeButton,
-                  mode === "login" && styles.modeButtonActive,
+                  authMode === "login" && styles.modeButtonActive,
                 ]}
-                onPress={() => setMode("login")}
+                onPress={() => setAuthMode("login")}
               >
                 <Text
                   style={[
                     styles.modeButtonText,
-                    mode === "login" && styles.modeButtonTextActive,
+                    authMode === "login" && styles.modeButtonTextActive,
                   ]}
                 >
                   Sign In
@@ -447,14 +416,14 @@ export default function AuthScreen() {
               <TouchableOpacity
                 style={[
                   styles.modeButton,
-                  mode === "signup" && styles.modeButtonActive,
+                  authMode === "signup" && styles.modeButtonActive,
                 ]}
-                onPress={() => setMode("signup")}
+                onPress={() => setAuthMode("signup")}
               >
                 <Text
                   style={[
                     styles.modeButtonText,
-                    mode === "signup" && styles.modeButtonTextActive,
+                    authMode === "signup" && styles.modeButtonTextActive,
                   ]}
                 >
                   Sign Up
@@ -462,15 +431,14 @@ export default function AuthScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Signup fields */}
-            {mode === "signup" && (
+            {authMode === "signup" && (
               <>
                 <View style={styles.nameRow}>
                   <TextInput
                     onChangeText={setFirstName}
                     value={firstName}
                     placeholder="First Name"
-                    placeholderTextColor="#999999"
+                    placeholderTextColor={t.placeholder}
                     autoCapitalize="words"
                     style={[styles.input, styles.nameInput]}
                   />
@@ -478,7 +446,7 @@ export default function AuthScreen() {
                     onChangeText={setLastName}
                     value={lastName}
                     placeholder="Last Name"
-                    placeholderTextColor="#999999"
+                    placeholderTextColor={t.placeholder}
                     autoCapitalize="words"
                     style={[styles.input, styles.nameInput]}
                   />
@@ -486,23 +454,21 @@ export default function AuthScreen() {
               </>
             )}
 
-            {/* Email */}
             <TextInput
               onChangeText={setEmail}
               value={email}
               placeholder="email@address.com"
-              placeholderTextColor="#999999"
+              placeholderTextColor={t.placeholder}
               autoCapitalize="none"
               keyboardType="email-address"
               style={styles.input}
             />
 
-            {/* Password */}
             <TextInput
               onChangeText={setPassword}
               value={password}
               placeholder="Password"
-              placeholderTextColor="#999999"
+              placeholderTextColor={t.placeholder}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -512,13 +478,12 @@ export default function AuthScreen() {
               style={styles.input}
             />
 
-            {/* Confirm Password (signup only) */}
-            {mode === "signup" && (
+            {authMode === "signup" && (
               <TextInput
                 onChangeText={setConfirmPassword}
                 value={confirmPassword}
                 placeholder="Confirm Password"
-                placeholderTextColor="#999999"
+                placeholderTextColor={t.placeholder}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -529,9 +494,8 @@ export default function AuthScreen() {
               />
             )}
 
-            {/* Button */}
             <View style={styles.buttonContainer}>
-              {mode === "login" ? (
+              {authMode === "login" ? (
                 <TouchableOpacity
                   onPress={signInWithEmail}
                   disabled={isLoginDisabled}
@@ -578,10 +542,9 @@ export default function AuthScreen() {
               )}
             </View>
 
-            {/* Toggle text */}
             <TouchableOpacity onPress={toggleMode} style={styles.toggleLink}>
               <Text style={styles.toggleText}>
-                {mode === "login"
+                {authMode === "login"
                   ? "Don't have an account? Sign up"
                   : "Already have an account? Sign in"}
               </Text>
@@ -589,7 +552,6 @@ export default function AuthScreen() {
           </View>
         </ScrollView>
 
-        {/* Email Verification Modal */}
         <Modal
           visible={showEmailVerificationModal}
           transparent
@@ -604,7 +566,7 @@ export default function AuthScreen() {
                     <Ionicons
                       name="mail-outline"
                       size={60}
-                      color={ACCENT_RED}
+                      color={t.primary}
                     />
                   </View>
 
@@ -617,9 +579,9 @@ export default function AuthScreen() {
 
                   <Text style={styles.modalInstructions}>
                     Please click the link in your email to verify your account,
-                    then come back and finish your profile. You may see a “form
-                    not submitted” or access error page after clicking the link
-                    — that’s expected. Your account will still be verified
+                    then come back and finish your profile. You may see a "form
+                    not submitted" or access error page after clicking the link
+                    — that's expected. Your account will still be verified
                     automatically.
                   </Text>
 
@@ -644,176 +606,176 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-  },
-  inner: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  splash: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  splashText: {
-    fontWeight: "700",
-    color: ACCENT_RED,
-    fontSize: 40,
-    marginTop: 8,
-  },
-  modeToggle: {
-    flexDirection: "row",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: 24,
-    width: "100%",
-  },
-  modeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  modeButtonActive: {
-    backgroundColor: ACCENT_RED,
-  },
-  modeButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666666",
-  },
-  modeButtonTextActive: {
-    color: "#ffffff",
-  },
-  nameRow: {
-    flexDirection: "row",
-    width: "100%",
-    gap: 12,
-  },
-  nameInput: {
-    flex: 1,
-  },
-  input: {
-    color: "#000000",
-    backgroundColor: "#f5f5f5",
-    width: "100%",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 10,
-    fontSize: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  buttonContainer: {
-    marginTop: 16,
-    width: "100%",
-    alignItems: "center",
-  },
-  button: {
-    backgroundColor: ACCENT_RED,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 999,
-    width: "100%",
-    alignItems: "center",
-  },
-  buttonDisabledBackground: {
-    backgroundColor: "#cccccc",
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 17,
-    fontWeight: "600",
-  },
-  buttonTextDisabled: {
-    color: "#f2f2f2",
-  },
-  toggleLink: {
-    marginTop: 20,
-    padding: 8,
-  },
-  toggleText: {
-    color: ACCENT_RED,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 32,
-    width: "100%",
-    maxWidth: 400,
-    alignItems: "center",
-  },
-  modalIconContainer: {
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: "#FFF5F5",
-    borderRadius: 50,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  modalMessage: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  modalEmail: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: ACCENT_RED,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  modalInstructions: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  modalButton: {
-    backgroundColor: ACCENT_RED,
-    borderRadius: 999,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    width: "100%",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  modalNote: {
-    fontSize: 12,
-    color: "#999",
-    textAlign: "center",
-    lineHeight: 18,
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: 24,
+    },
+    inner: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 40,
+    },
+    splash: {
+      alignItems: "center",
+      marginBottom: 32,
+    },
+    splashText: {
+      fontWeight: "700",
+      color: t.primary,
+      fontSize: 40,
+      marginTop: 8,
+    },
+    modeToggle: {
+      flexDirection: "row",
+      backgroundColor: t.surface,
+      borderRadius: 10,
+      padding: 4,
+      marginBottom: 24,
+      width: "100%",
+    },
+    modeButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    modeButtonActive: {
+      backgroundColor: t.primary,
+    },
+    modeButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textMuted,
+    },
+    modeButtonTextActive: {
+      color: "#FFFFFF",
+    },
+    nameRow: {
+      flexDirection: "row",
+      width: "100%",
+      gap: 12,
+    },
+    nameInput: {
+      flex: 1,
+    },
+    input: {
+      color: t.textPrimary,
+      backgroundColor: t.inputBackground,
+      width: "100%",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 10,
+      fontSize: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: t.inputBorder,
+    },
+    buttonContainer: {
+      marginTop: 16,
+      width: "100%",
+      alignItems: "center",
+    },
+    button: {
+      backgroundColor: t.primary,
+      paddingHorizontal: 32,
+      paddingVertical: 14,
+      borderRadius: 999,
+      width: "100%",
+      alignItems: "center",
+    },
+    buttonDisabledBackground: {
+      backgroundColor: t.disabled,
+    },
+    buttonText: {
+      color: "#FFFFFF",
+      fontSize: 17,
+      fontWeight: "600",
+    },
+    buttonTextDisabled: {
+      color: t.disabledText,
+    },
+    toggleLink: {
+      marginTop: 20,
+      padding: 8,
+    },
+    toggleText: {
+      color: t.primary,
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    modalContent: {
+      backgroundColor: t.modalBackground,
+      borderRadius: 24,
+      padding: 32,
+      width: "100%",
+      maxWidth: 400,
+      alignItems: "center",
+    },
+    modalIconContainer: {
+      marginBottom: 20,
+      padding: 16,
+      backgroundColor: t.primarySubtle,
+      borderRadius: 50,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.textPrimary,
+      marginBottom: 16,
+      textAlign: "center",
+    },
+    modalMessage: {
+      fontSize: 16,
+      color: t.textSecondary,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+    modalEmail: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.primary,
+      textAlign: "center",
+      marginBottom: 16,
+    },
+    modalInstructions: {
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: "center",
+      lineHeight: 20,
+      marginBottom: 24,
+    },
+    modalButton: {
+      backgroundColor: t.primary,
+      borderRadius: 999,
+      paddingVertical: 14,
+      paddingHorizontal: 40,
+      width: "100%",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    modalButtonText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    modalNote: {
+      fontSize: 12,
+      color: t.textMuted,
+      textAlign: "center",
+      lineHeight: 18,
+    },
+  });

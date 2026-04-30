@@ -1,7 +1,7 @@
 // components/RatingModal/RatingModal.tsx
 import db from "@/database/db";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -31,6 +31,8 @@ import {
   TitleType,
   upsertRatingAtRank,
 } from "../../lib/ratingsDb";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 import CategoryPicker from "./CategoryPicker";
 import WatchWithPicker from "./WatchWithPicker";
 
@@ -91,6 +93,10 @@ const RatingModal: React.FC<RatingModalProps> = ({
   onSuccess,
   currentRating,
 }) => {
+  // Theme
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   // User state
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -410,7 +416,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
                 </Text>
               </View>
               <Pressable onPress={handleClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={t.textPrimary} />
               </Pressable>
             </View>
           )}
@@ -418,7 +424,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
           {/* Loading/Saving State */}
           {flowStep === "saving" && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#1a535c" />
+              <ActivityIndicator size="large" color={t.primary} />
               <Text style={styles.loadingText}>Saving your rating...</Text>
             </View>
           )}
@@ -483,7 +489,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
                       <Ionicons
                         name="checkmark-circle"
                         size={42}
-                        color="#1a535c"
+                        color={t.primary}
                         style={styles.postCheck}
                       />
                     )}
@@ -566,7 +572,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
           {/* Comparing State - loading fallback if no comparison state yet */}
           {flowStep === "comparing" && !comparisonState && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#1a535c" />
+              <ActivityIndicator size="large" color={t.primary} />
               <Text style={styles.loadingText}>Loading comparison...</Text>
             </View>
           )}
@@ -582,7 +588,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
                     <Ionicons
                       name={TITLE_TYPE_INFO[titleType].icon as any}
                       size={18}
-                      color="#1a535c"
+                      color={t.primary}
                     />
                     <Text style={styles.titleTypeBadgeText}>
                       {TITLE_TYPE_INFO[titleType].label}
@@ -682,7 +688,7 @@ const RatingModal: React.FC<RatingModalProps> = ({
                   <Switch
                     value={stealthMode}
                     onValueChange={setStealthMode}
-                    trackColor={{ false: "#e5e5e5", true: "#1a535c" }}
+                    trackColor={{ false: t.border, true: t.primary }}
                   />
                 </View>
 
@@ -764,401 +770,403 @@ export default RatingModal;
 
 // ============ Styles ============
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    marginTop: 50,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    overflow: "hidden",
-  },
-  containerFull: {
-    marginTop: 0,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
-  header: {
-    backgroundColor: "#1a1a1a",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: "#aaa",
-    marginTop: 2,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#666",
-  },
-  successText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#2E7D32",
-  },
-  postPreviewContainer: {
-    flex: 1,
-  },
-  postPreviewBackground: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  postPreviewImage: {
-    width: "100%",
-    height: "100%",
-    alignSelf: "center",
-  },
-  postPreviewOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
-  postPreviewClose: {
-    position: "absolute",
-    top: 48,
-    left: 18,
-    zIndex: 2,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  postCard: {
-    width: "82%",
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    zIndex: 1,
-  },
-  postHeader: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  postHeaderTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  postUserRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  postAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#eee",
-  },
-  postName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111",
-  },
-  postHandle: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-  },
-  postScoreBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
-    borderColor: "#E6E6E6",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-  },
-  postScoreText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1a535c",
-  },
-  postCheck: {
-    alignSelf: "center",
-  },
-  postTitleRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  postTitleColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  postTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111",
-  },
-  postSubtitle: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 4,
-  },
-  postNotes: {
-    marginTop: 12,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingHorizontal: 0,
-    paddingVertical: 8,
-  },
-  postNotesLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#333",
-  },
-  postNotesText: {
-    fontSize: 12,
-    color: "#555",
-  },
-  postBrandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-  },
-  postBrand: {
-    fontSize: 24.5,
-    fontWeight: "700",
-    color: "#B3261E",
-    marginTop: 2,
-  },
-  titleTypeDisplay: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#f5f5f5",
-    gap: 12,
-  },
-  titleTypeLabel: {
-    fontSize: 14,
-    color: "#666",
-  },
-  titleTypeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#1a535c",
-    gap: 6,
-  },
-  titleTypeBadgeText: {
-    fontSize: 14,
-    color: "#1a535c",
-    fontWeight: "500",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#e5e5e5",
-  },
-  optionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    gap: 12,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionLabel: {
-    fontSize: 15,
-    color: "#000",
-  },
-  optionValue: {
-    fontSize: 13,
-    color: "#888",
-    marginTop: 2,
-  },
-  optionSubtext: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
-  },
-  notesContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  notesInput: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    minHeight: 60,
-    textAlignVertical: "top",
-  },
-  unlockMessage: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    gap: 8,
-  },
-  unlockText: {
-    fontSize: 13,
-    color: "#888",
-  },
-  errorContainer: {
-    backgroundColor: "#fee",
-    padding: 12,
-    margin: 16,
-    borderRadius: 8,
-  },
-  errorText: {
-    color: "#c00",
-    fontSize: 14,
-    textAlign: "center",
-  },
-  footer: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e5e5",
-    backgroundColor: "#fff",
-  },
-  footerButton: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  footerDivider: {
-    width: 1,
-    backgroundColor: "#e5e5e5",
-  },
-  footerButtonText: {
-    fontSize: 16,
-    color: "#1a535c",
-    fontWeight: "600",
-  },
-  footerButtonFull: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: "center",
-    backgroundColor: "#1a535c",
-  },
-  footerButtonTextFull: {
-    fontSize: 16,
-    color: "#fff",
-    fontWeight: "600",
-  },
-  footerDisabled: {
-    backgroundColor: "#ccc",
-  },
-  footerButtonDisabled: {
-    color: "#999",
-  },
-  // Comparison styles
-  comparisonContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  comparisonTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#000",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  comparisonProgress: {
-    fontSize: 14,
-    color: "#888",
-    marginBottom: 24,
-  },
-  comparisonRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-    width: "100%",
-  },
-  comparisonCard: {
-    flex: 1,
-    alignItems: "center",
-    backgroundColor: "#f8f8f8",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: "#e0e0e0",
-  },
-  comparisonPoster: {
-    width: 100,
-    height: 140,
-    borderRadius: 12,
-    backgroundColor: "#1a535c",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  posterInitial: {
-    fontSize: 48,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  comparisonCardTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#000",
-    textAlign: "center",
-    height: 40,
-  },
-  orBadge: {
-    position: "absolute",
-    zIndex: 10,
-    backgroundColor: "#1a535c",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  orText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  cancelComparisonBtn: {
-    marginTop: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  cancelComparisonText: {
-    fontSize: 16,
-    color: "#888",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.background,
+      marginTop: 50,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      overflow: "hidden",
+    },
+    containerFull: {
+      marginTop: 0,
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+    },
+    header: {
+      backgroundColor: t.surface,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    headerContent: {
+      flex: 1,
+      marginRight: 12,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: t.textPrimary,
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      color: t.textSecondary,
+      marginTop: 2,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    content: {
+      flex: 1,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 16,
+    },
+    loadingText: {
+      fontSize: 16,
+      color: t.textSecondary,
+    },
+    successText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: "#2E7D32",
+    },
+    postPreviewContainer: {
+      flex: 1,
+    },
+    postPreviewBackground: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    postPreviewImage: {
+      width: "100%",
+      height: "100%",
+      alignSelf: "center",
+    },
+    postPreviewOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0,0,0,0.3)",
+    },
+    postPreviewClose: {
+      position: "absolute",
+      top: 48,
+      left: 18,
+      zIndex: 2,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    postCard: {
+      width: "82%",
+      backgroundColor: t.card,
+      borderRadius: 16,
+      padding: 16,
+      zIndex: 1,
+    },
+    postHeader: {
+      gap: 8,
+      marginBottom: 8,
+    },
+    postHeaderTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    postUserRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    postAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: t.posterPlaceholder,
+    },
+    postName: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.textPrimary,
+    },
+    postHandle: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 2,
+    },
+    postScoreBadge: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      borderWidth: 1,
+      borderColor: t.border,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "center",
+    },
+    postScoreText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.primary,
+    },
+    postCheck: {
+      alignSelf: "center",
+    },
+    postTitleRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    postTitleColumn: {
+      flex: 1,
+      minWidth: 0,
+    },
+    postTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: t.textPrimary,
+    },
+    postSubtitle: {
+      fontSize: 12,
+      color: t.textSecondary,
+      marginTop: 4,
+    },
+    postNotes: {
+      marginTop: 12,
+      backgroundColor: t.card,
+      borderRadius: 10,
+      paddingHorizontal: 0,
+      paddingVertical: 8,
+    },
+    postNotesLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: t.textPrimary,
+    },
+    postNotesText: {
+      fontSize: 12,
+      color: t.textSecondary,
+    },
+    postBrandRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-end",
+    },
+    postBrand: {
+      fontSize: 24.5,
+      fontWeight: "700",
+      color: t.primary,
+      marginTop: 2,
+    },
+    titleTypeDisplay: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      backgroundColor: t.card,
+      gap: 12,
+    },
+    titleTypeLabel: {
+      fontSize: 14,
+      color: t.textSecondary,
+    },
+    titleTypeBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.background,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: t.primary,
+      gap: 6,
+    },
+    titleTypeBadgeText: {
+      fontSize: 14,
+      color: t.primary,
+      fontWeight: "500",
+    },
+    divider: {
+      height: 1,
+      backgroundColor: t.divider,
+    },
+    optionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      gap: 12,
+    },
+    optionContent: {
+      flex: 1,
+    },
+    optionLabel: {
+      fontSize: 15,
+      color: t.textPrimary,
+    },
+    optionValue: {
+      fontSize: 13,
+      color: t.textMuted,
+      marginTop: 2,
+    },
+    optionSubtext: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 2,
+    },
+    notesContainer: {
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+    },
+    notesInput: {
+      backgroundColor: t.inputBackground,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 14,
+      minHeight: 60,
+      textAlignVertical: "top",
+      color: t.textPrimary,
+    },
+    unlockMessage: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 16,
+      gap: 8,
+    },
+    unlockText: {
+      fontSize: 13,
+      color: t.textMuted,
+    },
+    errorContainer: {
+      backgroundColor: "#fee",
+      padding: 12,
+      margin: 16,
+      borderRadius: 8,
+    },
+    errorText: {
+      color: "#c00",
+      fontSize: 14,
+      textAlign: "center",
+    },
+    footer: {
+      flexDirection: "row",
+      borderTopWidth: 1,
+      borderTopColor: t.divider,
+      backgroundColor: t.background,
+    },
+    footerButton: {
+      flex: 1,
+      paddingVertical: 16,
+      alignItems: "center",
+    },
+    footerDivider: {
+      width: 1,
+      backgroundColor: t.divider,
+    },
+    footerButtonText: {
+      fontSize: 16,
+      color: t.primary,
+      fontWeight: "600",
+    },
+    footerButtonFull: {
+      flex: 1,
+      paddingVertical: 16,
+      alignItems: "center",
+      backgroundColor: t.primary,
+    },
+    footerButtonTextFull: {
+      fontSize: 16,
+      color: "#fff",
+      fontWeight: "600",
+    },
+    footerDisabled: {
+      backgroundColor: t.textMuted,
+    },
+    footerButtonDisabled: {
+      color: t.textMuted,
+    },
+    // Comparison styles
+    comparisonContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    comparisonTitle: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: t.textPrimary,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+    comparisonProgress: {
+      fontSize: 14,
+      color: t.textMuted,
+      marginBottom: 24,
+    },
+    comparisonRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 16,
+      width: "100%",
+    },
+    comparisonCard: {
+      flex: 1,
+      alignItems: "center",
+      backgroundColor: t.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 2,
+      borderColor: t.border,
+    },
+    comparisonPoster: {
+      width: 100,
+      height: 140,
+      borderRadius: 12,
+      backgroundColor: t.primary,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    posterInitial: {
+      fontSize: 48,
+      fontWeight: "700",
+      color: "#fff",
+    },
+    comparisonCardTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.textPrimary,
+      textAlign: "center",
+      height: 40,
+    },
+    orBadge: {
+      position: "absolute",
+      zIndex: 10,
+      backgroundColor: t.primary,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    orText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#fff",
+    },
+    cancelComparisonBtn: {
+      marginTop: 24,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+    },
+    cancelComparisonText: {
+      fontSize: 16,
+      color: t.textMuted,
+    },
+  });

@@ -5,7 +5,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +38,8 @@ import {
 import { getCommentCountsByEventIds } from "../../lib/commentsDb";
 import { getCurrentUserId } from "../../lib/ratingsDb";
 import { getUserWatchlist } from "../../lib/watchlistDb";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 const DEFAULT_PROFILE_IMAGE = require("../../assets/anon_pfp.png");
 
@@ -73,6 +75,8 @@ type WatchlistItem = {
 
 const UserProfileScreen: React.FC = () => {
   const router = useRouter();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { userId } = useLocalSearchParams<{ userId?: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -81,14 +85,12 @@ const UserProfileScreen: React.FC = () => {
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
-  // Stats
   const [userRatings, setUserRatings] = useState<RatingPost[]>([]);
   const [userBookmarks, setUserBookmarks] = useState<WatchlistItem[]>([]);
   const [userRank, setUserRank] = useState<number | null>(null);
   const [followersCount, setFollowersCount] = useState<number>(0);
   const [followingUserCount, setFollowingUserCount] = useState<number>(0);
 
-  // Recent activity
   const [recentEvents, setRecentEvents] = useState<FeedEvent[]>([]);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
     {},
@@ -100,11 +102,9 @@ const UserProfileScreen: React.FC = () => {
       try {
         setLoading(true);
 
-        // Get current user
         const current = await getCurrentUserId();
         setCurrentUserId(current);
 
-        // Fetch profile (including rank which is auto-updated by Supabase trigger)
         const { data, error } = await db
           .from("profiles")
           .select(
@@ -120,23 +120,19 @@ const UserProfileScreen: React.FC = () => {
           setProfile(data as ProfileData);
         }
 
-        // Check follow state
         if (current && userId) {
           const followingState = await isFollowing(current, userId);
           setFollowing(followingState);
         }
 
-        // Fetch follower/following counts
         const fCount = await getFollowersCount(userId);
         const fgCount = await getFollowingCount(userId);
         setFollowersCount(fCount);
         setFollowingUserCount(fgCount);
 
-        // Fetch user's ratings
         const ratings = await getUserRatings(userId);
         setUserRatings(ratings);
 
-        // Fetch user's watchlist
         try {
           const bookmarks = await getUserWatchlist(userId);
           setUserBookmarks(bookmarks as WatchlistItem[]);
@@ -144,7 +140,6 @@ const UserProfileScreen: React.FC = () => {
           setUserBookmarks([]);
         }
 
-        // Fetch user's recent activity
         try {
           const events = await getUserFeedEvents(userId);
           const filteredEvents = events.filter(
@@ -159,7 +154,6 @@ const UserProfileScreen: React.FC = () => {
           setCommentCounts({});
         }
 
-        // Use stored rank from profile (auto-updated by Supabase trigger)
         if (data?.rank) {
           setUserRank(data.rank);
         } else {
@@ -189,7 +183,6 @@ const UserProfileScreen: React.FC = () => {
       : await followUser(currentUserId, userId);
     if (success) {
       setFollowing((prev) => !prev);
-      // Update the follower count optimistically
       setFollowersCount((prev) =>
         following ? Math.max(0, prev - 1) : prev + 1,
       );
@@ -277,12 +270,12 @@ const UserProfileScreen: React.FC = () => {
       <View style={styles.page}>
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={22} color="#111" />
+            <Ionicons name="chevron-back" size={22} color={t.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={styles.backButton} />
         </View>
-        <ActivityIndicator style={styles.loader} size="large" color="#0B5563" />
+        <ActivityIndicator style={styles.loader} size="large" color={t.primary} />
         <NavBar />
       </View>
     );
@@ -294,10 +287,9 @@ const UserProfileScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: "18.5%" }}
       >
-        {/* Header with back button */}
         <View style={styles.topHeader}>
           <Pressable onPress={() => router.back()} style={styles.backButtonTop}>
-            <Ionicons name="chevron-back" size={24} color="#000" />
+            <Ionicons name="chevron-back" size={24} color={t.textPrimary} />
           </Pressable>
         </View>
 
@@ -388,11 +380,10 @@ const UserProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Stats List */}
         <View style={styles.statsLinesContainer}>
           <View style={styles.statLine}>
             <View style={styles.statLineLeft}>
-              <MaterialIcons name="movie" size={24} color="#000" />
+              <MaterialIcons name="movie" size={24} color={t.textPrimary} />
               <Text style={styles.statLineLabel}>Watched</Text>
             </View>
             <View style={styles.statLineRight}>
@@ -402,7 +393,7 @@ const UserProfileScreen: React.FC = () => {
 
           <View style={styles.statLine}>
             <View style={styles.statLineLeft}>
-              <FontAwesome name="bookmark" size={24} color="#000" />
+              <FontAwesome name="bookmark" size={24} color={t.textPrimary} />
               <Text style={styles.statLineLabel}>Watchlist</Text>
             </View>
             <View style={styles.statLineRight}>
@@ -411,7 +402,6 @@ const UserProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Rank & Streak Boxes */}
         <View style={styles.rankStreakContainer}>
           <View style={styles.rankBox}>
             <FontAwesome5 name="trophy" size={32} color="#FFB800" />
@@ -428,7 +418,6 @@ const UserProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Recent Activity */}
         <View style={styles.recentActivityContainer}>
           <Text style={styles.recentActivityTitle}>Recent Activity</Text>
 
@@ -449,213 +438,214 @@ const UserProfileScreen: React.FC = () => {
       </ScrollView>
 
       <NavBar />
-      <StatusBar style="auto" />
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
     </View>
   );
 };
 
 export default UserProfileScreen;
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#fff" },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: "15%",
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-    color: "#111",
-  },
-  loader: {
-    marginTop: 24,
-  },
-  topHeader: {
-    paddingTop: "12%",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  backButtonTop: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerContainer: {
-    backgroundColor: "#fff",
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    alignItems: "center",
-  },
-  headerTop: { alignItems: "center", marginBottom: 8 },
-  headerBottom: { alignItems: "center" },
-  profilePic: {
-    width: 110,
-    height: 110,
-    borderRadius: 40,
-    marginBottom: 8,
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  userHandle: {
-    fontSize: 14,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginBottom: 8,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    paddingVertical: 6,
-    marginBottom: 6,
-  },
-  statItem: { alignItems: "center" },
-  statNumber: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  statLabel: {
-    fontSize: 11,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginTop: 4,
-  },
-  buttonContainer: { flexDirection: "row", gap: 12 },
-  followButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: "#0f4c5c",
-  },
-  followingButton: {
-    backgroundColor: "#f2f2f2",
-    borderWidth: 1,
-    borderColor: "#d6d6d6",
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  followButtonText: {
-    fontSize: 14,
-    color: "#fff",
-    fontFamily: "DM Sans",
-    fontWeight: "600",
-  },
-  followingButtonText: {
-    color: "#555",
-  },
-  statsLinesContainer: { paddingHorizontal: 16 },
-  statLine: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  statLineLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  statLineLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  statLineRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  statLineNumber: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  rankStreakContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 12,
-  },
-  rankBox: {
-    flex: 1,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 20,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  streakBox: {
-    flex: 1,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 20,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  rankLabel: {
-    fontSize: 12,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  streakLabel: {
-    fontSize: 12,
-    color: "#999",
-    fontFamily: "DM Sans",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  rankNumber: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  streakNumber: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  recentActivityContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  recentActivityTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-    marginBottom: 12,
-  },
-  noActivityText: {
-    fontSize: 14,
-    color: "#999",
-    fontFamily: "DM Sans",
-    textAlign: "center",
-    paddingVertical: "5%",
-  },
-  bottomPadding: { height: "10%" },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    page: { flex: 1, backgroundColor: t.background },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingTop: "15%",
+    },
+    backButton: {
+      width: 36,
+      height: 36,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+      color: t.textPrimary,
+    },
+    loader: {
+      marginTop: 24,
+    },
+    topHeader: {
+      paddingTop: "12%",
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+    },
+    backButtonTop: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerContainer: {
+      backgroundColor: t.surface,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+      alignItems: "center",
+    },
+    headerTop: { alignItems: "center", marginBottom: 8 },
+    headerBottom: { alignItems: "center" },
+    profilePic: {
+      width: 110,
+      height: 110,
+      borderRadius: 40,
+      marginBottom: 8,
+    },
+    userName: {
+      fontSize: 24,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    userHandle: {
+      fontSize: 14,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginBottom: 8,
+    },
+    statsRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      width: "100%",
+      paddingVertical: 6,
+      marginBottom: 6,
+    },
+    statItem: { alignItems: "center" },
+    statNumber: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    statLabel: {
+      fontSize: 11,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginTop: 4,
+    },
+    buttonContainer: { flexDirection: "row", gap: 12 },
+    followButton: {
+      paddingHorizontal: 28,
+      paddingVertical: 10,
+      borderRadius: 20,
+      backgroundColor: t.followButton,
+    },
+    followingButton: {
+      backgroundColor: t.followingButton,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    followButtonText: {
+      fontSize: 14,
+      color: "#fff",
+      fontFamily: "DM Sans",
+      fontWeight: "600",
+    },
+    followingButtonText: {
+      color: t.followingButtonText,
+    },
+    statsLinesContainer: { paddingHorizontal: 16 },
+    statLine: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    statLineLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    statLineLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    statLineRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+    statLineNumber: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    rankStreakContainer: {
+      flexDirection: "row",
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      gap: 12,
+    },
+    rankBox: {
+      flex: 1,
+      backgroundColor: t.card,
+      borderRadius: 12,
+      padding: 20,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    streakBox: {
+      flex: 1,
+      backgroundColor: t.card,
+      borderRadius: 12,
+      padding: 20,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    rankLabel: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    streakLabel: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    rankNumber: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    streakNumber: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    recentActivityContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    recentActivityTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+      marginBottom: 12,
+    },
+    noActivityText: {
+      fontSize: 14,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      textAlign: "center",
+      paddingVertical: "5%",
+    },
+    bottomPadding: { height: "10%" },
+  });

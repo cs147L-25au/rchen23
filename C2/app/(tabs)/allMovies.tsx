@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -18,9 +18,14 @@ import {
   getPosterUrl,
   TrendingMovieDetailed,
 } from "../../TMDB";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 export default function AllMoviesScreen() {
   const router = useRouter();
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const [movies, setMovies] = useState<TrendingMovieDetailed[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -44,7 +49,6 @@ export default function AllMoviesScreen() {
       if (pageNum === 1) {
         setMovies(items);
       } else {
-        // Filter out duplicates and re-sort the combined list by release date
         setMovies((prev) => {
           const existingIds = new Set(
             prev.map((m) => `${m.media_type}-${m.id}`)
@@ -53,7 +57,6 @@ export default function AllMoviesScreen() {
             (item) => !existingIds.has(`${item.media_type}-${item.id}`)
           );
           const combined = [...prev, ...newItems];
-          // Re-sort by release date (newest first) using timestamp
           combined.sort((a, b) => b.release_timestamp - a.release_timestamp);
           return combined;
         });
@@ -105,7 +108,7 @@ export default function AllMoviesScreen() {
         )}
 
         <View style={styles.infoContainer}>
-          <Text style={styles.title} numberOfLines={2}>
+          <Text style={styles.titleText} numberOfLines={2}>
             {item.title}
           </Text>
           <Text style={styles.mediaType}>{mediaTypeLabel}</Text>
@@ -123,14 +126,14 @@ export default function AllMoviesScreen() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={t.textSecondary} />
         </Pressable>
         <Text style={styles.headerTitle}>Recent Movies</Text>
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#B3261E" />
+          <ActivityIndicator size="large" color={t.primary} />
           <Text style={styles.loadingText}>Loading trending titles...</Text>
         </View>
       ) : (
@@ -145,7 +148,7 @@ export default function AllMoviesScreen() {
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#B3261E" />
+                <ActivityIndicator size="small" color={t.primary} />
                 <Text style={styles.footerText}>Loading more...</Text>
               </View>
             ) : !hasMore && movies.length > 0 ? (
@@ -162,118 +165,119 @@ export default function AllMoviesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 60,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-    backgroundColor: "#fff",
-  },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#666",
-    fontFamily: "DM Sans",
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 120,
-  },
-  itemContainer: {
-    flexDirection: "row",
-    paddingVertical: 12,
-  },
-  poster: {
-    width: 80,
-    height: 120,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-  },
-  noPoster: {
-    width: 80,
-    height: 120,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  noPosterText: {
-    fontSize: 10,
-    color: "#999",
-    fontFamily: "DM Sans",
-  },
-  infoContainer: {
-    flex: 1,
-    marginLeft: 14,
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-    marginBottom: 4,
-  },
-  mediaType: {
-    fontSize: 13,
-    color: "#666",
-    fontFamily: "DM Sans",
-    marginBottom: 4,
-  },
-  genres: {
-    fontSize: 13,
-    color: "#444",
-    fontFamily: "DM Sans",
-    marginBottom: 2,
-  },
-  runtime: {
-    fontSize: 12,
-    color: "#888",
-    fontFamily: "DM Sans",
-  },
-  releaseDate: {
-    fontSize: 12,
-    color: "#888",
-    fontFamily: "DM Sans",
-    marginTop: 2,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#f0f0f0",
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  footerText: {
-    marginTop: 8,
-    fontSize: 13,
-    color: "#888",
-    fontFamily: "DM Sans",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingTop: 60,
+      paddingBottom: 16,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+      backgroundColor: t.surface,
+    },
+    backButton: {
+      marginRight: 12,
+      padding: 4,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 14,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    listContent: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 120,
+    },
+    itemContainer: {
+      flexDirection: "row",
+      paddingVertical: 12,
+    },
+    poster: {
+      width: 80,
+      height: 120,
+      borderRadius: 8,
+      backgroundColor: t.posterPlaceholder,
+    },
+    noPoster: {
+      width: 80,
+      height: 120,
+      borderRadius: 8,
+      backgroundColor: t.posterPlaceholder,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    noPosterText: {
+      fontSize: 10,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    infoContainer: {
+      flex: 1,
+      marginLeft: 14,
+      justifyContent: "center",
+    },
+    titleText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+      marginBottom: 4,
+    },
+    mediaType: {
+      fontSize: 13,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginBottom: 4,
+    },
+    genres: {
+      fontSize: 13,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+      marginBottom: 2,
+    },
+    runtime: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    releaseDate: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      marginTop: 2,
+    },
+    separator: {
+      height: 1,
+      backgroundColor: t.divider,
+    },
+    footerLoader: {
+      paddingVertical: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    footerText: {
+      marginTop: 8,
+      fontSize: 13,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+  });

@@ -1,13 +1,18 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router, usePathname, type Href } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 /** Reserve this much space at the bottom; bar is `position: absolute` and overlays content. */
 export const NAVBAR_HEIGHT = 88;
 
 const NavBar = () => {
   const pathname = usePathname();
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const isActive = (targets: string[]) => targets.includes(pathname);
 
@@ -34,7 +39,7 @@ const NavBar = () => {
           <Ionicons
             name="newspaper-outline"
             size={isActive(feedTargets) ? 34 : 30}
-            color={isActive(feedTargets) ? "#000000" : "#00000070"}
+            color={isActive(feedTargets) ? t.primary : t.textMuted}
           />
           <Text
             style={[
@@ -54,7 +59,7 @@ const NavBar = () => {
           <Ionicons
             name="list-outline"
             size={isActive(listTargets) ? 34 : 30}
-            color={isActive(listTargets) ? "#000000" : "#00000070"}
+            color={isActive(listTargets) ? t.primary : t.textMuted}
           />
           <Text
             style={[
@@ -74,7 +79,7 @@ const NavBar = () => {
           <FontAwesome5
             name="search-plus"
             size={isActive(searchTargets) ? 34 : 30}
-            color={isActive(searchTargets) ? "#000000" : "#00000070"}
+            color={isActive(searchTargets) ? t.primary : t.textMuted}
           />
           <Text
             style={[
@@ -94,7 +99,7 @@ const NavBar = () => {
           <FontAwesome5
             name="trophy"
             size={28}
-            color={isActive(leaderboardTargets) ? "#000000" : "#00000070"}
+            color={isActive(leaderboardTargets) ? t.primary : t.textMuted}
           />
           <Text
             style={[
@@ -114,7 +119,7 @@ const NavBar = () => {
           <MaterialIcons
             name="account-circle"
             size={isActive(profileTargets) ? 34 : 30}
-            color={isActive(profileTargets) ? "#000000" : "#00000070"}
+            color={isActive(profileTargets) ? t.primary : t.textMuted}
           />
           <Text
             style={[
@@ -130,41 +135,42 @@ const NavBar = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  navigationContainer: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderColor: "#cbcbcb",
-    borderTopWidth: 1,
-    width: "100%",
-    height: NAVBAR_HEIGHT,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  iconBox: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    alignItems: "center",
-    width: "100%",
-  },
-  navigationItem: {
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    flex: 1,
-  },
-  iconTexts: {
-    fontSize: 12.5,
-    fontFamily: "Helvetica",
-    color: "#00000070",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  iconTextActive: {
-    color: "#000",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    navigationContainer: {
+      flexDirection: "row",
+      backgroundColor: t.navBar,
+      borderColor: t.border,
+      borderTopWidth: 1,
+      width: "100%",
+      height: NAVBAR_HEIGHT,
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+    },
+    iconBox: {
+      flexDirection: "row",
+      justifyContent: "space-evenly",
+      alignItems: "center",
+      width: "100%",
+    },
+    navigationItem: {
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      flex: 1,
+    },
+    iconTexts: {
+      fontSize: 12.5,
+      fontFamily: "Helvetica",
+      color: t.textMuted,
+      marginTop: 4,
+      textAlign: "center",
+    },
+    iconTextActive: {
+      color: t.primary,
+    },
+  });
 
 export default NavBar;

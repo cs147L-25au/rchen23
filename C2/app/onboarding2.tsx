@@ -1,11 +1,8 @@
-// app/onboarding2.tsx
-// Onboarding Step 2: Birthday input
-
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -22,21 +19,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { updateProfile } from "@/database/profileQueries";
 import { getAuthUserId } from "@/utils/auth";
-
-const ACCENT_RED = "#B3261E";
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 export default function OnboardingBirthdayScreen() {
   const params = useLocalSearchParams<{ userId?: string; email?: string }>();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
-  // Calculate max date (must be at least 13 years old)
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() - 13);
 
-  // Calculate min date (reasonable limit)
   const minDate = new Date();
   minDate.setFullYear(minDate.getFullYear() - 120);
 
-  // Initialize birthday to maxDate so the picker and button work immediately
   const [birthday, setBirthday] = useState<Date | null>(maxDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -65,24 +61,18 @@ export default function OnboardingBirthdayScreen() {
       return;
     }
 
-    // Get user ID
     const userId = params.userId || (await getAuthUserId());
 
     if (userId) {
-      // Format birthday as ISO date string (YYYY-MM-DD)
       const birthdayStr = birthday.toISOString().split("T")[0];
 
-      // Save birthday to database
       try {
-        console.log("🧾 Saving birthday:", { userId, birthday: birthdayStr });
         await updateProfile(userId, { birthday: birthdayStr });
-        console.log("✅ Birthday saved:", { userId, birthday: birthdayStr });
       } catch (error) {
-        console.warn("⚠️ Failed to save birthday, continuing anyway:", error);
+        console.warn("Failed to save birthday, continuing anyway:", error);
       }
     }
 
-    // Navigate to next step
     router.push({
       pathname: "/onboarding3",
       params: { userId: userId || "", email: params.email },
@@ -90,7 +80,6 @@ export default function OnboardingBirthdayScreen() {
   };
 
   const handleSkip = () => {
-    // Allow skipping birthday
     if (params.userId) {
       router.push({
         pathname: "/onboarding3",
@@ -107,9 +96,8 @@ export default function OnboardingBirthdayScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="dark" />
+        <StatusBar style={mode === "dark" ? "light" : "dark"} />
 
-        {/* Header */}
         <View style={styles.headerContainer}>
           <Pressable
             style={styles.backButton}
@@ -117,7 +105,7 @@ export default function OnboardingBirthdayScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={24} color="#000" />
+            <Ionicons name="chevron-back" size={24} color={t.textPrimary} />
           </Pressable>
 
           <View style={styles.titleContainer}>
@@ -143,10 +131,9 @@ export default function OnboardingBirthdayScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Content */}
             <View style={styles.content}>
               <View style={styles.iconContainer}>
-                <Ionicons name="calendar" size={80} color={ACCENT_RED} />
+                <Ionicons name="calendar" size={80} color={t.primary} />
               </View>
 
               <Text style={styles.subtitle}>When were you born?</Text>
@@ -155,12 +142,11 @@ export default function OnboardingBirthdayScreen() {
                 enough to use the app.
               </Text>
 
-              {/* Date Input */}
               <Pressable
                 style={styles.dateInput}
                 onPress={() => setShowDatePicker(true)}
               >
-                <Ionicons name="calendar-outline" size={24} color="#666" />
+                <Ionicons name="calendar-outline" size={24} color={t.textMuted} />
                 <Text
                   style={[
                     styles.dateText,
@@ -171,7 +157,6 @@ export default function OnboardingBirthdayScreen() {
                 </Text>
               </Pressable>
 
-              {/* Date Picker */}
               {(showDatePicker || Platform.OS === "ios") && (
                 <View style={styles.datePickerContainer}>
                   <DateTimePicker
@@ -181,8 +166,8 @@ export default function OnboardingBirthdayScreen() {
                     onChange={handleDateChange}
                     maximumDate={maxDate}
                     minimumDate={minDate}
-                    accentColor={ACCENT_RED}
-                    themeVariant="light"
+                    accentColor={t.primary}
+                    themeVariant={mode === "dark" ? "dark" : "light"}
                   />
                 </View>
               )}
@@ -190,7 +175,6 @@ export default function OnboardingBirthdayScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Footer */}
         <View style={styles.footerContainer}>
           <Text style={styles.stepIndicator}>Step 2 of 3</Text>
           <Pressable
@@ -209,129 +193,130 @@ export default function OnboardingBirthdayScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  backButton: {
-    padding: 8,
-    width: 60,
-  },
-  skipButton: {
-    padding: 8,
-    width: 60,
-    alignItems: "flex-end",
-  },
-  skipText: {
-    fontSize: 16,
-    color: ACCENT_RED,
-    fontWeight: "600",
-  },
-  titleContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#000",
-    textAlign: "center",
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 15,
-    alignItems: "center",
-  },
-  iconContainer: {
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: "#FFF5F5",
-    borderRadius: 100,
-  },
-  subtitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 25,
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-  dateInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    padding: 16,
-    width: "100%",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  dateText: {
-    fontSize: 18,
-    color: "#000",
-    fontWeight: "500",
-  },
-  dateTextPlaceholder: {
-    color: "#999",
-  },
-  datePickerContainer: {
-    marginTop: 5,
-    width: "100%",
-    alignItems: "center",
-  },
-  footerContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 12,
-    alignItems: "center",
-  },
-  stepIndicator: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
-  },
-  nextButton: {
-    backgroundColor: ACCENT_RED,
-    borderRadius: 999,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    width: "100%",
-  },
-  nextButtonDisabled: {
-    opacity: 0.5,
-  },
-  nextButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    headerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: 12,
+      paddingHorizontal: 20,
+      paddingBottom: 8,
+    },
+    backButton: {
+      padding: 8,
+      width: 60,
+    },
+    skipButton: {
+      padding: 8,
+      width: 60,
+      alignItems: "flex-end",
+    },
+    skipText: {
+      fontSize: 16,
+      color: t.primary,
+      fontWeight: "600",
+    },
+    titleContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.textPrimary,
+      textAlign: "center",
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      paddingTop: 15,
+      alignItems: "center",
+    },
+    iconContainer: {
+      marginBottom: 20,
+      padding: 20,
+      backgroundColor: t.primarySubtle,
+      borderRadius: 100,
+    },
+    subtitle: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.textPrimary,
+      textAlign: "center",
+      marginBottom: 12,
+    },
+    description: {
+      fontSize: 16,
+      color: t.textMuted,
+      textAlign: "center",
+      marginBottom: 25,
+      lineHeight: 24,
+      paddingHorizontal: 20,
+    },
+    dateInput: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.inputBackground,
+      borderRadius: 12,
+      padding: 16,
+      width: "100%",
+      gap: 12,
+      borderWidth: 1,
+      borderColor: t.inputBorder,
+    },
+    dateText: {
+      fontSize: 18,
+      color: t.textPrimary,
+      fontWeight: "500",
+    },
+    dateTextPlaceholder: {
+      color: t.placeholder,
+    },
+    datePickerContainer: {
+      marginTop: 5,
+      width: "100%",
+      alignItems: "center",
+    },
+    footerContainer: {
+      paddingHorizontal: 24,
+      paddingBottom: 24,
+      paddingTop: 12,
+      alignItems: "center",
+    },
+    stepIndicator: {
+      fontSize: 14,
+      color: t.textMuted,
+      marginBottom: 16,
+    },
+    nextButton: {
+      backgroundColor: t.primary,
+      borderRadius: 999,
+      paddingVertical: 16,
+      paddingHorizontal: 32,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      width: "100%",
+    },
+    nextButtonDisabled: {
+      opacity: 0.5,
+    },
+    nextButtonText: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: "#fff",
+    },
+  });

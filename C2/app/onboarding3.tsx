@@ -1,11 +1,8 @@
-// app/onboarding3.tsx
-// Onboarding Step 3: Profile photo and complete onboarding
-
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -32,11 +29,13 @@ import {
   setOnboardingComplete,
   storeUserId,
 } from "@/utils/auth";
-
-const ACCENT_RED = "#B3261E";
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 export default function OnboardingProfilePhotoScreen() {
   const params = useLocalSearchParams<{ userId?: string; email?: string }>();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
@@ -46,7 +45,6 @@ export default function OnboardingProfilePhotoScreen() {
   const [saving, setSaving] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Load profile on mount
   useEffect(() => {
     loadProfile();
   }, []);
@@ -122,7 +120,6 @@ export default function OnboardingProfilePhotoScreen() {
 
   const handlePickImage = async () => {
     try {
-      // Request permission
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
@@ -133,7 +130,6 @@ export default function OnboardingProfilePhotoScreen() {
         return;
       }
 
-      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -152,7 +148,6 @@ export default function OnboardingProfilePhotoScreen() {
 
   const handleTakePhoto = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
@@ -162,7 +157,6 @@ export default function OnboardingProfilePhotoScreen() {
         return;
       }
 
-      // Launch camera
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
@@ -226,7 +220,6 @@ export default function OnboardingProfilePhotoScreen() {
 
       await storeUserId(userId);
 
-      // Ensure username is set + unique
       let cleanedUsername = normalizeUsername(username);
       if (!cleanedUsername) {
         await generateUsername();
@@ -243,44 +236,22 @@ export default function OnboardingProfilePhotoScreen() {
         setSaving(false);
         return;
       }
-      console.log("🧾 Saving username:", { userId, username: cleanedUsername });
       await updateProfile(userId, { username: cleanedUsername });
-      console.log("✅ Username saved:", { userId, username: cleanedUsername });
 
-      // Upload profile picture if selected and it's a local URI
       if (profilePic && profilePic.startsWith("file://")) {
-        console.log("📸 Uploading profile picture...", { userId });
-        const uploadedUrl = await uploadProfilePicture(userId, profilePic);
-        if (uploadedUrl) {
-          console.log("✅ Profile picture uploaded:", {
-            userId,
-            url: uploadedUrl,
-          });
-        } else {
-          console.warn("⚠️ Profile picture upload failed, continuing...");
-        }
+        await uploadProfilePicture(userId, profilePic);
       } else if (profilePic && !profilePic.startsWith("file://")) {
-        // It's already a URL, just update the profile
-        console.log("🧾 Saving profile photo URL:", {
-          userId,
-          url: profilePic,
-        });
         await updateProfile(userId, { profile_pic: profilePic });
-        console.log("✅ Profile photo URL saved:", { userId, url: profilePic });
       }
 
-      // Mark onboarding as complete (stored in AsyncStorage)
       await setOnboardingComplete(userId);
 
-      console.log("✅ Onboarding complete! Navigating to main app...");
-
-      // Navigate to main app
       router.replace({
         pathname: "/(tabs)/feed",
         params: { userId: userId },
       });
     } catch (error: any) {
-      console.error("❌ Error completing onboarding:", error);
+      console.error("Error completing onboarding:", error);
       Alert.alert(
         "Error",
         error.message || "Failed to complete onboarding. Please try again.",
@@ -297,9 +268,9 @@ export default function OnboardingProfilePhotoScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="dark" />
+        <StatusBar style={mode === "dark" ? "light" : "dark"} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ACCENT_RED} />
+          <ActivityIndicator size="large" color={t.primary} />
         </View>
       </SafeAreaView>
     );
@@ -307,9 +278,8 @@ export default function OnboardingProfilePhotoScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
 
-      {/* Header */}
       <View style={styles.headerContainer}>
         <Pressable
           style={styles.backButton}
@@ -317,7 +287,7 @@ export default function OnboardingProfilePhotoScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color="#000" />
+          <Ionicons name="chevron-back" size={24} color={t.textPrimary} />
         </Pressable>
 
         <View style={styles.titleContainer}>
@@ -334,16 +304,14 @@ export default function OnboardingProfilePhotoScreen() {
         </Pressable>
       </View>
 
-      {/* Content */}
       <View style={styles.content}>
-        {/* Profile Preview */}
         <View style={styles.profilePreview}>
           <Pressable style={styles.avatarContainer} onPress={showImageOptions}>
             {profilePic ? (
               <Image source={{ uri: profilePic }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={60} color="#999" />
+                <Ionicons name="person" size={60} color={t.textMuted} />
               </View>
             )}
             <View style={styles.editIcon}>
@@ -369,7 +337,7 @@ export default function OnboardingProfilePhotoScreen() {
                 value={username}
                 onChangeText={(value) => setUsername(normalizeUsername(value))}
                 placeholder="yourname"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={t.placeholder}
                 autoCapitalize="none"
                 autoCorrect={false}
                 style={styles.usernameInput}
@@ -391,21 +359,19 @@ export default function OnboardingProfilePhotoScreen() {
           Add a profile photo so your friends can recognize you!
         </Text>
 
-        {/* Photo Options */}
         <View style={styles.optionsContainer}>
           <Pressable style={styles.optionButton} onPress={handleTakePhoto}>
-            <Ionicons name="camera-outline" size={28} color={ACCENT_RED} />
+            <Ionicons name="camera-outline" size={28} color={t.primary} />
             <Text style={styles.optionText}>Take Photo</Text>
           </Pressable>
 
           <Pressable style={styles.optionButton} onPress={handlePickImage}>
-            <Ionicons name="images-outline" size={28} color={ACCENT_RED} />
+            <Ionicons name="images-outline" size={28} color={t.primary} />
             <Text style={styles.optionText}>Choose from Library</Text>
           </Pressable>
         </View>
       </View>
 
-      {/* Footer */}
       <View style={styles.footerContainer}>
         <Text style={styles.stepIndicator}>Step 3 of 3</Text>
         <Pressable
@@ -426,7 +392,6 @@ export default function OnboardingProfilePhotoScreen() {
         </Pressable>
       </View>
 
-      {/* Confirmation Dialog */}
       <Modal
         visible={showConfirmDialog}
         transparent
@@ -479,253 +444,253 @@ export default function OnboardingProfilePhotoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  backButton: {
-    padding: 8,
-    width: 60,
-  },
-  skipButton: {
-    padding: 8,
-    width: 60,
-    alignItems: "flex-end",
-  },
-  skipText: {
-    fontSize: 16,
-    color: ACCENT_RED,
-    fontWeight: "600",
-  },
-  titleContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#000",
-    textAlign: "center",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    paddingTop: 40,
-  },
-  profilePreview: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  avatarContainer: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#f0f0f0",
-  },
-  avatarPlaceholder: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#e0e0e0",
-    borderStyle: "dashed",
-  },
-  editIcon: {
-    position: "absolute",
-    bottom: 4,
-    right: 4,
-    backgroundColor: ACCENT_RED,
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#fff",
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 4,
-  },
-  usernameRow: {
-    marginTop: 12,
-    width: "100%",
-    alignItems: "center",
-  },
-  usernameLabel: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 6,
-  },
-  usernameInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: "#fafafa",
-  },
-  usernamePrefix: {
-    fontSize: 16,
-    color: "#888",
-    marginRight: 4,
-  },
-  usernameInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#111",
-  },
-  usernameButton: {
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: "#f0f0f0",
-  },
-  usernameButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#666",
-  },
-  description: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  optionsContainer: {
-    width: "100%",
-    gap: 12,
-  },
-  optionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    gap: 16,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  footerContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 12,
-    alignItems: "center",
-  },
-  stepIndicator: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
-  },
-  completeButton: {
-    backgroundColor: ACCENT_RED,
-    borderRadius: 999,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    width: "100%",
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  completeButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  confirmCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 24,
-    width: "100%",
-    maxWidth: 400,
-  },
-  confirmTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    marginBottom: 12,
-  },
-  confirmBody: {
-    fontSize: 16,
-    color: "#666",
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  confirmActions: {
-    gap: 12,
-  },
-  confirmButton: {
-    borderRadius: 999,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: "center",
-  },
-  confirmButtonPrimary: {
-    backgroundColor: ACCENT_RED,
-  },
-  confirmButtonPrimaryText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  confirmButtonSecondary: {
-    backgroundColor: "#f0f0f0",
-  },
-  confirmButtonSecondaryText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    headerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: 12,
+      paddingHorizontal: 20,
+      paddingBottom: 8,
+    },
+    backButton: {
+      padding: 8,
+      width: 60,
+    },
+    skipButton: {
+      padding: 8,
+      width: 60,
+      alignItems: "flex-end",
+    },
+    skipText: {
+      fontSize: 16,
+      color: t.primary,
+      fontWeight: "600",
+    },
+    titleContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.textPrimary,
+      textAlign: "center",
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      alignItems: "center",
+      paddingTop: 40,
+    },
+    profilePreview: {
+      alignItems: "center",
+      marginBottom: 32,
+    },
+    avatarContainer: {
+      position: "relative",
+      marginBottom: 16,
+    },
+    avatar: {
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: t.posterPlaceholder,
+    },
+    avatarPlaceholder: {
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: t.posterPlaceholder,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 3,
+      borderColor: t.border,
+      borderStyle: "dashed",
+    },
+    editIcon: {
+      position: "absolute",
+      bottom: 4,
+      right: 4,
+      backgroundColor: t.primary,
+      borderRadius: 20,
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 3,
+      borderColor: t.background,
+    },
+    userName: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.textPrimary,
+      marginBottom: 4,
+    },
+    userEmail: {
+      fontSize: 16,
+      color: t.textMuted,
+      marginBottom: 4,
+    },
+    usernameRow: {
+      marginTop: 12,
+      width: "100%",
+      alignItems: "center",
+    },
+    usernameLabel: {
+      fontSize: 14,
+      color: t.textMuted,
+      marginBottom: 6,
+    },
+    usernameInputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      width: "100%",
+      borderWidth: 1,
+      borderColor: t.inputBorder,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: t.inputBackground,
+    },
+    usernamePrefix: {
+      fontSize: 16,
+      color: t.textMuted,
+      marginRight: 4,
+    },
+    usernameInput: {
+      flex: 1,
+      fontSize: 16,
+      color: t.textPrimary,
+    },
+    usernameButton: {
+      marginTop: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 999,
+      backgroundColor: t.card,
+    },
+    usernameButtonText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.textSecondary,
+    },
+    description: {
+      fontSize: 16,
+      color: t.textMuted,
+      textAlign: "center",
+      marginBottom: 32,
+      lineHeight: 24,
+    },
+    optionsContainer: {
+      width: "100%",
+      gap: 12,
+    },
+    optionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      backgroundColor: t.card,
+      borderRadius: 12,
+      gap: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    optionText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textSecondary,
+    },
+    footerContainer: {
+      paddingHorizontal: 24,
+      paddingBottom: 24,
+      paddingTop: 12,
+      alignItems: "center",
+    },
+    stepIndicator: {
+      fontSize: 14,
+      color: t.textMuted,
+      marginBottom: 16,
+    },
+    completeButton: {
+      backgroundColor: t.primary,
+      borderRadius: 999,
+      paddingVertical: 16,
+      paddingHorizontal: 32,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      width: "100%",
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    completeButtonText: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: "#fff",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    confirmCard: {
+      backgroundColor: t.modalBackground,
+      borderRadius: 24,
+      padding: 24,
+      width: "100%",
+      maxWidth: 400,
+    },
+    confirmTitle: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.textPrimary,
+      marginBottom: 12,
+    },
+    confirmBody: {
+      fontSize: 16,
+      color: t.textMuted,
+      lineHeight: 24,
+      marginBottom: 24,
+    },
+    confirmActions: {
+      gap: 12,
+    },
+    confirmButton: {
+      borderRadius: 999,
+      paddingVertical: 14,
+      paddingHorizontal: 24,
+      alignItems: "center",
+    },
+    confirmButtonPrimary: {
+      backgroundColor: t.primary,
+    },
+    confirmButtonPrimaryText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#fff",
+    },
+    confirmButtonSecondary: {
+      backgroundColor: t.card,
+    },
+    confirmButtonSecondaryText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textSecondary,
+    },
+  });

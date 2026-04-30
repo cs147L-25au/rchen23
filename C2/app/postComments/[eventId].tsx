@@ -42,17 +42,13 @@ import {
   isInWatchlistByTmdb,
   toggleWatchlistByTmdb,
 } from "../../lib/watchlistDb";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 const DEFAULT_PROFILE_PIC = require("../../assets/anon_pfp.png");
 const DEFAULT_PROFILE_URL_REMOTE =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
 
-/** Matches comment / feed accent in design references */
-const C_ACTION = "#2D5A61";
-const C_MUTED = "#8E8E93";
-const C_DIVIDER = "#E5E5EA";
-
-/** Compact post header poster slot (~135×200); `contain` shows full art without side crop */
 const POSTER_FRAME_W = 175.5;
 const POSTER_FRAME_H = 260;
 
@@ -69,7 +65,6 @@ function formatShortTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Same idea as `FeedBar` — relative time for the activity row. */
 function formatFeedTimestamp(dateString: string): string {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -106,7 +101,6 @@ function titleTypeIconName(titleType: string) {
   }
 }
 
-/** `titles.tmdb_media_type` / TMDB — documentary rows still use `movie` in the API. */
 function tmdbApiMediaType(m: string): "movie" | "tv" {
   return m.toLowerCase() === "tv" ? "tv" : "movie";
 }
@@ -147,6 +141,9 @@ function buildCommentList(
 export default function PostCommentsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const params = useLocalSearchParams<{
     eventId?: string | string[];
     title?: string | string[];
@@ -172,7 +169,6 @@ export default function PostCommentsScreen() {
   const [likesModalLoading, setLikesModalLoading] = useState(false);
   const [likesModalUsers, setLikesModalUsers] = useState<LikeUser[]>([]);
 
-  /** Current user has a Beli rating for this title (seen + ranked) — not the same as watchlist. */
   const [hasRated, setHasRated] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
@@ -316,6 +312,7 @@ export default function PostCommentsScreen() {
           id: item.tmdb_id.toString(),
           mediaType: item.tmdb_media_type,
           title: item.title,
+          posterPath: item.poster_path || "",
         },
       });
     },
@@ -481,7 +478,7 @@ export default function PostCommentsScreen() {
       return (
         <View>
           <View style={styles.opLoadingCard}>
-            <ActivityIndicator size="large" color={C_ACTION} />
+            <ActivityIndicator size="large" color={t.actionAccent} />
           </View>
           <Text style={styles.commentsSectionTitle}>Comments</Text>
         </View>
@@ -532,7 +529,7 @@ export default function PostCommentsScreen() {
                   <Ionicons
                     name={titleTypeIconName(item.title_type || "movie")}
                     size={14}
-                    color={C_MUTED}
+                    color={t.textMuted}
                   />
                   <Text style={styles.opMetaText}> {genreText}</Text>
                 </View>
@@ -572,7 +569,7 @@ export default function PostCommentsScreen() {
               />
             ) : (
               <View style={styles.posterPhInner}>
-                <Ionicons name="image-outline" size={40} color={C_MUTED} />
+                <Ionicons name="image-outline" size={40} color={t.textMuted} />
               </View>
             )}
           </Pressable>
@@ -593,11 +590,11 @@ export default function PostCommentsScreen() {
                 <Ionicons
                   name={postLiked ? "heart" : "heart-outline"}
                   size={24}
-                  color={postLiked ? "#D81B60" : "#333"}
+                  color={postLiked ? t.liked : t.textSecondary}
                 />
               </Pressable>
               <Pressable style={styles.opIconBtn}>
-                <Ionicons name="paper-plane-outline" size={22} color="#333" />
+                <Ionicons name="paper-plane-outline" size={22} color={t.textSecondary} />
               </Pressable>
             </View>
             {userId && item ? (
@@ -606,7 +603,7 @@ export default function PostCommentsScreen() {
                   <Ionicons
                     name="checkmark-circle"
                     size={22}
-                    color={C_ACTION}
+                    color={t.actionAccent}
                   />
                 ) : (
                   <Pressable
@@ -617,7 +614,7 @@ export default function PostCommentsScreen() {
                     <Ionicons
                       name="add-circle-outline"
                       size={24}
-                      color="#333"
+                      color={t.textSecondary}
                     />
                   </Pressable>
                 )}
@@ -628,12 +625,12 @@ export default function PostCommentsScreen() {
                   hitSlop={6}
                 >
                   {watchlistLoading ? (
-                    <ActivityIndicator size="small" color={C_ACTION} />
+                    <ActivityIndicator size="small" color={t.actionAccent} />
                   ) : (
                     <Ionicons
                       name={inWatchlist ? "bookmark" : "bookmark-outline"}
                       size={22}
-                      color={inWatchlist ? C_ACTION : "#333"}
+                      color={inWatchlist ? t.bookmarked : t.textSecondary}
                     />
                   )}
                 </Pressable>
@@ -666,6 +663,8 @@ export default function PostCommentsScreen() {
     watchlistLoading,
     openRatingModal,
     handlePostBookmark,
+    styles,
+    t,
   ]);
 
   const renderComment = ({ item }: { item: CommentWithProfile }) => {
@@ -699,7 +698,7 @@ export default function PostCommentsScreen() {
               <Ionicons
                 name={likedIds.has(item.id) ? "heart" : "heart-outline"}
                 size={20}
-                color={likedIds.has(item.id) ? "#D81B60" : C_ACTION}
+                color={likedIds.has(item.id) ? t.liked : t.actionAccent}
               />
             </Pressable>
             {item.like_count > 0 ? (
@@ -725,7 +724,7 @@ export default function PostCommentsScreen() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.missingBack}>Go back</Text>
         </Pressable>
-        <StatusBar style="auto" />
+        <StatusBar style={mode === "dark" ? "light" : "dark"} />
       </View>
     );
   }
@@ -747,7 +746,7 @@ export default function PostCommentsScreen() {
             onPress={() => router.back()}
             hitSlop={10}
           >
-            <Ionicons name="chevron-back" size={22} color={C_MUTED} />
+            <Ionicons name="chevron-back" size={22} color={t.textMuted} />
             <Text style={styles.backText}>Back</Text>
           </Pressable>
         </View>
@@ -784,7 +783,6 @@ export default function PostCommentsScreen() {
           style={[
             styles.composerSection,
             {
-              // Room for absolute NavBar + home indicator (`components/NavBar.tsx`). To *slightly* reduce
               paddingBottom: NAVBAR_HEIGHT + insets.bottom - 30,
             },
           ]}
@@ -805,7 +803,7 @@ export default function PostCommentsScreen() {
               placeholder={
                 userId ? "Comment or tag a friend" : "Sign in to comment"
               }
-              placeholderTextColor={C_MUTED}
+              placeholderTextColor={t.placeholder}
               style={styles.input}
               multiline
               maxLength={8000}
@@ -817,7 +815,7 @@ export default function PostCommentsScreen() {
               style={styles.postTextHit}
             >
               {posting ? (
-                <ActivityIndicator size="small" color={C_ACTION} />
+                <ActivityIndicator size="small" color={t.actionAccent} />
               ) : (
                 <Text
                   style={[
@@ -845,263 +843,257 @@ export default function PostCommentsScreen() {
         onSuccess={handleRatingSuccess}
       />
       <NavBar />
-      <StatusBar style="auto" />
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#fff" },
-  flex: { flex: 1 },
-  missingText: { textAlign: "center", marginTop: 24, fontSize: 16 },
-  missingBack: { textAlign: "center", marginTop: 12, color: C_ACTION },
-  topBar: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C_DIVIDER,
-  },
-  backRow: { flexDirection: "row", alignItems: "center" },
-  backText: {
-    fontSize: 17,
-    color: C_MUTED,
-    marginLeft: 2,
-    fontFamily: "DM Sans",
-  },
-  opLoadingCard: {
-    paddingVertical: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C_DIVIDER,
-  },
-  /** Single rule under the post (do not add a second hairline View below, or you get double lines) */
-  originalPostCard: {
-    paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C_DIVIDER,
-  },
-  opTopRow: { flexDirection: "row", alignItems: "flex-start" },
-  opAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  opTextBlock: { flex: 1, minWidth: 0, paddingRight: 8 },
-  opActionLine: { fontSize: 15, lineHeight: 20, marginBottom: 4 },
-  opName: { fontWeight: "700", color: "#000", fontFamily: "DM Sans" },
-  opVerb: { color: "#666", fontFamily: "DM Sans" },
-  opTitleEm: { fontWeight: "700", color: "#000", fontFamily: "DM Sans" },
-  opMetaRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  opMetaText: { fontSize: 13, color: C_MUTED, fontFamily: "DM Sans" },
-  opReview: {
-    fontSize: 14,
-    color: "#333",
-    marginTop: 4,
-    fontFamily: "DM Sans",
-  },
-  opFallbackRow: { paddingBottom: 8 },
-  opFallbackTitle: { fontSize: 18, fontWeight: "700", color: "#000" },
-  opFallbackHint: { fontSize: 13, color: C_MUTED, marginTop: 6 },
-  /** Fixed ~112×240; image uses `contain` so the full poster is visible (no cover crop) */
-  posterFrame: {
-    width: POSTER_FRAME_W,
-    height: POSTER_FRAME_H,
-    alignSelf: "center",
-    marginTop: 12,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  posterPressed: { opacity: 0.92 },
-  posterImage: {
-    width: POSTER_FRAME_W,
-    height: POSTER_FRAME_H,
-  },
-  posterPhInner: {
-    width: POSTER_FRAME_W,
-    height: POSTER_FRAME_H,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  /** Same order as `FeedItem`: like count line, then icon row */
-  opLikesCountRow: {
-    alignSelf: "flex-start",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  opLikeCountText: {
-    fontSize: 13,
-    color: "#333",
-    fontWeight: "500",
-    fontFamily: "DM Sans",
-  },
-  opActionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 4,
-    paddingHorizontal: 2,
-  },
-  opLeftActions: { flexDirection: "row", alignItems: "center", gap: 16 },
-  opRightActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  opIconBtn: { padding: 4 },
-  opTimestamp: {
-    fontSize: 12,
-    color: C_MUTED,
-    marginTop: 8,
-    fontFamily: "DM Sans",
-  },
-  /** Gap above/below “Comments” — lower `paddingBottom` to pull the list closer */
-  commentsSectionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#000",
-    paddingTop: 12,
-    paddingBottom: 4,
-    fontFamily: "DM Sans",
-  },
-  list: { flex: 1 },
-  /** Space under the section title before first row — lower `paddingTop` to tighten */
-  listContent: {
-    paddingTop: 2,
-    paddingBottom: 8,
-    paddingHorizontal: 16,
-  },
-  /** Empty state: `paddingTop` was the main extra gap; tune top vs bottom separately */
-  emptyText: {
-    fontSize: 15,
-    color: C_MUTED,
-    paddingTop: 8,
-    paddingBottom: 20,
-    lineHeight: 22,
-  },
-  commentRow: {
-    flexDirection: "row",
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C_DIVIDER,
-  },
-  commentRowReply: {
-    marginLeft: 4,
-    paddingLeft: 12,
-    borderLeftWidth: 2,
-    borderLeftColor: "#E8E8ED",
-  },
-  commentAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  commentBody: { flex: 1, minWidth: 0 },
-  commentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  commentName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  commentTime: { fontSize: 13, color: C_MUTED, fontFamily: "DM Sans" },
-  commentText: {
-    fontSize: 16,
-    color: "#000",
-    marginTop: 6,
-    lineHeight: 22,
-    fontFamily: "DM Sans",
-  },
-  commentActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    gap: 4,
-  },
-  iconHit: { padding: 0 },
-  likeCountSmall: {
-    fontSize: 13,
-    color: C_MUTED,
-    marginLeft: 2,
-    marginRight: 8,
-  },
-  replyPress: { paddingVertical: 4, paddingLeft: 8 },
-  replyText: {
-    fontSize: 15,
-    color: C_ACTION,
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-  },
-  replyBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: "#F2F2F7",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C_DIVIDER,
-  },
-  replyBannerText: { flex: 1, fontSize: 14, color: "#3C3C43" },
-  cancelReply: { fontSize: 15, fontWeight: "600", color: C_ACTION },
-  composerSection: {
-    backgroundColor: "#fff",
-  },
-  composerTopRule: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: C_DIVIDER,
-  },
-  /** Space inside the bar around the field + Post — `paddingBottom` is the main “air under the pill” */
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 2,
-    gap: 10,
-  },
-  composerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 120,
-    borderWidth: 1,
-    borderColor: C_DIVIDER,
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 16,
-    color: "#000",
-    backgroundColor: "#FAFAFA",
-    fontFamily: "DM Sans",
-  },
-  postTextHit: {
-    minWidth: 48,
-    paddingVertical: 8,
-    paddingLeft: 4,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  postTextLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: C_ACTION,
-    fontFamily: "DM Sans",
-  },
-  postTextLabelDisabled: { color: C_MUTED, opacity: 0.5 },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    page: { flex: 1, backgroundColor: t.background },
+    flex: { flex: 1 },
+    missingText: { textAlign: "center", marginTop: 24, fontSize: 16, color: t.textPrimary },
+    missingBack: { textAlign: "center", marginTop: 12, color: t.actionAccent },
+    topBar: {
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      paddingBottom: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: t.divider,
+    },
+    backRow: { flexDirection: "row", alignItems: "center" },
+    backText: {
+      fontSize: 17,
+      color: t.textMuted,
+      marginLeft: 2,
+      fontFamily: "DM Sans",
+    },
+    opLoadingCard: {
+      paddingVertical: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: t.divider,
+    },
+    originalPostCard: {
+      paddingBottom: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: t.divider,
+    },
+    opTopRow: { flexDirection: "row", alignItems: "flex-start" },
+    opAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      marginRight: 12,
+    },
+    opTextBlock: { flex: 1, minWidth: 0, paddingRight: 8 },
+    opActionLine: { fontSize: 15, lineHeight: 20, marginBottom: 4, color: t.textPrimary },
+    opName: { fontWeight: "700", color: t.textPrimary, fontFamily: "DM Sans" },
+    opVerb: { color: t.textMuted, fontFamily: "DM Sans" },
+    opTitleEm: { fontWeight: "700", color: t.textPrimary, fontFamily: "DM Sans" },
+    opMetaRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+    opMetaText: { fontSize: 13, color: t.textMuted, fontFamily: "DM Sans" },
+    opReview: {
+      fontSize: 14,
+      color: t.textSecondary,
+      marginTop: 4,
+      fontFamily: "DM Sans",
+    },
+    opFallbackRow: { paddingBottom: 8 },
+    opFallbackTitle: { fontSize: 18, fontWeight: "700", color: t.textPrimary },
+    opFallbackHint: { fontSize: 13, color: t.textMuted, marginTop: 6 },
+    posterFrame: {
+      width: POSTER_FRAME_W,
+      height: POSTER_FRAME_H,
+      alignSelf: "center",
+      marginTop: 12,
+      borderRadius: 12,
+      overflow: "hidden",
+      backgroundColor: t.posterPlaceholder,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    posterPressed: { opacity: 0.92 },
+    posterImage: {
+      width: POSTER_FRAME_W,
+      height: POSTER_FRAME_H,
+    },
+    posterPhInner: {
+      width: POSTER_FRAME_W,
+      height: POSTER_FRAME_H,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    opLikesCountRow: {
+      alignSelf: "flex-start",
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    opLikeCountText: {
+      fontSize: 13,
+      color: t.textSecondary,
+      fontWeight: "500",
+      fontFamily: "DM Sans",
+    },
+    opActionsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 4,
+      paddingHorizontal: 2,
+    },
+    opLeftActions: { flexDirection: "row", alignItems: "center", gap: 16 },
+    opRightActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    opIconBtn: { padding: 4 },
+    opTimestamp: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 8,
+      fontFamily: "DM Sans",
+    },
+    commentsSectionTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: t.textPrimary,
+      paddingTop: 12,
+      paddingBottom: 4,
+      fontFamily: "DM Sans",
+    },
+    list: { flex: 1 },
+    listContent: {
+      paddingTop: 2,
+      paddingBottom: 8,
+      paddingHorizontal: 16,
+    },
+    emptyText: {
+      fontSize: 15,
+      color: t.textMuted,
+      paddingTop: 8,
+      paddingBottom: 20,
+      lineHeight: 22,
+    },
+    commentRow: {
+      flexDirection: "row",
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: t.divider,
+    },
+    commentRowReply: {
+      marginLeft: 4,
+      paddingLeft: 12,
+      borderLeftWidth: 2,
+      borderLeftColor: t.border,
+    },
+    commentAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      marginRight: 12,
+    },
+    commentBody: { flex: 1, minWidth: 0 },
+    commentHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    commentName: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    commentTime: { fontSize: 13, color: t.textMuted, fontFamily: "DM Sans" },
+    commentText: {
+      fontSize: 16,
+      color: t.textPrimary,
+      marginTop: 6,
+      lineHeight: 22,
+      fontFamily: "DM Sans",
+    },
+    commentActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 10,
+      gap: 4,
+    },
+    iconHit: { padding: 0 },
+    likeCountSmall: {
+      fontSize: 13,
+      color: t.textMuted,
+      marginLeft: 2,
+      marginRight: 8,
+    },
+    replyPress: { paddingVertical: 4, paddingLeft: 8 },
+    replyText: {
+      fontSize: 15,
+      color: t.actionAccent,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+    },
+    replyBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: t.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: t.divider,
+    },
+    replyBannerText: { flex: 1, fontSize: 14, color: t.textSecondary },
+    cancelReply: { fontSize: 15, fontWeight: "600", color: t.actionAccent },
+    composerSection: {
+      backgroundColor: t.surface,
+    },
+    composerTopRule: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: t.divider,
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 2,
+      gap: 10,
+    },
+    composerAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+    },
+    input: {
+      flex: 1,
+      minHeight: 40,
+      maxHeight: 120,
+      borderWidth: 1,
+      borderColor: t.inputBorder,
+      borderRadius: 22,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      fontSize: 16,
+      color: t.textPrimary,
+      backgroundColor: t.inputBackground,
+      fontFamily: "DM Sans",
+    },
+    postTextHit: {
+      minWidth: 48,
+      paddingVertical: 8,
+      paddingLeft: 4,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    postTextLabel: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: t.actionAccent,
+      fontFamily: "DM Sans",
+    },
+    postTextLabelDisabled: { color: t.textMuted, opacity: 0.5 },
+  });

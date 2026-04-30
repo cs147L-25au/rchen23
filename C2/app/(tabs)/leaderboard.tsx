@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 import NavBar from "../../components/NavBar";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 const placeholder_pfp = require("../../assets/anon_pfp.png");
 
@@ -42,28 +44,15 @@ const SCOPE_OPTIONS: { key: ScopeKey; label: string }[] = [
 ];
 
 const GENRES = [
-  "All Genres",
-  "Action",
-  "Adventure",
-  "Animation",
-  "Comedy",
-  "Crime",
-  "Documentary",
-  "Drama",
-  "Family",
-  "Fantasy",
-  "History",
-  "Horror",
-  "Music",
-  "Mystery",
-  "Romance",
-  "Science Fiction",
-  "Thriller",
-  "War",
-  "Western",
+  "All Genres","Action","Adventure","Animation","Comedy","Crime","Documentary",
+  "Drama","Family","Fantasy","History","Horror","Music","Mystery","Romance",
+  "Science Fiction","Thriller","War","Western",
 ];
 
 export default function LeaderboardScreen() {
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const [category, setCategory] = useState<CategoryKey>("all");
   const [scope, setScope] = useState<ScopeKey>("all");
   const [genre, setGenre] = useState("All Genres");
@@ -73,7 +62,6 @@ export default function LeaderboardScreen() {
   const [genreModalVisible, setGenreModalVisible] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Load current user ID
   useEffect(() => {
     const loadUserId = async () => {
       const { data } = await db.auth.getSession();
@@ -96,29 +84,23 @@ export default function LeaderboardScreen() {
           return;
         }
 
-        // Filter profiles based on scope
         let filteredProfileIds: Set<string> | null = null;
 
         if (scope !== "all" && currentUserId) {
           filteredProfileIds = new Set<string>();
-          filteredProfileIds.add(currentUserId); // Always include self
+          filteredProfileIds.add(currentUserId);
 
           if (scope === "followers") {
-            // Get users who follow the current user
             const followers = await getFollowers(currentUserId);
             followers.forEach((f) => filteredProfileIds!.add(f.id));
           } else if (scope === "following") {
-            // Get users the current user follows
             const following = await getFollowing(currentUserId);
             following.forEach((f) => filteredProfileIds!.add(f.id));
           }
         }
 
-        // Filter profiles by scope
         const scopedProfiles = filteredProfileIds
-          ? (allProfiles || []).filter((p: any) =>
-              filteredProfileIds!.has(p.id),
-            )
+          ? (allProfiles || []).filter((p: any) => filteredProfileIds!.has(p.id))
           : allProfiles || [];
 
         if (genre === "All Genres") {
@@ -131,28 +113,16 @@ export default function LeaderboardScreen() {
           }
 
           const rows =
-            (data as Array<{
-              category: string;
-              user_id: string;
-              watched_count: number | null;
-            }>) || [];
+            (data as Array<{ category: string; user_id: string; watched_count: number | null }>) || [];
 
           const counts = new Map<string, number>();
 
           if (category === "all") {
-            // Use the "overall" category which already has the total
-            rows
-              .filter((row) => row.category === "overall")
-              .forEach((row) => {
-                counts.set(row.user_id, row.watched_count || 0);
-              });
+            rows.filter((row) => row.category === "overall")
+              .forEach((row) => { counts.set(row.user_id, row.watched_count || 0); });
           } else {
-            // Filter by specific category (movie, tv, documentary)
-            rows
-              .filter((row) => row.category === category)
-              .forEach((row) => {
-                counts.set(row.user_id, row.watched_count || 0);
-              });
+            rows.filter((row) => row.category === category)
+              .forEach((row) => { counts.set(row.user_id, row.watched_count || 0); });
           }
 
           const sorted = scopedProfiles
@@ -166,11 +136,10 @@ export default function LeaderboardScreen() {
             }))
             .sort((a, b) => b.count - a.count);
 
-          // Assign ranks with tie handling (standard competition ranking)
           let currentRank = 1;
           const nextItems = sorted.map((item, index) => {
             if (index > 0 && item.count < sorted[index - 1].count) {
-              currentRank = index + 1; // Skip to position if not tied
+              currentRank = index + 1;
             }
             return { ...item, rank: currentRank };
           });
@@ -179,13 +148,11 @@ export default function LeaderboardScreen() {
           return;
         }
 
-        // Genre filter: compute from v_user_ratings
         let query = db
           .from("v_user_ratings")
           .select("user_id, title_type, genres")
           .contains("genres", [genre]);
 
-        // Only filter by title_type if not "all"
         if (category !== "all") {
           query = query.eq("title_type", category);
         }
@@ -214,11 +181,10 @@ export default function LeaderboardScreen() {
           }))
           .sort((a, b) => b.count - a.count);
 
-        // Assign ranks with tie handling (standard competition ranking)
         let currentRank = 1;
         const nextItems = sorted.map((item, index) => {
           if (index > 0 && item.count < sorted[index - 1].count) {
-            currentRank = index + 1; // Skip to position if not tied
+            currentRank = index + 1;
           }
           return { ...item, rank: currentRank };
         });
@@ -233,9 +199,7 @@ export default function LeaderboardScreen() {
   }, [category, genre, scope, currentUserId]);
 
   const subtitle = useMemo(() => {
-    if (genre === "All Genres") {
-      return "Number of places on your been list";
-    }
+    if (genre === "All Genres") return "Number of places on your been list";
     return `${genre} watched count`;
   }, [genre]);
 
@@ -299,7 +263,7 @@ export default function LeaderboardScreen() {
             onPress={() => setScopeModalVisible(true)}
           >
             <Text style={styles.dropdownText}>{scopeLabel}</Text>
-            <Ionicons name="chevron-down" size={16} color="#666" />
+            <Ionicons name="chevron-down" size={16} color={t.textMuted} />
           </Pressable>
 
           <Pressable
@@ -307,7 +271,7 @@ export default function LeaderboardScreen() {
             onPress={() => setGenreModalVisible(true)}
           >
             <Text style={styles.dropdownText}>{genre}</Text>
-            <Ionicons name="chevron-down" size={16} color="#666" />
+            <Ionicons name="chevron-down" size={16} color={t.textMuted} />
           </Pressable>
         </View>
 
@@ -405,163 +369,167 @@ export default function LeaderboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  content: {
-    flex: 1,
-    paddingTop: "18%",
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
-    marginBottom: 12,
-    color: "#000",
-  },
-  subtitle: {
-    color: "#8B8B8B",
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  tabs: {
-    flexDirection: "row",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E6E6E6",
-    overflow: "hidden",
-    marginBottom: 12,
-  },
-  tab: {
-    flex: 0.85,
-    paddingVertical: 10,
-    paddingHorizontal: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F7F7F7",
-  },
-  tabWide: {
-    flex: 1.15,
-  },
-  tabActive: {
-    backgroundColor: "#fff",
-  },
-  tabText: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: "#000",
-  },
-  dropdownRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E6E6E6",
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  scopeDropdown: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  genreDropdown: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  dropdownText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  listContainer: {
-    paddingBottom: 100,
-  },
-  row: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-  },
-  rank: {
-    fontSize: 16,
-    fontWeight: "700",
-    width: 26,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  displayName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  username: {
-    fontSize: 13,
-    color: "#8B8B8B",
-    marginTop: 2,
-  },
-  score: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#000",
-    marginRight: 8,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#999",
-    paddingVertical: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingTop: 12,
-    paddingBottom: 12,
-    paddingHorizontal: 12,
-    width: "100%",
-    maxWidth: 360,
-    maxHeight: 360,
-  },
-  modalTitle: {
-    fontSize: 13,
-    color: "#666",
-    marginBottom: 8,
-  },
-  modalList: {
-    maxHeight: 280,
-  },
-  modalOption: {
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  modalOptionText: {
-    fontSize: 15,
-    color: "#111",
-  },
-  modalOptionSelected: {
-    fontWeight: "600",
-    color: "#007AFF",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    content: {
+      flex: 1,
+      paddingTop: "18%",
+      paddingHorizontal: 20,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: "700",
+      marginBottom: 12,
+      color: t.textPrimary,
+    },
+    subtitle: {
+      color: t.textMuted,
+      fontSize: 14,
+      marginBottom: 12,
+    },
+    tabs: {
+      flexDirection: "row",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: t.border,
+      overflow: "hidden",
+      marginBottom: 12,
+    },
+    tab: {
+      flex: 0.85,
+      paddingVertical: 10,
+      paddingHorizontal: 2,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: t.surface,
+    },
+    tabWide: {
+      flex: 1.15,
+    },
+    tabActive: {
+      backgroundColor: t.card,
+      borderBottomWidth: 2,
+      borderBottomColor: t.primary,
+    },
+    tabText: {
+      fontSize: 14,
+      color: t.textMuted,
+      fontWeight: "600",
+    },
+    tabTextActive: {
+      color: t.primary,
+    },
+    dropdownRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      paddingVertical: 8,
+      marginBottom: 8,
+    },
+    scopeDropdown: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    genreDropdown: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    dropdownText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+    },
+    listContainer: {
+      paddingBottom: 100,
+    },
+    row: {
+      width: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    rank: {
+      fontSize: 16,
+      fontWeight: "700",
+      width: 26,
+      color: t.textPrimary,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      marginRight: 12,
+    },
+    userInfo: {
+      flex: 1,
+    },
+    displayName: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+    },
+    username: {
+      fontSize: 13,
+      color: t.textMuted,
+      marginTop: 2,
+    },
+    score: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: t.textPrimary,
+      marginRight: 8,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: t.textMuted,
+      paddingVertical: 20,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlayLight,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 20,
+    },
+    modalContent: {
+      backgroundColor: t.modalBackground,
+      borderRadius: 12,
+      paddingTop: 12,
+      paddingBottom: 12,
+      paddingHorizontal: 12,
+      width: "100%",
+      maxWidth: 360,
+      maxHeight: 360,
+    },
+    modalTitle: {
+      fontSize: 13,
+      color: t.textMuted,
+      marginBottom: 8,
+    },
+    modalList: {
+      maxHeight: 280,
+    },
+    modalOption: {
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+    },
+    modalOptionText: {
+      fontSize: 15,
+      color: t.textPrimary,
+    },
+    modalOptionSelected: {
+      fontWeight: "600",
+      color: t.selectedOption,
+    },
+  });

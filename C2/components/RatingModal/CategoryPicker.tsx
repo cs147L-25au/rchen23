@@ -1,7 +1,9 @@
 // components/RatingModal/CategoryPicker.tsx
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 export type RatingCategory = "good" | "alright" | "bad";
 
@@ -14,6 +16,9 @@ const CategoryPicker: React.FC<CategoryPickerProps> = ({
   selected,
   onSelect,
 }) => {
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>How was it?</Text>
@@ -72,62 +77,63 @@ const CategoryPicker: React.FC<CategoryPickerProps> = ({
 
 export default CategoryPicker;
 
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    backgroundColor: "#f9f9f9",
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  button: {
-    alignItems: "center",
-    width: 90,
-  },
-  circle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  circleGood: {
-    backgroundColor: "#d4edda",
-  },
-  circleGoodActive: {
-    backgroundColor: "#a8e6cf",
-    borderWidth: 3,
-    borderColor: "#2E7D32",
-  },
-  circleAlright: {
-    backgroundColor: "#fff3cd",
-  },
-  circleAlrightActive: {
-    backgroundColor: "#ffe082",
-    borderWidth: 3,
-    borderColor: "#F9A825",
-  },
-  circleBad: {
-    backgroundColor: "#f8d7da",
-  },
-  circleBadActive: {
-    backgroundColor: "#f5b7b1",
-    borderWidth: 3,
-    borderColor: "#C62828",
-  },
-  label: {
-    fontSize: 12,
-    color: "#333",
-    textAlign: "center",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      backgroundColor: t.card,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      textAlign: "center",
+      marginBottom: 16,
+    },
+    buttonRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+    },
+    button: {
+      alignItems: "center",
+      width: 90,
+    },
+    circle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 8,
+    },
+    circleGood: {
+      backgroundColor: "#d4edda",
+    },
+    circleGoodActive: {
+      backgroundColor: "#a8e6cf",
+      borderWidth: 3,
+      borderColor: "#2E7D32",
+    },
+    circleAlright: {
+      backgroundColor: "#fff3cd",
+    },
+    circleAlrightActive: {
+      backgroundColor: "#ffe082",
+      borderWidth: 3,
+      borderColor: "#F9A825",
+    },
+    circleBad: {
+      backgroundColor: "#f8d7da",
+    },
+    circleBadActive: {
+      backgroundColor: "#f5b7b1",
+      borderWidth: 3,
+      borderColor: "#C62828",
+    },
+    label: {
+      fontSize: 12,
+      color: t.textSecondary,
+      textAlign: "center",
+    },
+  });

@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 const DEFAULT_PROFILE_IMAGE = require("../assets/anon_pfp.png");
 
@@ -33,9 +36,9 @@ const MemberRow: React.FC<MemberRowProps> = ({
   onPress,
   onToggleFollow,
 }) => {
-  const initials = getInitials(
-    profile.displayName || profile.username || "User",
-  );
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const buttonLabel = isFollowing ? "Following" : "Follow";
 
   return (
@@ -73,81 +76,68 @@ const MemberRow: React.FC<MemberRowProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#efefef",
-    paddingHorizontal: 16,
-  },
-  info: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#e6e6e6",
-    marginRight: 12,
-  },
-  avatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#e6e6e6",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  meta: {
-    flexShrink: 1,
-  },
-  name: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111",
-    fontFamily: "DM Sans",
-  },
-  handle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "#6e6e6e",
-    fontFamily: "DM Sans",
-  },
-  followButton: {
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "#0f4c5c",
-    backgroundColor: "#0f4c5c",
-  },
-  followingButton: {
-    backgroundColor: "#f2f2f2",
-    borderColor: "#d6d6d6",
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  followText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
-    fontFamily: "DM Sans",
-  },
-  followingText: {
-    color: "#555",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      paddingHorizontal: 16,
+      backgroundColor: t.surface,
+    },
+    info: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: t.avatarFallback,
+      marginRight: 12,
+    },
+    meta: {
+      flexShrink: 1,
+    },
+    name: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+    },
+    handle: {
+      marginTop: 2,
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    followButton: {
+      borderRadius: 18,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: t.followButton,
+      backgroundColor: t.followButton,
+    },
+    followingButton: {
+      backgroundColor: t.followingButton,
+      borderColor: t.border,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    followText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#FFFFFF",
+      fontFamily: "DM Sans",
+    },
+    followingText: {
+      color: t.followingButtonText,
+    },
+  });
 
 export default MemberRow;

@@ -1,7 +1,9 @@
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 import db from "../database/db";
 import { getCurrentUserId } from "../lib/ratingsDb";
 
@@ -12,6 +14,8 @@ const app_name = "MyFlix";
 
 const Header = () => {
   const [profilePic, setProfilePic] = useState<string | null>(null);
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const loadProfilePic = useCallback(async () => {
     try {
@@ -64,48 +68,48 @@ const Header = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  headerContainer: {
-    // modified from my A1
-    display: "flex",
-    flex: 0,
-    paddingTop: "13%",
-    paddingHorizontal: "5%",
-    paddingBottom: "3%",
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    backgroundColor: "#ffffff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#cbcbcbff",
-  },
-  nameSection: {
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  appName: {
-    fontSize: 42,
-    color: "#ef0e4aff",
-    fontWeight: "condensedBold",
-    fontStyle: "italic",
-    fontFamily: "DM Sans",
-  },
-  profileCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  profileImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 25,
-    resizeMode: "cover",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    headerContainer: {
+      display: "flex",
+      flex: 0,
+      paddingTop: "13%",
+      paddingHorizontal: "5%",
+      paddingBottom: "3%",
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 16,
+      backgroundColor: t.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+    },
+    nameSection: {
+      flexDirection: "row",
+      justifyContent: "center",
+    },
+    appName: {
+      fontSize: 42,
+      color: t.primary,
+      fontWeight: "condensedBold",
+      fontStyle: "italic",
+      fontFamily: "DM Sans",
+    },
+    profileCircle: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: t.avatarFallback,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    profileImage: {
+      width: 52,
+      height: 52,
+      borderRadius: 25,
+      resizeMode: "cover",
+    },
+  });
 
 export default Header;

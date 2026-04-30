@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 import { formatScore } from "../lib/ratingsDb";
 
 const DEFAULT_PROFILE_URL = require("../assets/anon_pfp.png");
@@ -57,7 +59,9 @@ const FeedItem: React.FC<FeedItemProps> = ({
   onPress,
   rightActionVariant = "default",
 }) => {
-  // Get icon based on title type
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const getTitleTypeIcon = () => {
     switch (titleType) {
       case "tv":
@@ -69,7 +73,6 @@ const FeedItem: React.FC<FeedItemProps> = ({
     }
   };
 
-  // Get action text based on action type
   const getActionText = () => {
     switch (actionType) {
       case "ranked":
@@ -83,19 +86,15 @@ const FeedItem: React.FC<FeedItemProps> = ({
     }
   };
 
-  // Format genres for display
   const genreText =
     genres && genres.length > 0 ? genres.slice(0, 2).join(", ") : "Movie";
 
-  // Only show score badge for ranked items with a score
   const showScoreBadge = actionType === "ranked" && score !== null;
 
   return (
     <View style={styles.container}>
       <Pressable style={styles.card} onPress={onPress}>
-        {/* Main content row */}
         <View style={styles.mainRow}>
-          {/* Left: Avatar */}
           <View style={styles.avatarContainer}>
             <Image
               source={
@@ -107,27 +106,23 @@ const FeedItem: React.FC<FeedItemProps> = ({
             />
           </View>
 
-          {/* Middle: Content */}
           <View style={styles.contentContainer}>
-            {/* Name + action + title */}
             <Text style={styles.actionText}>
               <Text style={styles.userName}>{userName}</Text>
               <Text style={styles.actionLabel}> {getActionText()} </Text>
               <Text style={styles.titleText}>{title}</Text>
             </Text>
 
-            {/* Category/genre info */}
             <View style={styles.metaRow}>
               <Ionicons
                 name={getTitleTypeIcon()}
                 size={14}
-                color="#666"
+                color={t.textMuted}
                 style={styles.metaIcon}
               />
               <Text style={styles.metaText}>{genreText}</Text>
             </View>
 
-            {/* Description if exists (only for ranked items) */}
             {actionType === "ranked" &&
               description &&
               description.length > 0 && (
@@ -137,7 +132,6 @@ const FeedItem: React.FC<FeedItemProps> = ({
               )}
           </View>
 
-          {/* Right: Score badge (only for ranked items with score) */}
           {showScoreBadge && (
             <View style={styles.scoreBadge}>
               <Text style={styles.scoreText}>{formatScore(score)}</Text>
@@ -153,7 +147,6 @@ const FeedItem: React.FC<FeedItemProps> = ({
           </Text>
         </Pressable>
       ) : (
-        // Reserves the same vertical space as the "N like(s)" line so card height matches posts with a visible count.
         <View style={styles.likeCountPlaceholder} />
       )}
 
@@ -165,46 +158,40 @@ const FeedItem: React.FC<FeedItemProps> = ({
         </Pressable>
       ) : null}
 
-      {/* Action buttons row — fixed offset under the like/placeholder so it matches 0- vs 1+ like(s) rows */}
       <View style={[styles.actionsRow, styles.actionsRowAfterLikeBlock]}>
         <View style={styles.leftActions}>
-          {/* Like */}
           <Pressable onPress={onLike} style={styles.actionButton}>
             <Ionicons
               name={isLiked ? "heart" : "heart-outline"}
               size={24}
-              color={isLiked ? "#e74c3c" : "#333"}
+              color={isLiked ? t.liked : t.textSecondary}
             />
           </Pressable>
 
-          {/* Comment */}
           <Pressable onPress={onComment} style={styles.actionButton}>
-            <Ionicons name="chatbubble-outline" size={22} color="#333" />
+            <Ionicons name="chatbubble-outline" size={22} color={t.textSecondary} />
           </Pressable>
 
-          {/* Share */}
           <Pressable onPress={onShare} style={styles.actionButton}>
-            <Ionicons name="paper-plane-outline" size={22} color="#333" />
+            <Ionicons name="paper-plane-outline" size={22} color={t.textSecondary} />
           </Pressable>
         </View>
 
         <View style={styles.rightActions}>
           {rightActionVariant === "watched" ? (
-            <Ionicons name="checkmark-circle" size={22} color="#1a535c" />
+            <Ionicons name="checkmark-circle" size={22} color={t.watched} />
           ) : (
             <>
-              {/* Add to list */}
               <Pressable onPress={onAddToList} style={styles.actionButton}>
-                <Ionicons name="add-circle-outline" size={24} color="#333" />
+                <Ionicons name="add-circle-outline" size={24} color={t.textSecondary} />
               </Pressable>
 
-              {/* Bookmark */}
               {rightActionVariant !== "bookmarked" && (
                 <Pressable onPress={onBookmark} style={styles.actionButton}>
                   <Ionicons
                     name={isBookmarked ? "bookmark" : "bookmark-outline"}
                     size={22}
-                    color={isBookmarked ? "#1a535c" : "#333"}
+                    color={isBookmarked ? t.bookmarked : t.textSecondary}
                   />
                 </Pressable>
               )}
@@ -213,144 +200,140 @@ const FeedItem: React.FC<FeedItemProps> = ({
         </View>
       </View>
 
-      {/* Timestamp */}
       <Text style={styles.timestamp}>{timestamp}</Text>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "#fff",
-  },
-  card: {
-    flexDirection: "row",
-    // Extra space between the header (avatar + copy) and the like row / heart so the icon sits lower in the card.
-    paddingBottom: 10,
-  },
-  mainRow: {
-    flexDirection: "row",
-    flex: 1,
-  },
-  avatarContainer: {
-    marginRight: 12,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  contentContainer: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  actionText: {
-    fontSize: 15,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  userName: {
-    fontWeight: "700",
-    color: "#000",
-  },
-  actionLabel: {
-    color: "#666",
-  },
-  titleText: {
-    fontWeight: "700",
-    color: "#000",
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  metaIcon: {
-    marginRight: 4,
-  },
-  metaText: {
-    fontSize: 13,
-    color: "#666",
-  },
-  description: {
-    fontSize: 14,
-    color: "#333",
-    marginTop: 4,
-  },
-  scoreBadge: {
-    backgroundColor: "#1a535c",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    justifyContent: "center",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    minWidth: 44,
-  },
-  scoreText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  likesCount: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#333",
-    fontWeight: "500",
-    marginTop: 4,
-    marginBottom: 0,
-  },
-  /** Matches likesCount: marginTop 4 + lineHeight 18 (invisible; keeps row height in sync when count is 0). */
-  likeCountPlaceholder: {
-    marginTop: 4,
-    height: 18,
-    alignSelf: "stretch",
-  },
-  likesPressable: {
-    alignSelf: "flex-start",
-  },
-  commentsLinePressable: {
-    alignSelf: "flex-start",
-  },
-  commentsCountLine: {
-    fontSize: 13,
-    color: "#1a535c",
-    fontWeight: "500",
-    marginTop: 2,
-    marginBottom: 2,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  /** +2pt tighter under the like label than the previous 4, per design (closer to the heart) */
-  actionsRowAfterLikeBlock: {
-    marginTop: 2,
-  },
-  leftActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  rightActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  actionButton: {
-    padding: 4,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: "#999",
-    // Mirror the gap above the icon row (actionsRow marginTop) so space above and below the actions feels even.
-    marginTop: 4,
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      backgroundColor: t.card,
+    },
+    card: {
+      flexDirection: "row",
+      paddingBottom: 10,
+    },
+    mainRow: {
+      flexDirection: "row",
+      flex: 1,
+    },
+    avatarContainer: {
+      marginRight: 12,
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+    },
+    contentContainer: {
+      flex: 1,
+      paddingRight: 8,
+    },
+    actionText: {
+      fontSize: 15,
+      lineHeight: 20,
+      marginBottom: 4,
+    },
+    userName: {
+      fontWeight: "700",
+      color: t.textPrimary,
+    },
+    actionLabel: {
+      color: t.textSecondary,
+    },
+    titleText: {
+      fontWeight: "700",
+      color: t.textPrimary,
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 4,
+    },
+    metaIcon: {
+      marginRight: 4,
+    },
+    metaText: {
+      fontSize: 13,
+      color: t.textMuted,
+    },
+    description: {
+      fontSize: 14,
+      color: t.textSecondary,
+      marginTop: 4,
+    },
+    scoreBadge: {
+      backgroundColor: t.primary,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      justifyContent: "center",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      minWidth: 44,
+    },
+    scoreText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    likesCount: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: t.textSecondary,
+      fontWeight: "500",
+      marginTop: 4,
+      marginBottom: 0,
+    },
+    likeCountPlaceholder: {
+      marginTop: 4,
+      height: 18,
+      alignSelf: "stretch",
+    },
+    likesPressable: {
+      alignSelf: "flex-start",
+    },
+    commentsLinePressable: {
+      alignSelf: "flex-start",
+    },
+    commentsCountLine: {
+      fontSize: 13,
+      color: t.actionAccent,
+      fontWeight: "500",
+      marginTop: 2,
+      marginBottom: 2,
+    },
+    actionsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    actionsRowAfterLikeBlock: {
+      marginTop: 2,
+    },
+    leftActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+    },
+    rightActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    actionButton: {
+      padding: 4,
+    },
+    timestamp: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 4,
+    },
+  });
 
 export default FeedItem;

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -10,12 +10,16 @@ import {
 } from "react-native";
 import Carousel, { ICarouselInstance } from "react-native-reanimated-carousel";
 import { fetchTrendingMovies, getPosterUrl, TrendingMovie } from "../TMDB";
+import { useAppTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../constants/theme";
 
 const { height, width } = Dimensions.get("window");
 
 function MyCarousel() {
   const carouselRef = useRef<ICarouselInstance>(null);
   const router = useRouter();
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [trendingMovies, setTrendingMovies] = useState<TrendingMovie[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +57,7 @@ function MyCarousel() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#B3261E" />
+        <ActivityIndicator size="large" color={t.primary} />
       </View>
     );
   }
@@ -103,45 +107,46 @@ function MyCarousel() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: "5%",
-    width: "100%",
-    alignSelf: "center",
-  },
-  loadingContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    height: height * 0.3,
-    width: "100%",
-  },
-  carousel: {
-    width: width * 0.9,
-    alignSelf: "center",
-    justifyContent: "center",
-  },
-  imageContainer: {
-    marginTop: "4%",
-    borderRadius: 32,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    width: "100%",
-    height: "100%",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 20,
-  },
-  noImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 20,
-    backgroundColor: "#e0e0e0",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: "center",
+      justifyContent: "center",
+      marginHorizontal: "5%",
+      width: "100%",
+      alignSelf: "center",
+    },
+    loadingContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      height: height * 0.3,
+      width: "100%",
+    },
+    carousel: {
+      width: width * 0.9,
+      alignSelf: "center",
+      justifyContent: "center",
+    },
+    imageContainer: {
+      marginTop: "4%",
+      borderRadius: 32,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      width: "100%",
+      height: "100%",
+    },
+    image: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 20,
+    },
+    noImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 20,
+      backgroundColor: t.posterPlaceholder,
+    },
+  });
 
 export default MyCarousel;

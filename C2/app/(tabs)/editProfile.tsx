@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,8 @@ import {
   UserProfile,
 } from "../../database/profileQueries";
 import { getCurrentUserId } from "../../lib/ratingsDb";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 const DEFAULT_PROFILE_URL =
   "https://eagksfoqgydjaqoijjtj.supabase.co/storage/v1/object/public/RC_profile/profile_pic.png";
@@ -37,6 +39,9 @@ type EditField = "name" | "username" | "birthday";
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,10 +85,7 @@ export default function EditProfileScreen() {
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Required",
-        "Please allow access to your photo library to update your profile photo.",
-      );
+      Alert.alert("Permission Required", "Please allow access to your photo library.");
       return;
     }
 
@@ -102,10 +104,7 @@ export default function EditProfileScreen() {
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Required",
-        "Please allow access to your camera to update your profile photo.",
-      );
+      Alert.alert("Permission Required", "Please allow access to your camera.");
       return;
     }
 
@@ -129,9 +128,7 @@ export default function EditProfileScreen() {
         const uploaded = await uploadProfilePicture(profile.id, uri);
         if (uploaded) photoUrl = uploaded;
       }
-      const updated = await updateProfile(profile.id, {
-        profile_pic: photoUrl || null,
-      });
+      const updated = await updateProfile(profile.id, { profile_pic: photoUrl || null });
       if (updated) {
         setProfile(updated);
         setProfilePhoto(updated.profile_pic || null);
@@ -151,11 +148,7 @@ export default function EditProfileScreen() {
       [
         { text: "Choose from library", onPress: handlePickPhoto },
         { text: "Take photo", onPress: handleTakePhoto },
-        {
-          text: "Delete photo",
-          style: "destructive",
-          onPress: () => updatePhoto(null),
-        },
+        { text: "Delete photo", style: "destructive", onPress: () => updatePhoto(null) },
         { text: "Cancel", style: "cancel" },
       ],
       { cancelable: true },
@@ -174,7 +167,6 @@ export default function EditProfileScreen() {
           ? {
               first_name: firstName.trim() || null,
               last_name: lastName.trim() || null,
-              // Use first name as display name for feeds
               display_name: firstName.trim() || null,
             }
           : editField === "username"
@@ -202,7 +194,7 @@ export default function EditProfileScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0B5563" />
+          <ActivityIndicator size="large" color={t.primary} />
         </View>
       </SafeAreaView>
     );
@@ -212,7 +204,7 @@ export default function EditProfileScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#000" />
+          <Ionicons name="chevron-back" size={24} color={t.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Edit profile</Text>
         <View style={styles.headerSpacer} />
@@ -221,9 +213,7 @@ export default function EditProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.avatarSection}>
           <Image
-            source={
-              profilePhoto ? { uri: profilePhoto } : DEFAULT_PROFILE_IMAGE
-            }
+            source={profilePhoto ? { uri: profilePhoto } : DEFAULT_PROFILE_IMAGE}
             style={styles.avatar}
           />
           <TouchableOpacity onPress={handlePhotoOptions}>
@@ -232,25 +222,26 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={styles.list}>
-          <Row
+          <RowItem
             label="Name"
-            value={
-              [firstName, lastName].filter(Boolean).join(" ") || "Add name"
-            }
+            value={[firstName, lastName].filter(Boolean).join(" ") || "Add name"}
             onPress={() => openEdit("name")}
+            t={t}
           />
-          <Row
+          <RowItem
             label="Username"
             value={username ? `@${username}` : "Add username"}
             onPress={() => openEdit("username")}
+            t={t}
           />
-          <Row
+          <RowItem
             label="Birthday"
             value={birthday || "Add birthday"}
             onPress={() => openEdit("birthday")}
+            t={t}
           />
-          <Row label="Email" value={profile?.email || "—"} disabled />
-          <Row label="Account settings" value="" disabled />
+          <RowItem label="Email" value={profile?.email || "—"} disabled t={t} />
+          <RowItem label="Account settings" value="" disabled t={t} />
         </View>
       </ScrollView>
 
@@ -283,12 +274,14 @@ export default function EditProfileScreen() {
                     <TextInput
                       style={styles.modalInput}
                       placeholder="First name"
+                      placeholderTextColor={t.placeholder}
                       value={firstName}
                       onChangeText={setFirstName}
                     />
                     <TextInput
                       style={styles.modalInput}
                       placeholder="Last name"
+                      placeholderTextColor={t.placeholder}
                       value={lastName}
                       onChangeText={setLastName}
                     />
@@ -300,15 +293,13 @@ export default function EditProfileScreen() {
                     <TextInput
                       style={styles.modalInput}
                       placeholder="@username"
+                      placeholderTextColor={t.placeholder}
                       value={username}
                       autoCapitalize="none"
-                      onChangeText={(text) =>
-                        setUsername(text.replace(/^@/, ""))
-                      }
+                      onChangeText={(text) => setUsername(text.replace(/^@/, ""))}
                     />
                     <Text style={styles.modalHelper}>
-                      Changing your username will also change your shareable
-                      list link
+                      Changing your username will also change your shareable list link
                     </Text>
                   </View>
                 )}
@@ -318,6 +309,7 @@ export default function EditProfileScreen() {
                     <TextInput
                       style={styles.modalInput}
                       placeholder="YYYY-MM-DD"
+                      placeholderTextColor={t.placeholder}
                       value={birthday}
                       onChangeText={setBirthday}
                     />
@@ -332,109 +324,101 @@ export default function EditProfileScreen() {
   );
 }
 
-function Row({
+function RowItem({
   label,
   value,
   onPress,
   disabled,
+  t,
 }: {
   label: string;
   value: string;
   onPress?: () => void;
   disabled?: boolean;
+  t: ThemeColors;
 }) {
   return (
-    <Pressable style={styles.row} onPress={disabled ? undefined : onPress}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.rowRight}>
-        <Text style={styles.rowValue}>{value}</Text>
+    <Pressable
+      style={{
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: t.divider,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+      onPress={disabled ? undefined : onPress}
+    >
+      <Text style={{ fontSize: 15, color: t.textPrimary }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <Text style={{ fontSize: 15, color: t.textMuted }}>{value}</Text>
         {!disabled && (
-          <Ionicons name="chevron-forward" size={18} color="#9AA0A6" />
+          <Ionicons name="chevron-forward" size={18} color={t.textMuted} />
         )}
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
-  loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: { padding: 4 },
-  headerTitle: { fontSize: 16, fontWeight: "600" },
-  headerSpacer: { width: 24 },
-  content: { paddingBottom: 40 },
-  avatarSection: { alignItems: "center", paddingVertical: 16 },
-  avatar: { width: 88, height: 88, borderRadius: 44 },
-  avatarPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "#E0E0E0",
-  },
-  editPhotoText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "#0B5563",
-    fontWeight: "600",
-  },
-  list: { marginTop: 8 },
-  row: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EFEFEF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  rowLabel: { fontSize: 15, color: "#111" },
-  rowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  rowValue: { fontSize: 15, color: "#8B8B8B" },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-    paddingHorizontal: 20,
-  },
-  modalCard: {
-    backgroundColor: "#fff",
-    width: "100%",
-    maxWidth: 420,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-    paddingTop: 8,
-    borderRadius: 16,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  modalCancel: { color: "#0B5563", fontSize: 14 },
-  modalSave: { color: "#0B5563", fontSize: 14, fontWeight: "600" },
-  modalTitle: { fontSize: 16, fontWeight: "600" },
-  modalBody: { paddingTop: 12 },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "#E7E7E7",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    fontSize: 14,
-    marginBottom: 10,
-  },
-  modalHelper: {
-    color: "#8B8B8B",
-    fontSize: 12,
-    marginTop: 4,
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: t.background },
+    loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: t.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+    },
+    backButton: { padding: 4 },
+    headerTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
+    headerSpacer: { width: 24 },
+    content: { paddingBottom: 40 },
+    avatarSection: { alignItems: "center", paddingVertical: 16 },
+    avatar: { width: 88, height: 88, borderRadius: 44 },
+    editPhotoText: { marginTop: 10, fontSize: 14, color: t.primary, fontWeight: "600" },
+    list: { marginTop: 8 },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: t.overlay,
+      paddingHorizontal: 20,
+    },
+    modalCard: {
+      backgroundColor: t.modalBackground,
+      width: "100%",
+      maxWidth: 420,
+      paddingHorizontal: 16,
+      paddingBottom: 20,
+      paddingTop: 8,
+      borderRadius: 16,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 8,
+    },
+    modalCancel: { color: t.primary, fontSize: 14 },
+    modalSave: { color: t.primary, fontSize: 14, fontWeight: "600" },
+    modalTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
+    modalBody: { paddingTop: 12 },
+    modalInput: {
+      borderWidth: 1,
+      borderColor: t.inputBorder,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      fontSize: 14,
+      marginBottom: 10,
+      color: t.textPrimary,
+      backgroundColor: t.inputBackground,
+    },
+    modalHelper: { color: t.textMuted, fontSize: 12, marginTop: 4 },
+  });

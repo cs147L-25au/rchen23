@@ -1,7 +1,9 @@
 // components/RatingModal/TitleTypePicker.tsx
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
 export type TitleType = "movie" | "tv" | "documentary";
 
@@ -20,9 +22,12 @@ const TitleTypePicker: React.FC<TitleTypePickerProps> = ({
   selected,
   onSelect,
 }) => {
+  const { colors: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const [modalVisible, setModalVisible] = useState(false);
 
-  const selectedType = TITLE_TYPES.find((t) => t.value === selected);
+  const selectedType = TITLE_TYPES.find((type) => type.value === selected);
 
   return (
     <>
@@ -35,10 +40,10 @@ const TitleTypePicker: React.FC<TitleTypePickerProps> = ({
           <Ionicons
             name={selectedType?.icon as any}
             size={18}
-            color="#1a535c"
+            color={t.primary}
           />
           <Text style={styles.dropdownText}>{selectedType?.label}</Text>
-          <Ionicons name="chevron-down" size={16} color="#1a535c" />
+          <Ionicons name="chevron-down" size={16} color={t.primary} />
         </Pressable>
       </View>
 
@@ -66,7 +71,7 @@ const TitleTypePicker: React.FC<TitleTypePickerProps> = ({
                 <Ionicons
                   name={type.icon as any}
                   size={22}
-                  color={selected === type.value ? "#1a535c" : "#666"}
+                  color={selected === type.value ? t.primary : t.textSecondary}
                 />
                 <Text
                   style={[
@@ -77,7 +82,7 @@ const TitleTypePicker: React.FC<TitleTypePickerProps> = ({
                   {type.label}
                 </Text>
                 {selected === type.value && (
-                  <Ionicons name="checkmark" size={22} color="#1a535c" />
+                  <Ionicons name="checkmark" size={22} color={t.primary} />
                 )}
               </Pressable>
             ))}
@@ -90,67 +95,68 @@ const TitleTypePicker: React.FC<TitleTypePickerProps> = ({
 
 export default TitleTypePicker;
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#f5f5f5",
-    gap: 12,
-  },
-  label: {
-    fontSize: 14,
-    color: "#333",
-  },
-  dropdown: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#1a535c",
-    gap: 6,
-  },
-  dropdownText: {
-    fontSize: 14,
-    color: "#1a535c",
-    fontWeight: "500",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-  },
-  modalTitle: {
-    fontSize: 14,
-    color: "#888",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  modalOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    gap: 12,
-  },
-  modalOptionText: {
-    flex: 1,
-    fontSize: 18,
-    color: "#000",
-  },
-  modalOptionSelected: {
-    fontWeight: "600",
-    color: "#1a535c",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      backgroundColor: t.card,
+      gap: 12,
+    },
+    label: {
+      fontSize: 14,
+      color: t.textSecondary,
+    },
+    dropdown: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.background,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: t.primary,
+      gap: 6,
+    },
+    dropdownText: {
+      fontSize: 14,
+      color: t.primary,
+      fontWeight: "500",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      justifyContent: "flex-end",
+    },
+    modalContent: {
+      backgroundColor: t.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingTop: 20,
+      paddingBottom: 40,
+      paddingHorizontal: 20,
+    },
+    modalTitle: {
+      fontSize: 14,
+      color: t.textMuted,
+      textAlign: "center",
+      marginBottom: 16,
+    },
+    modalOption: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 16,
+      gap: 12,
+    },
+    modalOptionText: {
+      flex: 1,
+      fontSize: 18,
+      color: t.textPrimary,
+    },
+    modalOptionSelected: {
+      fontWeight: "600",
+      color: t.primary,
+    },
+  });

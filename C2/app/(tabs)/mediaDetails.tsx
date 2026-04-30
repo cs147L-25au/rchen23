@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,13 +20,15 @@ import { getAllRatings, RatingPost } from "../../database/queries";
 import { getPosterUrl } from "../../TMDB";
 
 import { RatingModal, TMDBTitleData } from "../../components/RatingModal";
+import FriendActivityCard from "../../components/FriendActivityCard";
 import { getCurrentUserId, TitleType } from "../../lib/ratingsDb";
 import {
   isInWatchlistByTmdb,
   toggleWatchlistByTmdb,
 } from "../../lib/watchlistDb";
+import { useAppTheme } from "../../contexts/ThemeContext";
+import { ThemeColors } from "../../constants/theme";
 
-// ---------- Types ----------
 type CastMember = {
   id: number;
   name: string;
@@ -35,8 +37,8 @@ type CastMember = {
   order?: number;
 };
 
-const ACCENT_RED = "#B3261E";
 const TMDB_API_KEY = "b6a79cf2e43d2d321e6bba3ca5b02c63";
+
 function pushPersonFromTitle(
   router: ReturnType<typeof useRouter>,
   personId: number,
@@ -51,7 +53,6 @@ function pushPersonFromTitle(
   });
 }
 
-// Make sure a profile row exists for the current user
 async function ensureProfile() {
   const {
     data: { user },
@@ -61,9 +62,7 @@ async function ensureProfile() {
   if (error || !user) return null;
 
   await db.from("profiles").upsert(
-    {
-      id: user.id, // must be the PK in profiles
-    },
+    { id: user.id },
     { onConflict: "id" },
   );
 
@@ -72,6 +71,8 @@ async function ensureProfile() {
 
 const MediaDetailScreen: React.FC = () => {
   const router = useRouter();
+  const { colors: t, mode } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const { id, title, mediaType, overview, posterPath, voteAverage, voteCount } =
     useLocalSearchParams<{
@@ -111,7 +112,6 @@ const MediaDetailScreen: React.FC = () => {
   const showRating =
     (mediaType === "movie" || mediaType === "tv") && ratingText !== undefined;
 
-  // ---- Extra TMDB details (year, runtime / seasons & episodes, rating) ----
   const [details, setDetails] = useState<any | null>(null);
   const [contentRating, setContentRating] = useState<string | null>(null);
 
@@ -121,13 +121,11 @@ const MediaDetailScreen: React.FC = () => {
       if (!TMDB_API_KEY) return;
 
       try {
-        // Main details (release date, runtime, seasons, etc.)
         const detailsUrl = `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_API_KEY}&language=en-US`;
         const detailsRes = await fetch(detailsUrl);
         const detailsJson = await detailsRes.json();
         setDetails(detailsJson);
 
-        // Content rating / certification (US)
         let ratingUrl: string;
         if (mediaType === "movie") {
           ratingUrl = `https://api.themoviedb.org/3/movie/${id}/release_dates?api_key=${TMDB_API_KEY}`;
@@ -162,7 +160,6 @@ const MediaDetailScreen: React.FC = () => {
     fetchDetailsAndRating();
   }, [id, mediaType]);
 
-  // Build the meta line dynamically
   let metaLine = "";
   let genresLine = "";
   if (details) {
@@ -198,7 +195,6 @@ const MediaDetailScreen: React.FC = () => {
 
     metaLine = pieces.join(" • ");
 
-    // Extract genres from TMDB details
     const genres = (details as any).genres as
       | { id: number; name: string }[]
       | undefined;
@@ -207,7 +203,6 @@ const MediaDetailScreen: React.FC = () => {
     }
   }
 
-  // ---- Top cast + director/creator state ----
   const [topCast, setTopCast] = useState<CastMember[]>([]);
   const [primaryCreditLabel, setPrimaryCreditLabel] = useState<string | null>(
     null,
@@ -228,7 +223,6 @@ const MediaDetailScreen: React.FC = () => {
         const res = await fetch(creditsUrl);
         const json = await res.json();
 
-        // CAST
         const cast = (json.cast ?? []) as CastMember[];
         cast.sort((a, b) => {
           const ao = a.order ?? 9999;
@@ -237,7 +231,6 @@ const MediaDetailScreen: React.FC = () => {
         });
         setTopCast(cast.slice(0, 6));
 
-        // CREW -> director(s) or creator(s)
         const crew = json.crew ?? [];
 
         if (mediaType === "movie") {
@@ -281,8 +274,9 @@ const MediaDetailScreen: React.FC = () => {
     fetchCredits();
   }, [id, mediaType]);
 
-  // ---- Friends' comments state ----
-  const [friendComments, setFriendComments] = useState<RatingPost[]>([]);
+  const [friendComments, setFriendComments] = useState<
+    (RatingPost & { display_name?: string; profile_pic?: string | null })[]
+  >([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
 
   useEffect(() => {
@@ -291,7 +285,33 @@ const MediaDetailScreen: React.FC = () => {
         setFriendsLoading(true);
         const data = await getAllRatings();
         const filtered = data.filter((r) => r.title === displayTitle);
-        setFriendComments(filtered);
+
+        // Fetch profile data for each friend
+        const enrichedComments = await Promise.all(
+          filtered.map(async (comment) => {
+            try {
+              const { data: profileData } = await db
+                .from("profiles")
+                .select("display_name, profile_pic")
+                .eq("id", comment.user_id)
+                .maybeSingle();
+
+              return {
+                ...comment,
+                display_name: profileData?.display_name || "User",
+                profile_pic: profileData?.profile_pic || null,
+              };
+            } catch {
+              return {
+                ...comment,
+                display_name: "User",
+                profile_pic: null,
+              };
+            }
+          })
+        );
+
+        setFriendComments(enrichedComments);
       } catch (err) {
         console.error("Failed to load friend comments", err);
       } finally {
@@ -314,18 +334,12 @@ const MediaDetailScreen: React.FC = () => {
     return <Image source={{ uri }} style={styles.castImg} />;
   };
 
-  // ---- Rating Modal ----
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
-
-  // ---- Watchlist State ----
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-  // ---- Rating State ----
   const [hasRated, setHasRated] = useState(false);
 
-  // Check watchlist and rating status on load
   useEffect(() => {
     const checkStatuses = async () => {
       if (!id || !(mediaType === "movie" || mediaType === "tv")) return;
@@ -335,7 +349,6 @@ const MediaDetailScreen: React.FC = () => {
         setCurrentUserId(userId);
 
         if (userId) {
-          // Check watchlist status
           const result = await isInWatchlistByTmdb(
             userId,
             parseInt(id, 10),
@@ -343,7 +356,6 @@ const MediaDetailScreen: React.FC = () => {
           );
           setInWatchlist(result.inWatchlist);
 
-          // Check if user has rated this title
           const { data: ratingData } = await db
             .from("v_user_ratings")
             .select("rating_id")
@@ -362,7 +374,24 @@ const MediaDetailScreen: React.FC = () => {
     checkStatuses();
   }, [id, mediaType]);
 
-  // Toggle watchlist handler
+  const genresArray: string[] = details
+    ? (
+        (details as any).genres as { id: number; name: string }[] | undefined
+      )?.map((g) => g.name) || []
+    : [];
+
+  const releaseYear: number | null = details
+    ? (() => {
+        const dateStr =
+          (details as any).release_date ?? (details as any).first_air_date;
+        if (dateStr) {
+          const year = new Date(dateStr).getFullYear();
+          return isNaN(year) ? null : year;
+        }
+        return null;
+      })()
+    : null;
+
   const handleWatchlistToggle = async () => {
     if (!id || !(mediaType === "movie" || mediaType === "tv")) return;
     if (watchlistLoading) return;
@@ -370,7 +399,6 @@ const MediaDetailScreen: React.FC = () => {
     try {
       setWatchlistLoading(true);
 
-      // Determine title type based on mediaType and other factors
       let titleType: TitleType = "movie";
       if (mediaType === "tv") {
         titleType = "tv";
@@ -388,7 +416,6 @@ const MediaDetailScreen: React.FC = () => {
 
       setInWatchlist(result.inWatchlist);
 
-      // Show feedback
       if (result.inWatchlist) {
         Alert.alert("Added", `${displayTitle} added to your watchlist`);
       } else {
@@ -402,27 +429,6 @@ const MediaDetailScreen: React.FC = () => {
     }
   };
 
-  // Extract genres array for rating modal
-  const genresArray: string[] = details
-    ? (
-        (details as any).genres as { id: number; name: string }[] | undefined
-      )?.map((g) => g.name) || []
-    : [];
-
-  // Extract release year for rating modal
-  const releaseYear: number | null = details
-    ? (() => {
-        const dateStr =
-          (details as any).release_date ?? (details as any).first_air_date;
-        if (dateStr) {
-          const year = new Date(dateStr).getFullYear();
-          return isNaN(year) ? null : year;
-        }
-        return null;
-      })()
-    : null;
-
-  // Build TMDB data for the rating modal
   const tmdbData: TMDBTitleData | null =
     id && displayTitle
       ? {
@@ -436,10 +442,8 @@ const MediaDetailScreen: React.FC = () => {
       : null;
 
   const handleRatingSuccess = () => {
-    // Mark as rated
     setHasRated(true);
 
-    // Optionally refresh comments
     const loadComments = async () => {
       try {
         const data = await getAllRatings();
@@ -454,23 +458,20 @@ const MediaDetailScreen: React.FC = () => {
 
   return (
     <View style={styles.page}>
-      {/* Make header (incl. profile pic) pressable -> Settings */}
       <Pressable onPress={() => router.push("/(tabs)/settings")}>
         <Header />
       </Pressable>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        {/* Back row */}
         <Pressable
           style={styles.backRow}
           onPress={() => router.back()}
           hitSlop={10}
         >
-          <Ionicons name="chevron-back" size={20} color="#666" />
+          <Ionicons name="chevron-back" size={20} color={t.textMuted} />
           <Text style={styles.backText}>Back to Search</Text>
         </Pressable>
 
-        {/* Hero section */}
         <View style={styles.heroCard}>
           <View style={styles.heroRow}>
             {posterUri ? (
@@ -482,15 +483,13 @@ const MediaDetailScreen: React.FC = () => {
             )}
 
             <View style={styles.heroMetaColumn}>
-              {/* Title + media type */}
               <View style={styles.heroTitleBlock}>
-                <Text style={styles.title}>{displayTitle}</Text>
+                <Text style={styles.titleText}>{displayTitle}</Text>
                 {displayType.length > 0 && (
                   <Text style={styles.type}>{displayType}</Text>
                 )}
               </View>
 
-              {/* Director / Creator — label column + flex names so wraps align under first name */}
               {primaryCreditLabel && primaryCreditPeople.length > 0 && (
                 <View style={styles.creditLabelRow}>
                   <Text style={styles.creditLabelFixed} numberOfLines={1}>
@@ -505,11 +504,7 @@ const MediaDetailScreen: React.FC = () => {
                           ) : null}
                           <Text
                             onPress={() =>
-                              pushPersonFromTitle(
-                                router,
-                                p.id,
-                                displayTitle,
-                              )
+                              pushPersonFromTitle(router, p.id, displayTitle)
                             }
                             style={styles.creditLink}
                           >
@@ -522,7 +517,6 @@ const MediaDetailScreen: React.FC = () => {
                 </View>
               )}
 
-              {/* TMDB rating */}
               {showRating && (
                 <View style={styles.ratingBlock}>
                   <View style={styles.ratingRow}>
@@ -537,7 +531,6 @@ const MediaDetailScreen: React.FC = () => {
                 </View>
               )}
 
-              {/* Genres + year / runtime / certification */}
               <View style={styles.heroMetaBlock}>
                 <Text style={styles.metaSmall}>
                   {genresLine.length > 0 ? genresLine : "Genres unavailable"}
@@ -593,7 +586,6 @@ const MediaDetailScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Overview */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Overview</Text>
           <Text style={styles.sectionBody}>
@@ -603,7 +595,6 @@ const MediaDetailScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Top Cast – IMDB-style rows with actor photos */}
         <View style={styles.section}>
           <View style={styles.castHeaderRow}>
             <View style={styles.castHeaderLeft}>
@@ -616,18 +607,14 @@ const MediaDetailScreen: React.FC = () => {
           </View>
 
           {castLoading ? (
-            <ActivityIndicator />
+            <ActivityIndicator color={t.primary} />
           ) : topCast.length > 0 ? (
             topCast.map((member) => (
               <Pressable
                 key={member.id}
                 style={styles.castRow}
                 onPress={() =>
-                  pushPersonFromTitle(
-                    router,
-                    member.id,
-                    displayTitle,
-                  )
+                  pushPersonFromTitle(router, member.id, displayTitle)
                 }
               >
                 {renderCastImage(member)}
@@ -646,39 +633,37 @@ const MediaDetailScreen: React.FC = () => {
           )}
         </View>
 
-        {/* What your friends think */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What your friends think</Text>
 
           {friendsLoading ? (
-            <ActivityIndicator />
+            <ActivityIndicator color={t.primary} />
           ) : friendComments.length > 0 ? (
-            friendComments.map((post: RatingPost) => (
-              <View key={post.rating_id} style={styles.friendCommentCard}>
-                <View style={styles.friendHeaderRow}>
-                  <FontAwesome5 name="user-circle" size={20} color="#4b4b4b" />
-                  <Text style={styles.friendName}>Friend</Text>
-                </View>
-                <Text style={styles.friendCommentText}>
-                  {post.review_body ??
-                    (post.score
-                      ? `Rated this ${post.score.toFixed(1)}/10`
-                      : `${
-                          post.category === "good"
-                            ? "Liked"
-                            : post.category === "alright"
-                              ? "It was fine"
-                              : "Disliked"
-                        } this.`)}
-                </Text>
-              </View>
+            friendComments.map((post) => (
+              <FriendActivityCard
+                key={post.rating_id}
+                ratingPost={post}
+                userName={post.display_name || "User"}
+                profileImage={post.profile_pic || null}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/mediaDetails",
+                    params: {
+                      id: String(post.tmdb_id),
+                      title: post.title,
+                      mediaType: post.tmdb_media_type,
+                      posterPath: post.poster_path || "",
+                    },
+                  })
+                }
+              />
             ))
           ) : (
             <View style={styles.emptyFriendsContainer}>
               <FontAwesome5
                 name="user-friends"
                 size={40}
-                color="#7a7a7a"
+                color={t.textMuted}
                 style={{ marginBottom: 8 }}
               />
               <Text style={styles.emptyFriendsTitle}>
@@ -695,7 +680,6 @@ const MediaDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Rating popup */}
       <RatingModal
         visible={ratingModalVisible}
         tmdbData={tmdbData}
@@ -704,337 +688,301 @@ const MediaDetailScreen: React.FC = () => {
       />
 
       <NavBar />
-      <StatusBar style="auto" />
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
     </View>
   );
 };
 
 export default MediaDetailScreen;
 
-// ---------- Styles ----------
-const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 120,
-    paddingTop: 12,
-  },
-
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  backText: {
-    fontSize: 14,
-    color: "#666666",
-    marginLeft: 4,
-    fontFamily: "DM Sans",
-  },
-
-  heroCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  heroRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  posterLarge: {
-    width: 120,
-    height: 180,
-    borderRadius: 8,
-    marginRight: 14,
-  },
-  noPosterLarge: {
-    width: 120,
-    height: 180,
-    borderRadius: 8,
-    marginRight: 14,
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  noPosterText: {
-    color: "#777",
-    fontFamily: "DM Sans",
-  },
-  /** Major sections: title, credits, rating, meta, actions — uniform 12px rhythm */
-  heroMetaColumn: {
-    flex: 1,
-    gap: 12,
-    minWidth: 0,
-  },
-  heroTitleBlock: {
-    gap: 4,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#000",
-    fontFamily: "DM Sans",
-    lineHeight: 28,
-  },
-  type: {
-    fontSize: 14,
-    color: "#666",
-    fontFamily: "DM Sans",
-    lineHeight: 20,
-  },
-  /** Director line: nowrap label + flex:1 names (wrapped lines align with names) */
-  creditLabelRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-  },
-  creditLabelFixed: {
-    flexShrink: 0,
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  creditNamesFlex: {
-    flex: 1,
-    minWidth: 0,
-  },
-  creditNamesText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  creditNameComma: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  creditLink: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: ACCENT_RED,
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-  },
-  ratingBlock: {
-    gap: 4,
-  },
-  ratingRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 6,
-  },
-  ratingNumber: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: ACCENT_RED,
-    fontFamily: "DM Sans",
-    lineHeight: 28,
-  },
-  ratingLabel: {
-    fontSize: 13,
-    color: "#555",
-    fontFamily: "DM Sans",
-    lineHeight: 20,
-  },
-  voteCountText: {
-    fontSize: 12,
-    color: "#555",
-    fontFamily: "DM Sans",
-    lineHeight: 16,
-  },
-  heroMetaBlock: {
-    gap: 4,
-  },
-  metaSmall: {
-    fontSize: 12,
-    color: "#777",
-    fontFamily: "DM Sans",
-    lineHeight: 18,
-  },
-
-  actionRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: ACCENT_RED,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    gap: 4,
-    minWidth: 100,
-    justifyContent: "center",
-  },
-  actionChipActive: {
-    backgroundColor: "#1a535c",
-  },
-  actionChipText: {
-    color: "#fff",
-    fontSize: 13,
-    fontFamily: "DM Sans",
-    fontWeight: "500",
-  },
-
-  section: {
-    marginBottom: 18,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 6,
-    fontFamily: "DM Sans",
-  },
-  sectionBody: {
-    fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
-    fontFamily: "DM Sans",
-  },
-
-  // Top Cast
-  castHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    justifyContent: "space-between",
-  },
-  castHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  castAccentBar: {
-    width: 3,
-    height: 18,
-    borderRadius: 2,
-    backgroundColor: "#f5c518",
-  },
-  castCountText: {
-    fontSize: 12,
-    color: "#666",
-    fontFamily: "DM Sans",
-  },
-  castRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  castImg: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 10,
-    backgroundColor: "#e0e0e0",
-  },
-  castNoImg: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 10,
-    backgroundColor: "#e0e0e0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  castNoImgText: {
-    fontSize: 9,
-    color: "#555",
-    fontFamily: "DM Sans",
-  },
-  castTextCol: {
-    flex: 1,
-  },
-  castName: {
-    fontSize: 14,
-    color: "#000",
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-  },
-  castCharacter: {
-    fontSize: 13,
-    color: "#666",
-    fontFamily: "DM Sans",
-  },
-
-  // Friends section
-  friendCommentCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    padding: 10,
-    marginBottom: 8,
-    backgroundColor: "#fafafa",
-  },
-  friendHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-    gap: 6,
-  },
-  friendName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#000",
-    fontFamily: "DM Sans",
-  },
-  friendCommentText: {
-    fontSize: 13,
-    color: "#333",
-    fontFamily: "DM Sans",
-  },
-
-  emptyFriendsContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    backgroundColor: "#fafafa",
-  },
-  emptyFriendsTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 4,
-    textAlign: "center",
-    fontFamily: "DM Sans",
-  },
-  emptyFriendsBody: {
-    fontSize: 13,
-    color: "#555",
-    textAlign: "center",
-    marginBottom: 10,
-    fontFamily: "DM Sans",
-  },
-  findFriendsButton: {
-    marginTop: 4,
-    borderRadius: 18,
-    backgroundColor: ACCENT_RED,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  findFriendsButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    fontFamily: "DM Sans",
-  },
-});
+const makeStyles = (t: ThemeColors) =>
+  StyleSheet.create({
+    page: {
+      flex: 1,
+      backgroundColor: t.background,
+    },
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: 16,
+      paddingBottom: 120,
+      paddingTop: 12,
+    },
+    backRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    backText: {
+      fontSize: 14,
+      color: t.textMuted,
+      marginLeft: 4,
+      fontFamily: "DM Sans",
+    },
+    heroCard: {
+      backgroundColor: t.card,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    heroRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+    },
+    posterLarge: {
+      width: 120,
+      height: 180,
+      borderRadius: 8,
+      marginRight: 14,
+    },
+    noPosterLarge: {
+      width: 120,
+      height: 180,
+      borderRadius: 8,
+      marginRight: 14,
+      backgroundColor: t.posterPlaceholder,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    noPosterText: {
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    heroMetaColumn: {
+      flex: 1,
+      gap: 12,
+      minWidth: 0,
+    },
+    heroTitleBlock: {
+      gap: 4,
+    },
+    titleText: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: t.textPrimary,
+      fontFamily: "DM Sans",
+      lineHeight: 28,
+    },
+    type: {
+      fontSize: 14,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      lineHeight: 20,
+    },
+    creditLabelRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+    },
+    creditLabelFixed: {
+      flexShrink: 0,
+      fontSize: 13,
+      lineHeight: 20,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+    },
+    creditNamesFlex: {
+      flex: 1,
+      minWidth: 0,
+    },
+    creditNamesText: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+    },
+    creditNameComma: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+    },
+    creditLink: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: t.primary,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+    },
+    ratingBlock: {
+      gap: 4,
+    },
+    ratingRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: 6,
+    },
+    ratingNumber: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: t.primary,
+      fontFamily: "DM Sans",
+      lineHeight: 28,
+    },
+    ratingLabel: {
+      fontSize: 13,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+      lineHeight: 20,
+    },
+    voteCountText: {
+      fontSize: 12,
+      color: t.textSecondary,
+      fontFamily: "DM Sans",
+      lineHeight: 16,
+    },
+    heroMetaBlock: {
+      gap: 4,
+    },
+    metaSmall: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+      lineHeight: 18,
+    },
+    actionRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    actionChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.primary,
+      borderRadius: 16,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      gap: 4,
+      minWidth: 100,
+      justifyContent: "center",
+    },
+    actionChipActive: {
+      backgroundColor: t.watched,
+    },
+    actionChipText: {
+      color: "#fff",
+      fontSize: 13,
+      fontFamily: "DM Sans",
+      fontWeight: "500",
+    },
+    section: {
+      marginBottom: 18,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: t.textPrimary,
+      marginBottom: 6,
+      fontFamily: "DM Sans",
+    },
+    sectionBody: {
+      fontSize: 14,
+      color: t.textSecondary,
+      lineHeight: 20,
+      fontFamily: "DM Sans",
+    },
+    castHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
+      justifyContent: "space-between",
+    },
+    castHeaderLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    castAccentBar: {
+      width: 3,
+      height: 18,
+      borderRadius: 2,
+      backgroundColor: "#f5c518",
+    },
+    castCountText: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    castRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    castImg: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      marginRight: 10,
+      backgroundColor: t.posterPlaceholder,
+    },
+    castNoImg: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      marginRight: 10,
+      backgroundColor: t.posterPlaceholder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    castNoImgText: {
+      fontSize: 9,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    castTextCol: {
+      flex: 1,
+    },
+    castName: {
+      fontSize: 14,
+      color: t.textPrimary,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+    },
+    castCharacter: {
+      fontSize: 13,
+      color: t.textMuted,
+      fontFamily: "DM Sans",
+    },
+    emptyFriendsContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surface,
+    },
+    emptyFriendsTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: t.textPrimary,
+      marginBottom: 4,
+      textAlign: "center",
+      fontFamily: "DM Sans",
+    },
+    emptyFriendsBody: {
+      fontSize: 13,
+      color: t.textSecondary,
+      textAlign: "center",
+      marginBottom: 10,
+      fontFamily: "DM Sans",
+    },
+    findFriendsButton: {
+      marginTop: 4,
+      borderRadius: 18,
+      backgroundColor: t.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    findFriendsButtonText: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "600",
+      fontFamily: "DM Sans",
+    },
+  });
