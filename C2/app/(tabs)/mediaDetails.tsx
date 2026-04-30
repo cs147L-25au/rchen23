@@ -26,6 +26,7 @@ import {
   isInWatchlistByTmdb,
   toggleWatchlistByTmdb,
 } from "../../lib/watchlistDb";
+import { isFollowing } from "../../lib/friendsDb";
 import { useAppTheme } from "../../contexts/ThemeContext";
 import { ThemeColors } from "../../constants/theme";
 
@@ -74,7 +75,7 @@ const MediaDetailScreen: React.FC = () => {
   const { colors: t, mode } = useAppTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
 
-  const { id, title, mediaType, overview, posterPath, voteAverage, voteCount } =
+  const { id, title, mediaType, overview, posterPath, voteAverage, voteCount, fromTitle } =
     useLocalSearchParams<{
       id?: string;
       title?: string;
@@ -83,6 +84,7 @@ const MediaDetailScreen: React.FC = () => {
       posterPath?: string;
       voteAverage?: string;
       voteCount?: string;
+      fromTitle?: string;
     }>();
 
   const displayTitle = title ?? "Unknown title";
@@ -286,9 +288,32 @@ const MediaDetailScreen: React.FC = () => {
         const data = await getAllRatings();
         const filtered = data.filter((r) => r.title === displayTitle);
 
-        // Fetch profile data for each friend
+        // Filter out current user's own comments
+        const withoutSelf = filtered.filter((r) => r.user_id !== currentUserId);
+
+        // Filter to only mutual followers (both follow each other)
+        const mutualFollows: (RatingPost & {
+          display_name?: string;
+          profile_pic?: string | null;
+        })[] = [];
+
+        for (const comment of withoutSelf) {
+          if (!currentUserId) {
+            continue;
+          }
+
+          const isMutual =
+            (await isFollowing(currentUserId, comment.user_id)) &&
+            (await isFollowing(comment.user_id, currentUserId));
+
+          if (isMutual) {
+            mutualFollows.push(comment);
+          }
+        }
+
+        // Fetch profile data for each mutual friend
         const enrichedComments = await Promise.all(
-          filtered.map(async (comment) => {
+          mutualFollows.map(async (comment) => {
             try {
               const { data: profileData } = await db
                 .from("profiles")
@@ -320,7 +345,7 @@ const MediaDetailScreen: React.FC = () => {
     };
 
     loadComments();
-  }, [displayTitle]);
+  }, [displayTitle, currentUserId]);
 
   const renderCastImage = (member: CastMember) => {
     if (!member.profile_path) {
@@ -469,7 +494,9 @@ const MediaDetailScreen: React.FC = () => {
           hitSlop={10}
         >
           <Ionicons name="chevron-back" size={20} color={t.textMuted} />
-          <Text style={styles.backText}>Back to Search</Text>
+          <Text style={styles.backText}>
+            {fromTitle ? `Back to ${fromTitle}` : "Back to Search"}
+          </Text>
         </Pressable>
 
         <View style={styles.heroCard}>

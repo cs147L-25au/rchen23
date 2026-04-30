@@ -221,6 +221,7 @@ const PersonScreen: React.FC = () => {
         voteAverage:
           entry.vote_average != null ? String(entry.vote_average) : "",
         voteCount: entry.vote_count != null ? String(entry.vote_count) : "",
+        fromTitle: entry.title,
       },
     });
   };

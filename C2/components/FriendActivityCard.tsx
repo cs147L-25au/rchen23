@@ -100,7 +100,7 @@ const FriendActivityCard: React.FC<FriendActivityCardProps> = ({
             </View>
           )}
         </View>
-      </Pressable>
+      </View>
     </Pressable>
   );
 };

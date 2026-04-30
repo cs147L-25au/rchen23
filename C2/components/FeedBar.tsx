@@ -96,15 +96,12 @@ const FeedBar: React.FC<FeedBarProps> = ({ scrollEnabled = true }) => {
 
   useFocusEffect(
     useCallback(() => {
-      // Always get fresh user ID to ensure exclusion works
-      const refresh = async () => {
+      // Only ensure user ID is set; don't reload feed on tab switch to preserve state
+      const ensureUserId = async () => {
         const userId = await getCurrentUserId();
-        if (userId) {
-          setCurrentUserId(userId);
-          await loadFeed(userId);
-        }
+        setCurrentUserId(userId);
       };
-      refresh();
+      ensureUserId();
     }, []),
   );
 
